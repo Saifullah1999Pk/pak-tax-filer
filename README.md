@@ -14,16 +14,6 @@ RAG, and agentic workflows — by building something real, not a tutorial app.
 **Status:** early build, synthetic data only, not yet reviewed by a tax
 practitioner. Nothing in this app is tax advice until that changes.
 
-## Why this problem
-
-FBR's own IRIS portal is confusing enough that it spawned a free government
-workaround (Tax Asaan), a VC-backed startup (Befiler.com — 1M+ downloads,
-$1.5M seed round), another platform (Waystax), and a long tail of Fiverr
-consultants charging Rs. 3,000–20,000/filing. People already pay for this.
-The gap: none of them are free, self-hostable, *and* show their calculation
-work. That's the niche here — not competing with those on "just file it for
-me" convenience.
-
 ## MVP scope
 
 **In:**
