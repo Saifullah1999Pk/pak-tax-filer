@@ -101,9 +101,9 @@ worth more than a wide scope done approximately.
   accepts either). The choice MUST be made and justified in feature 001's `plan.md` and
   approved by the lead. Every later feature MUST use that choice. React + TypeScript
   (frontend), PostgreSQL + pgvector (data and embeddings), Claude API (extraction, RAG,
-  explanation), Python MCP SDK (MCP server), Docker Compose (local environment). Adding, replacing, or
-  removing a stack component requires the project lead's approval, recorded with its reason in
-  the feature's `plan.md`; it does not require a constitution amendment.
+  explanation), Python MCP SDK (MCP server), Docker Compose (local environment). Adding,
+  replacing, or removing a stack component requires the project lead's approval, recorded with
+  its reason in the feature's `plan.md`; it does not require a constitution amendment.
 - **Secrets:** API keys (e.g. `ANTHROPIC_API_KEY`) and credentials MUST live in local,
   uncommitted `.env` files and MUST NOT appear in code, logs, prompts, or commits.
 - **Corpus:** the RAG corpus is a fixed, named set of sources: ITO §12, §13, §149, §7B, §151;
@@ -121,8 +121,9 @@ worth more than a wide scope done approximately.
 - **Traceability:** every GitHub Issue MUST link to the spec and task it implements.
 - **Review before build:** a feature's spec and plan MUST be reviewed by the project lead
   before its implementation starts.
-- **Merge gates:** CI MUST pass lint, type checks, tests, and the eval-accuracy gate. Every
-  plan MUST pass the Constitution Check in `plan-template.md`.
+- **Merge gates:** until CI exists (feature 008), the project lead's PR review is the merge
+  gate. Once CI exists, it MUST pass lint, type checks, tests, and the eval-accuracy gate
+  before merge. Every plan MUST pass the Constitution Check in `plan-template.md`.
 
 ## Governance
 
@@ -137,4 +138,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
+**Version**: 1.0.1 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
