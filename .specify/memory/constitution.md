@@ -1,50 +1,140 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Pak Tax Filer Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Deterministic Tax Math (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+- Every tax liability, slab lookup, withholding credit, and wealth-statement reconciliation
+  MUST be computed by plain, deterministic code. The same inputs MUST always give the same
+  output.
+- An LLM MUST NOT produce, adjust, round, or "sanity-check" any of these numbers. Claude is
+  allowed in exactly three places: extracting fields from documents, the RAG assistant, and
+  explaining a number that has already been computed.
+- Monetary values MUST use exact decimal arithmetic (e.g. Python `Decimal`), never binary
+  floating point. Rounding rules MUST be explicit and match FBR's.
+- An LLM-generated explanation MUST quote the computed numbers it was given and MUST NOT
+  introduce new figures.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Rationale:** a tax figure a user files has to be reproducible and auditable. An LLM can be
+confidently wrong about arithmetic, and the user cannot tell when that happens.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Authoritative Sources Only (NON-NEGOTIABLE)
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+- Tax rates, slabs, thresholds, and §151 withholding rates MUST come from FBR's own published
+  or gazetted documents: the Income Tax Ordinance 2001 as amended by the relevant Finance Act,
+  and FBR's own guides.
+- Third-party calculators, blogs, and news articles MUST NOT be used as a source for any rate,
+  not even to "double-check" one.
+- Rates MUST live in one dedicated, versioned tax-rates module, keyed by tax year. Each value
+  MUST record its source document, section, and tax year.
+- Changes to the tax-rates module MUST be called out explicitly in review, and the project's
+  Claude Code hooks MUST guard the module against unreviewed edits.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale:** during planning, third-party Pakistani tax calculators were found to disagree
+with each other. FBR's own documents are the only source that can be defended.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Human Confirmation Before Use (NON-NEGOTIABLE)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- A value extracted by AI MUST be shown to the user with its confidence. The user MUST
+  explicitly confirm or correct it before any calculation, report, or agent uses it.
+- Unconfirmed extracted data MUST NOT flow downstream. The system MUST enforce this, not just
+  the UI.
+- The agentic workflow MUST stop at a human-approval gate before calculation. No agent may
+  skip or auto-approve this gate.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**Rationale:** extraction from scanned or varied certificates is probabilistic. The user, not
+the model, is the authority on what their documents say.
+
+### IV. Honest, Labelled Output (NON-NEGOTIABLE)
+
+- Every exported report (PDF or otherwise) MUST carry an unmissable "not yet
+  practitioner-reviewed" label until a tax practitioner has reviewed the app.
+- The app MUST NOT present anything as authoritative tax advice.
+- Every answer from the RAG assistant MUST cite the corpus passages it relied on. When a
+  question falls outside the corpus, it MUST say so explicitly instead of guessing.
+
+**Rationale:** users may act on this output in a legal filing. Overstating certainty is the
+most harmful failure this product can have.
+
+### V. Synthetic Data Only (NON-NEGOTIABLE)
+
+- Until a tax practitioner and a legal review have signed off, the app, its tests, evals,
+  fixtures, and demos MUST use synthetic or demo data only.
+- Real taxpayer documents, CNICs, NTNs, bank details, or salary records MUST NOT be committed,
+  uploaded, logged, or sent to any external API.
+
+**Rationale:** handling real financial PII carries legal and privacy obligations that this
+project has not taken on yet.
+
+### VI. Test-First Calculation, Measured AI
+
+- The tax engine and reconciliation logic MUST be built test-first. Test cases MUST be worked
+  examples derived from FBR sources, each citing its source. A failing test MUST exist before
+  the code that makes it pass.
+- AI features MUST be measured, not assumed. Extraction MUST have a labelled eval dataset with
+  per-field accuracy. RAG MUST have a retrieval eval. CI MUST fail when accuracy drops below
+  the agreed threshold.
+- Guardrails (Principles I, III, IV) MUST have automated tests that prove each one holds.
+
+**Rationale:** deterministic code can be proven correct with tests; AI components can only be
+held to a measured bar. Both need to be checked automatically, every time.
+
+### VII. MVP Scope Discipline
+
+- The MVP covers one salaried individual taxpayer and one configurable tax year (TY2026). The
+  income sources are salary and profit on debt (§151), from two document types: a salary
+  certificate and a bank profit certificate.
+- The MCP server exposes exactly three tools: `search_tax_documents`,
+  `calculate_income_tax`, `validate_salary_information`.
+- Out-of-scope items (other income types, multiple employers beyond a simple sum, IRIS
+  login or auto-filing, real user documents) MUST NOT be built without an approved spec that
+  amends the scope first.
+- Simplicity wins: the simplest design that meets an approved spec is preferred. Added
+  complexity MUST be justified in the plan's Complexity Tracking.
+
+**Rationale:** this is a learning project with a small team. A narrow scope done correctly is
+worth more than a wide scope done approximately.
+
+## Technology & Security Constraints
+
+- **Stack:** a Python backend, either FastAPI or Django + Django REST Framework (the lead
+  accepts either). The choice MUST be made and justified in feature 001's `plan.md` and
+  approved by the lead. Every later feature MUST use that choice. React + TypeScript
+  (frontend), PostgreSQL + pgvector (data and embeddings), Claude API (extraction, RAG,
+  explanation), Python MCP SDK (MCP server), Docker Compose (local environment). Adding, replacing, or
+  removing a stack component requires the project lead's approval, recorded with its reason in
+  the feature's `plan.md`; it does not require a constitution amendment.
+- **Secrets:** API keys (e.g. `ANTHROPIC_API_KEY`) and credentials MUST live in local,
+  uncommitted `.env` files and MUST NOT appear in code, logs, prompts, or commits.
+- **Corpus:** the RAG corpus is a fixed, named set of sources: ITO §12, §13, §149, §7B, §151;
+  the Wealth Statement (Form 116) guide; the salaried return (Form 114(1)) guide. Adding a
+  source requires an approved spec.
+
+## Development Workflow & Quality Gates
+
+- **Per feature:** `superpowers:brainstorming` design doc (saved to
+  `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`) → `/speckit-specify` →
+  `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → GitHub
+  Issues → `/speckit-implement`.
+- **Specs are the source of truth.** When code and spec disagree, either the spec is amended
+  first or the code is fixed. Specs live in `specs/NNN-feature-name/`.
+- **Traceability:** every GitHub Issue MUST link to the spec and task it implements.
+- **Review before build:** a feature's spec and plan MUST be reviewed by the project lead
+  before its implementation starts.
+- **Merge gates:** CI MUST pass lint, type checks, tests, and the eval-accuracy gate. Every
+  plan MUST pass the Constitution Check in `plan-template.md`.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution overrides all other practices and guidance in the repository. Where the
+  README or a spec conflicts with it, the constitution wins until it is amended.
+- **Amendments** require a written proposal (what changes and why), approval from the project
+  lead, a version bump, and an update to every affected spec or plan.
+- **Versioning** follows semantic versioning. MAJOR: a principle is removed or redefined.
+  MINOR: a principle or section is added or materially expanded. PATCH: wording or
+  clarification only.
+- **Compliance:** every plan, PR, and review MUST check against these principles. A violation
+  MUST either be fixed or be recorded in Complexity Tracking with justification and lead
+  approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
