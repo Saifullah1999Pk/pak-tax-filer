@@ -97,11 +97,9 @@ worth more than a wide scope done approximately.
 
 ## Technology & Security Constraints
 
-- **Stack:** a Python backend, either FastAPI or Django + Django REST Framework (the lead has
-  left this choice to the developer). The choice MUST be made and justified in feature 001's
-  `plan.md`, and every later feature MUST use it. React + TypeScript
-  (frontend), PostgreSQL + pgvector (data and embeddings), Claude API (extraction, RAG,
-  explanation), Python MCP SDK (MCP server), Docker Compose (local environment). Adding,
+- **Stack:** FastAPI (backend), React + TypeScript (frontend), PostgreSQL + pgvector (data and
+  embeddings), Claude API (extraction, RAG, explanation), Python MCP SDK (MCP server), Docker
+  Compose (local environment). Adding,
   replacing, or removing a stack component requires the project lead's approval, recorded with
   its reason in the feature's `plan.md`; it does not require a constitution amendment.
 - **Secrets:** API keys (e.g. `ANTHROPIC_API_KEY`) and credentials MUST live in local,
@@ -138,4 +136,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.1.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
+**Version**: 1.2.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
