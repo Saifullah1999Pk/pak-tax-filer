@@ -77,6 +77,35 @@ AI-specific pieces, Python MCP SDK, Docker Compose.
 8. Telemetry, guardrail tests, CI (lint/type-check/tests + an eval-accuracy
    gate), PDF export with the validation-status banner.
 
+## Planning process
+
+Any new feature or non-trivial change in this repo should start with the
+Claude Code `superpowers:brainstorming` skill, not straight into code: it
+walks through intent, goals, non-goals, and constraints with you first and
+produces a short design doc before anything gets built. This MVP plan itself
+came out of that process. Keep using it going forward — save each design doc
+under `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`. Turning an
+approved design into actual implementation tasks/tests is left to whoever's
+building it (see "Build order" above) — that part is intentionally not
+pre-written here.
+
+## Development setup
+
+Prerequisites: Docker + Docker Compose, Python 3.12+, Node 20+.
+
+```bash
+git clone git@github.com:awais786/pak-tax-filer.git
+cd pak-tax-filer
+docker compose up -d        # starts db (Postgres + pgvector), backend, frontend
+docker compose exec backend python manage.py migrate
+```
+
+- Backend: `http://localhost:8000` · Frontend: `http://localhost:5173`
+- Set `ANTHROPIC_API_KEY` in a local `.env` (not committed) before running
+  anything that touches extraction, RAG, or the MCP server.
+- Backend tests: `docker compose exec backend pytest`
+- Frontend tests: `docker compose exec frontend npm test`
+
 ## Full background
 
 The original project proposal and the fuller design rationale (market
