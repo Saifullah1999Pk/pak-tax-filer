@@ -8,6 +8,12 @@
 
 **Input**: User description: "Deterministic tax engine (README milestone 4). Calculate a salaried user's TY2026 tax from their confirmed certificates and ATL status: salaried slab tax, §4AB surcharge, §7B tax on bank profit, credits for tax already deducted, payable or over-deducted results, §219 rounding, exact decimal arithmetic. Every rate from FBR law text with its source, stored per tax year. An authoritative step-by-step breakdown always shown, plus an AI summary shown only if every number in it matches. Provisional rules pending the lead. Hand-verified worked examples signed off before engine code." Source design: `docs/superpowers/specs/2026-11-03-tax-engine-design.md`, which lists every rule's exact location in the Income Tax Ordinance, 2001 as amended up to 31.07.2025.
 
+## Clarifications
+
+### Session 2026-11-03
+
+- Q: If the salary side shows tax payable but the profit side shows extra tax withheld (or vice versa), should the app combine them into one balance? → A: No. Salary and profit balances are shown separately with no combined total; whether they can be set off is asked of the lead (provisional).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See my tax and whether I owe or overpaid (Priority: P1)
@@ -123,6 +129,8 @@ fixed amount by 1 rupee and confirm the consistency check fails.
 - Bank profit exactly Rs 5,000,000: supported ("exceeds" triggers the limit).
 - No bank certificates: profit side shows zero.
 - Tax deducted equals tax due: balance shown as zero.
+- Salary side payable while profit side over-withheld (or the reverse): both shown separately;
+  no combined figure.
 - A confirmed certificate is deleted after a calculation: the next view recalculates from what is
   confirmed now; results are never stored as final.
 
@@ -139,7 +147,8 @@ fixed amount by 1 rupee and confirm the consistency check fails.
 - **FR-004**: Inputs MUST come only from confirmed certificates (feature 003), summed per type,
   plus the user's ATL answer.
 - **FR-005**: The system MUST show salary-side and profit-side results: tax, credits and the
-  balance as payable or over-deducted.
+  balance as payable or over-deducted. The two balances MUST NOT be combined into one total.
+  *(Provisional, pending the lead.)*
 - **FR-006**: Calculations MUST use exact decimal arithmetic; final amounts MUST be rounded per
   §219.
 - **FR-007**: No tax figure MUST be produced, adjusted or checked by an AI (constitution,

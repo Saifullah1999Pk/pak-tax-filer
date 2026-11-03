@@ -75,6 +75,9 @@ tax year means adding data, not changing code.
    both say salary exceeds 75%, calculate; if they disagree, show "this situation needs a tax
    practitioner" instead of a number. The same double check applies to the Rs 10 million
    surcharge threshold.
+4. **Combining balances:** salary and profit balances are shown separately, with no combined
+   total, since it isn't clear whether extra bank withholding can be set off against salary tax
+   owed.
 
 ## Out of scope
 
