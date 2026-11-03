@@ -50,8 +50,8 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T010 [P] [US1] Write `backend/tests/documents/test_uploads.py`: a valid PDF, JPG and PNG are accepted; a `.docx` renamed to `.pdf` (wrong magic bytes) → `415`; 10 MB + 1 byte → `413`; a 6-page PDF and an encrypted PDF → `422`; nothing is sent to the extractor for refused files; stored path is `UPLOAD_DIR/<user_id>/<uuid>.<ext>`, not the uploaded name
-- [ ] T011 [P] [US1] Write `backend/tests/documents/test_extraction.py` with `FakeExtractor`: a salary result produces 4 fields and a bank result 3, with value, confidence, page and label per [contracts/documents-api.md](contracts/documents-api.md); a rule-breaking result lowers the involved fields to `low` with `rule_reason`; an extractor failure or refusal gives status `failed` with a reason and saves no fields
+- [ ] T010 [P] [US1] Write `backend/tests/documents/test_uploads.py`: a valid PDF, JPG and PNG are accepted; a `.docx` renamed to `.pdf` (wrong magic bytes) → `415`; 10 MB + 1 byte → `413`; a 6-page PDF, an encrypted PDF and a corrupt (unreadable) PDF → `422`; nothing is sent to the extractor for refused files; stored path is `UPLOAD_DIR/<user_id>/<uuid>.<ext>`, not the uploaded name
+- [ ] T011 [P] [US1] Write `backend/tests/documents/test_extraction.py` with `FakeExtractor`: a salary result produces 4 fields and a bank result 3, with value, confidence, page and label per [contracts/documents-api.md](contracts/documents-api.md); a rule-breaking result lowers the involved fields to `low` with `rule_reason`; an extractor failure or refusal gives status `failed` with a reason and saves no fields; an extractor result containing extra keys (e.g. a name) stores only the listed fields (FR-003)
 
 ### Implementation for User Story 1
 
@@ -129,7 +129,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ## Phase 7: Polish
 
 - [ ] T030 [P] Add a "Documents and extraction" section to `backend/CLAUDE.md`: read figures only through `confirmed_documents`; change prompt, schema or rules only together with an eval run
-- [ ] T031 [P] Add a pull-request template note: PRs touching extraction must paste the local eval report (research R7)
+- [ ] T031 [P] Create `.github/pull_request_template.md` with a note: PRs touching extraction must paste the local eval report (research R7)
 - [ ] T032 Run Ruff, mypy, Prettier and `tsc` checks, both test suites, and [quickstart.md](quickstart.md) section 5; confirm no API key or document content appears in logs
 
 ---
