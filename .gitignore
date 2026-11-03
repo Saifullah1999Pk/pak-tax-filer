@@ -1,0 +1,8 @@
+# Claude Code personal settings (per-developer, never shared)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Secrets (e.g. ANTHROPIC_API_KEY)
+.env
+.env.*
+!.env.example
