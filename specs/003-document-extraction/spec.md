@@ -121,8 +121,9 @@ each model tried.
 2. **Given** results, **When** compared with the bar (at least 95% of fields correct on PDFs, at
    least 90% on photos, at most 2% of wrong values marked high confidence), **Then** the eval
    passes or fails clearly.
-3. **Given** a change to extraction, **When** it is proposed for merge, **Then** the eval runs
-   automatically and a failure blocks the merge.
+3. **Given** a change to extraction, **When** it is proposed for merge, **Then** the proposal
+   includes a passing eval result, and the eval runs again automatically once merged; a failure
+   is visible and must be fixed.
 
 ### Edge Cases
 
@@ -175,8 +176,10 @@ each model tried.
   photo-like image, across at least 4 layouts per type) MUST exist, with a way to run it that
   reports per-field accuracy for PDFs and photos and the share of wrong values marked high
   confidence.
-- **FR-015**: The eval MUST run automatically on changes to extraction and block the merge when
-  it misses the bar; it MUST also be runnable on demand.
+- **FR-015**: Every proposed change to extraction MUST include a passing eval result; the eval
+  MUST run automatically after merge and be runnable on demand. (It can't run automatically
+  before merge on proposals from a fork, because the API key can't be shared with them; if the
+  developer is given branch access to the main repository, it MUST also run before merge.)
 - **FR-016**: The AI model used MUST be a setting, chosen as the cheapest that meets the bar.
 
 ### Key Entities
