@@ -50,7 +50,14 @@ email service in the MVP); multiple profiles per account; admin users; non-resid
 |---|---|---|
 | Session cookie | Simple, resistant to token theft by scripts, real logout; needs a sessions table | **Chosen** |
 | JWT tokens | Popular; token in the browser can be stolen by a script, logout doesn't truly revoke | Rejected |
-| Hosted login (Auth0, Clerk) | Sends user emails to a third party; new stack component | Rejected |
+| AWS Cognito | Managed sign-up/sign-in with password reset, email verification and MFA built in; but needs an AWS account and a new stack component, can't run offline in Docker Compose, stores user emails with a third party (Principle V), and adds AWS lock-in | Rejected for the MVP; revisit if real users, password reset or MFA become requirements |
+| Hosted login (Auth0, Clerk) | Same trade-offs as Cognito | Rejected |
+
+**Why cookies suit our APIs:** the only client of the user-facing API is our own React app in
+the browser, where an HttpOnly cookie is the safest place for a credential. The MCP server (006)
+and the agentic workflow (007) run on the server and call the tax engine directly, so they
+don't need user tokens. If a non-browser client ever needs the API, token auth can be added
+alongside cookies without changing the user flows.
 
 ## Done when
 
