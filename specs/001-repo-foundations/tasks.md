@@ -27,8 +27,8 @@ two hooks are tested before they are written (constitution, Principle VI).
 **Purpose**: create the project skeletons.
 
 - [ ] T001 Create the directory layout from plan.md: `backend/app/`, `backend/tests/`, `backend/alembic/versions/`, `frontend/src/`, `.claude/hooks/tests/`
-- [ ] T002 Create `backend/pyproject.toml` with uv (Python 3.13): dependencies `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`; dev dependencies `pytest`, `httpx`, `ruff`, `mypy`; Ruff, mypy and pytest config in the same file; generate `backend/uv.lock`
-- [ ] T003 [P] Create the React + TypeScript app in `frontend/` from the Vite template; add dev dependencies `vitest`, `@testing-library/react`, `jsdom`, `prettier`; set `"test": "vitest run"` in `frontend/package.json`; configure Vitest (jsdom) in `frontend/vite.config.ts`
+- [ ] T002 Create `backend/pyproject.toml` with uv (Python 3.13): dependencies `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`; dev dependencies `pytest`, `httpx`, `ruff` (formatting only), `pylint`, `mypy`; Ruff format, pylint, mypy and pytest config in the same file; generate `backend/uv.lock`
+- [ ] T003 [P] Create the React + TypeScript app in `frontend/` from the Vite template; keep the template's ESLint setup and its `lint` script (the lead's `check-frontend.sh` runs it); add dev dependencies `vitest`, `@testing-library/react`, `jsdom`, `prettier`; set `"test": "vitest run"` in `frontend/package.json`; configure Vitest (jsdom) in `frontend/vite.config.ts`
 - [ ] T004 [P] Create `.env.example` at the repo root with placeholder values only (`DATABASE_URL`, `ANTHROPIC_API_KEY=` left empty) and a comment that real values go in an uncommitted `.env`
 - [ ] T005 [P] Add `node_modules/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/` and `dist/` to `.gitignore`
 
@@ -78,12 +78,12 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T017 [P] [US2] Write `.claude/hooks/tests/test_tax_rates_guard.py`, feeding JSON events to the script on standard input: `Edit`, `Write` and `MultiEdit` on a file inside the folder → `permissionDecision: "ask"` with the FBR reason from [contracts/claude-hooks.md](contracts/claude-hooks.md); `Bash` commands containing `backend/app/tax/rates` with `/` or `\` → `ask`; a file or command outside the folder → exit 0, no output; the hook never outputs `deny`
+- [ ] T017 [P] [US2] Write `.claude/hooks/tests/test_tax_rates_guard.py`, feeding JSON events to `bash .claude/hooks/tax-rates-guard.sh` on standard input: `Edit`, `Write` and `MultiEdit` on a file inside the folder → `permissionDecision: "ask"` with the FBR reason from [contracts/claude-hooks.md](contracts/claude-hooks.md); `Bash` commands containing `backend/app/tax/rates` with `/` or `\` → `ask`; a file or command outside the folder → exit 0, no output; the hook never outputs `deny`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Create `.claude/hooks/tax_rates_guard.py` (standard library only) implementing the `PreToolUse` contract in [contracts/claude-hooks.md](contracts/claude-hooks.md); T017 passes
-- [ ] T019 [US2] Create `.claude/settings.json` and register the guard under `hooks.PreToolUse` with matcher `Edit|Write|MultiEdit|Bash` and command `uv run --no-project python "$CLAUDE_PROJECT_DIR/.claude/hooks/tax_rates_guard.py"`
+- [ ] T018 [US2] Create `.claude/hooks/tax-rates-guard.sh` (bash + `jq`, in the same style as the lead's `git-safety.sh`) implementing the `PreToolUse` contract in [contracts/claude-hooks.md](contracts/claude-hooks.md); T017 passes
+- [ ] T019 [US2] In the lead's existing `.claude/settings.json` (#10), add a `hooks.PreToolUse` entry with matcher `Edit|Write|MultiEdit|Bash` and command `bash .claude/hooks/tax-rates-guard.sh`, keeping his `git-safety.sh` entry unchanged
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2 in Claude Code and confirm the prompt appears, reject leaves the file unchanged, and approve applies it
 
 **Checkpoint**: User Story 2 works on its own.
@@ -98,14 +98,14 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T021 [P] [US3] Write `.claude/hooks/tests/test_format_on_write.py`: a badly formatted `.py` file is reformatted; a file with a syntax error is left unchanged and the hook exits 2 with a message on standard error; a `.md` file is left alone
+- [ ] T021 [P] [US3] Write `.claude/hooks/tests/test_format_on_write.py`, running `bash .claude/hooks/format-on-write.sh`: a badly formatted `.py` file is reformatted; a file with a syntax error is left unchanged and the failure is reported as `hookSpecificOutput.additionalContext`; a `.md` file is left alone
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Create `.claude/hooks/format_on_write.py` (standard library only) implementing the `PostToolUse` contract: `uvx ruff format` for `.py`; `npx --yes prettier --write` for `.ts`, `.tsx`, `.js`, `.jsx`, `.css`; T021 passes
-- [ ] T023 [US3] Register the formatter in `.claude/settings.json` under `hooks.PostToolUse` with matcher `Edit|Write|MultiEdit` and command `uv run --no-project python "$CLAUDE_PROJECT_DIR/.claude/hooks/format_on_write.py"`
-- [ ] T024 [US3] Add `permissions` to `.claude/settings.json` exactly as in the table in [contracts/claude-hooks.md](contracts/claude-hooks.md): allow tests, linters, formatters, read-only git and `docker compose ps`/`logs`; ask for `git push`, `rm`, `git rm`; deny reading `.env` and `.env.*`
-- [ ] T025 [P] [US3] Write `CLAUDE.md` (about one page): the constitution's seven principles in one line each with a link to `.specify/memory/constitution.md`; the repo layout; commands to start the app, run migrations, run backend, frontend and hook tests, and format; a note that `backend/app/tax/rates/` is guarded
+- [ ] T022 [US3] Create `.claude/hooks/format-on-write.sh` (bash + `jq`, like the lead's hooks) implementing the `PostToolUse` contract: `uvx ruff format` for `.py`; `npx --yes prettier --write` for `.ts`, `.tsx`, `.js`, `.jsx`, `.css`; formatting only (linting stays with the lead's hooks); T021 passes
+- [ ] T023 [US3] In the lead's `.claude/settings.json`, add a `hooks.PostToolUse` entry with matcher `Edit|Write|MultiEdit` and command `bash .claude/hooks/format-on-write.sh`, keeping his `check-python.sh` and `check-frontend.sh` entries unchanged
+- [ ] T024 [US3] Add a `permissions` section to the lead's `.claude/settings.json` exactly as in the table in [contracts/claude-hooks.md](contracts/claude-hooks.md): allow tests, linters, formatters, read-only git and `docker compose ps`/`logs`; ask for `git push`, `rm`, `git rm`; deny reading `.env` and `.env.*`
+- [ ] T025 [P] [US3] Extend the lead's root `CLAUDE.md` (#10), keeping all of his content and `@` imports, with (about one page in total): the constitution's seven principles in one line each with a link to `.specify/memory/constitution.md`; the repo layout; commands to start the app, run migrations, run backend, frontend and hook tests (hook tests need bash and `jq`), lint and format; a note that `backend/app/tax/rates/` is guarded
 - [ ] T026 [US3] Run [quickstart.md](quickstart.md) section 3 in Claude Code and confirm each expected result
 
 **Checkpoint**: all three user stories work independently.
@@ -119,18 +119,20 @@ review subagents and an API convention.
 
 **Independent Test**: [quickstart.md](quickstart.md), section 5.
 
-- [ ] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff check`, `ruff format --check`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 24, `npm ci`, `prettier --check .`, `tsc --noEmit`, `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`)
+- [ ] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff format --check`, `pylint app`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 24, `npm ci`, `prettier --check .`, `npm run lint`, `tsc --noEmit`, `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`, with `jq` available; no lint or type checks for bash)
 - [ ] T028 [US4] Push a branch with a deliberately failing backend test and one with a misformatted `.tsx` file; confirm each CI job fails and the PR shows it; delete both branches
 - [ ] T029 [P] [US4] Write `docs/api-conventions.md` exactly as [contracts/api-conventions.md](contracts/api-conventions.md)
 - [ ] T030 [P] [US4] Write `backend/CLAUDE.md` (layout of `backend/app/`, how to add an endpoint, migration commands, test database notes; no repetition of the root guide)
 - [ ] T031 [P] [US4] Write `frontend/CLAUDE.md` (layout of `frontend/src/`, how to add a page, calling the API through one helper, test commands; no repetition of the root guide)
-- [ ] T032 [P] [US4] Write `.claude/rules/architecture.md` and `.claude/rules/security.md` (constitution Principles I, II, V and Secrets in practice: no LLM maths, guarded rates, no real PII, never log secrets or passwords)
-- [ ] T033 [P] [US4] Write `.claude/rules/backend.md` and `.claude/rules/testing.md` with `paths` front matter for `backend/**` where backend-specific (FastAPI routers, `Decimal` for money, async SQLAlchemy, tests first, test database)
+- [ ] T032 [P] [US4] Write `.claude/rules/architecture.md` (constitution Principles I and II in practice: no LLM maths, guarded rates); in the lead's existing `.claude/rules/security.md`, add only the points it lacks (e.g. never log secrets or passwords). No second security file
+- [ ] T033 [US4] Rename the lead's `.claude/rules/python-django.md` to `.claude/rules/python-backend.md` with `git mv`; make minimal edits for FastAPI ("Alembic migrations" for "Django migrations", "routers/schemas" for "views/serializers") and add FastAPI points it lacks (`Decimal` for money, async SQLAlchemy); update its `@` import in the root `CLAUDE.md`; in the lead's `.claude/rules/testing-quality.md`, add only missing points (tests first, the test database). No `backend.md` or `testing.md`. List the rename and edits in the PR description for the lead
 - [ ] T034 [P] [US4] Write `.claude/rules/frontend.md` (scoped to `frontend/**`) and `.claude/rules/api.md` (points to `docs/api-conventions.md`; contract updated in the same PR as the endpoint)
 - [ ] T035 [P] [US4] Create skills `.claude/skills/fastapi-feature/SKILL.md` and `.claude/skills/react-feature/SKILL.md`: step-by-step for adding a feature slice (contract, then tests, then code, then run checks), following the rules above
 - [ ] T036 [P] [US4] Create skill `.claude/skills/code-review/SKILL.md`: checklist covering architecture, security, business logic, test coverage and regressions (issue #4, rule 5); uses the reviewer subagents for backend and frontend parts
 - [ ] T037 [P] [US4] Create subagents `.claude/agents/backend-reviewer.md` and `.claude/agents/frontend-reviewer.md`, read-only tools only, each reviewing against its rules, the API convention and the constitution
-- [ ] T038 [US4] Add a "Conventions" section to the root `CLAUDE.md` linking the folder guides, rules, skills and subagents and saying when to use each; run [quickstart.md](quickstart.md) section 5
+- [ ] T042 [P] [US4] Write `.claude/hooks/tests/test_lead_hooks.py` (per the 2026-11-04 clarification): the lead's `git-safety.sh` asks on a force-push and stays silent on `git status`; `check-python.sh` ignores non-`.py` files and finds pylint once the backend's host virtual environment exists (after T043); `check-frontend.sh` ignores files that aren't `.js`/`.jsx`/`.ts`/`.tsx`/`.vue`. Tests only; his scripts stay unchanged unless he accepts T043
+- [ ] T043 [US4] The lead's lint hooks run on the host, but 001 installs dependencies inside the containers: in the PR #3 description, propose to the lead a small change to his `.claude/hooks/check-python.sh` so it also looks for pylint in `backend/.venv/bin` and `backend/.venv/Scripts` (Windows); apply it only if he agrees, otherwise document `uv tool install pylint` as the fallback in `backend/CLAUDE.md` (T030)
+- [ ] T038 [US4] Add a "Conventions" section to the root `CLAUDE.md` (after the lead's content) linking the folder guides, rules, skills and subagents and saying when to use each; run [quickstart.md](quickstart.md) section 5
 
 **Checkpoint**: all four user stories work.
 
@@ -138,8 +140,8 @@ review subagents and an API convention.
 
 ## Phase 7: Polish
 
-- [ ] T039 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 24+; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
-- [ ] T040 [P] Run `ruff check` and `ruff format --check` in `backend/` and `.claude/hooks/`, `mypy app` in `backend/`, and `prettier --check` and `tsc --noEmit` in `frontend/`; fix anything reported
+- [ ] T039 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 24+, bash and `jq`; for contributors using Claude Code, the host steps `uv sync` in `backend/` and `npm ci` in `frontend/` so the lead's lint hooks can run pylint and `npm run lint` on the host; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
+- [ ] T040 [P] Run `ruff format --check`, `pylint app` and `mypy app` in `backend/`; `prettier --check`, `npm run lint` and `tsc --noEmit` in `frontend/`; and the hook tests; fix anything reported
 - [ ] T041 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, plus two extra checks: start the app with port 8000 already in use and confirm the error names the port; and run section 4 on a second operating system if one is available. Record the results in the PR description, stating plainly which operating systems were not checked so the lead can verify them
 
 ---
@@ -149,8 +151,9 @@ review subagents and an API convention.
 - **Setup (T001–T005)** → **Foundational (T006–T009)** → user stories.
 - **US1** depends only on Foundational.
 - **US2 and US3** need only T001 and T009 (the reserved folder), so they can run alongside US1.
-- **`.claude/settings.json`** is edited by T019, T023 and T024, so those run in that order.
-- **US4** needs US1 (something for CI to check) and T025 (root `CLAUDE.md`); T029 to T037 can be written in parallel.
+- **`.claude/settings.json`** (the lead's file) is extended by T019, T023 and T024, so those run in that order; his entries are never removed.
+- The root **`CLAUDE.md`** (the lead's file) is extended by T025, then T033 (import rename), then T038.
+- **US4** needs US1 (something for CI to check) and T025 (root `CLAUDE.md`); T029 to T037 and T042 can be written in parallel, except T033, which edits the root `CLAUDE.md` after T025.
 - **Polish** comes after all stories.
 - Within each story: tests → implementation → quickstart check.
 
