@@ -8,6 +8,12 @@
 
 **Input**: User description: "Document upload + AI extraction (README milestone 3). A logged-in user uploads a salary certificate or bank profit certificate (PDF, JPG or PNG; max 10 MB, 5 pages; user picks the type). The AI extracts only figures, each with a value, confidence and source location. Consistency rules downgrade fields to low confidence. The user confirms or edits each field, then confirms the document; only confirmed documents are usable by other features, enforced by the backend. An eval of 80 synthetic labelled files measures accuracy; the model is the cheapest that meets the bar." Source design: `docs/superpowers/specs/2026-11-03-document-extraction-design.md`.
 
+## Clarifications
+
+### Session 2026-11-03
+
+- Q: Can a user have more than one confirmed certificate of the same type (e.g. two employers or two banks in the same year)? → A: Yes. Any number of confirmed certificates per type and tax year; the tax engine (feature 004) sums them, matching the README's "simple sum" of multiple employers.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Upload a certificate and get its figures (Priority: P1)
@@ -129,7 +135,10 @@ each model tried.
 - A password-protected or unreadable PDF: refused at upload with a message.
 - A multi-page document where figures appear on page 2 or later: the source location shows the
   right page.
-- Two uploads of the same file: both are kept as separate documents.
+- Two uploads of the same file: both are kept as separate documents; the document list shows
+  both so the user can delete the duplicate (otherwise its figures would be counted twice).
+- Several employers or banks in one year: the user uploads and confirms one certificate for
+  each; all confirmed certificates count.
 
 ## Requirements *(mandatory)*
 
@@ -156,6 +165,8 @@ each model tried.
   part of the system, enforced by the backend.
 - **FR-010**: Documents MUST move through the statuses uploaded, extracting, needs review,
   confirmed, or failed; failed extractions MUST be retryable.
+- **FR-010a**: A user MAY have any number of confirmed certificates of each type for the same
+  tax year; none replaces another.
 - **FR-011**: Users MUST be able to list their documents and delete any of them, which removes
   its figures and stored file.
 - **FR-012**: Only the owning user MUST be able to see or act on a document.
@@ -204,4 +215,5 @@ each model tried.
 - Known limitation: synthetic certificates can't reproduce the variety of real ones, so eval
   results may overstate real-world accuracy; they must be re-checked against consented,
   anonymised real documents once legal review allows.
-- Passing figures to the tax engine is feature 004's job; it reads confirmed documents only.
+- Passing figures to the tax engine is feature 004's job; it reads confirmed documents only and
+  sums all confirmed certificates of each type.
