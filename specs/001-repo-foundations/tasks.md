@@ -27,7 +27,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 **Purpose**: create the project skeletons.
 
 - [ ] T001 Create the directory layout from plan.md: `backend/app/`, `backend/tests/`, `backend/alembic/versions/`, `frontend/src/`, `.claude/hooks/tests/`
-- [ ] T002 Create `backend/pyproject.toml` with uv (Python 3.13): dependencies `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`; dev dependencies `pytest`, `httpx`, `ruff`; Ruff and pytest config in the same file; generate `backend/uv.lock`
+- [ ] T002 Create `backend/pyproject.toml` with uv (Python 3.13): dependencies `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`; dev dependencies `pytest`, `httpx`, `ruff`, `mypy`; Ruff, mypy and pytest config in the same file; generate `backend/uv.lock`
 - [ ] T003 [P] Create the React + TypeScript app in `frontend/` from the Vite template; add dev dependencies `vitest`, `@testing-library/react`, `jsdom`, `prettier`; set `"test": "vitest run"` in `frontend/package.json`; configure Vitest (jsdom) in `frontend/vite.config.ts`
 - [ ] T004 [P] Create `.env.example` at the repo root with placeholder values only (`DATABASE_URL`, `ANTHROPIC_API_KEY=` left empty) and a comment that real values go in an uncommitted `.env`
 - [ ] T005 [P] Add `node_modules/`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/` and `dist/` to `.gitignore`
@@ -112,11 +112,35 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 ---
 
-## Phase 6: Polish
+## Phase 6: User Story 4 - Shared engineering conventions and automated checks (Priority: P4)
 
-- [ ] T027 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 24+; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
-- [ ] T028 [P] Run `ruff check` and `ruff format --check` in `backend/` and `.claude/hooks/`, and `prettier --check` in `frontend/`; fix anything reported
-- [ ] T029 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, plus two extra checks: start the app with port 8000 already in use and confirm the error names the port; and run section 4 on a second operating system if one is available. Record the results in the PR description, stating plainly which operating systems were not checked so the lead can verify them
+**Goal**: the lead's issues #4 and #5: CI on every PR, folder guides, topic rules, skills,
+review subagents and an API convention.
+
+**Independent Test**: [quickstart.md](quickstart.md), section 5.
+
+- [ ] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff check`, `ruff format --check`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 24, `npm ci`, `prettier --check .`, `tsc --noEmit`, `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`)
+- [ ] T028 [US4] Push a branch with a deliberately failing backend test and one with a misformatted `.tsx` file; confirm each CI job fails and the PR shows it; delete both branches
+- [ ] T029 [P] [US4] Write `docs/api-conventions.md` exactly as [contracts/api-conventions.md](contracts/api-conventions.md)
+- [ ] T030 [P] [US4] Write `backend/CLAUDE.md` (layout of `backend/app/`, how to add an endpoint, migration commands, test database notes; no repetition of the root guide)
+- [ ] T031 [P] [US4] Write `frontend/CLAUDE.md` (layout of `frontend/src/`, how to add a page, calling the API through one helper, test commands; no repetition of the root guide)
+- [ ] T032 [P] [US4] Write `.claude/rules/architecture.md` and `.claude/rules/security.md` (constitution Principles I, II, V and Secrets in practice: no LLM maths, guarded rates, no real PII, never log secrets or passwords)
+- [ ] T033 [P] [US4] Write `.claude/rules/backend.md` and `.claude/rules/testing.md` with `paths` front matter for `backend/**` where backend-specific (FastAPI routers, `Decimal` for money, async SQLAlchemy, tests first, test database)
+- [ ] T034 [P] [US4] Write `.claude/rules/frontend.md` (scoped to `frontend/**`) and `.claude/rules/api.md` (points to `docs/api-conventions.md`; contract updated in the same PR as the endpoint)
+- [ ] T035 [P] [US4] Create skills `.claude/skills/fastapi-feature/SKILL.md` and `.claude/skills/react-feature/SKILL.md`: step-by-step for adding a feature slice (contract, then tests, then code, then run checks), following the rules above
+- [ ] T036 [P] [US4] Create skill `.claude/skills/code-review/SKILL.md`: checklist covering architecture, security, business logic, test coverage and regressions (issue #4, rule 5); uses the reviewer subagents for backend and frontend parts
+- [ ] T037 [P] [US4] Create subagents `.claude/agents/backend-reviewer.md` and `.claude/agents/frontend-reviewer.md`, read-only tools only, each reviewing against its rules, the API convention and the constitution
+- [ ] T038 [US4] Add a "Conventions" section to the root `CLAUDE.md` linking the folder guides, rules, skills and subagents and saying when to use each; run [quickstart.md](quickstart.md) section 5
+
+**Checkpoint**: all four user stories work.
+
+---
+
+## Phase 7: Polish
+
+- [ ] T039 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 24+; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
+- [ ] T040 [P] Run `ruff check` and `ruff format --check` in `backend/` and `.claude/hooks/`, `mypy app` in `backend/`, and `prettier --check` and `tsc --noEmit` in `frontend/`; fix anything reported
+- [ ] T041 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, plus two extra checks: start the app with port 8000 already in use and confirm the error names the port; and run section 4 on a second operating system if one is available. Record the results in the PR description, stating plainly which operating systems were not checked so the lead can verify them
 
 ---
 
@@ -126,6 +150,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 - **US1** depends only on Foundational.
 - **US2 and US3** need only T001 and T009 (the reserved folder), so they can run alongside US1.
 - **`.claude/settings.json`** is edited by T019, T023 and T024, so those run in that order.
+- **US4** needs US1 (something for CI to check) and T025 (root `CLAUDE.md`); T029 to T037 can be written in parallel.
 - **Polish** comes after all stories.
 - Within each story: tests → implementation → quickstart check.
 
@@ -142,7 +167,8 @@ two hooks are tested before they are written (constitution, Principle VI).
    section 1. The app runs.
 2. **Add US2**: the tax-rates guard, before feature 004 ever adds rates.
 3. **Add US3**: formatting, permissions and `CLAUDE.md`.
-4. **Polish**, then one PR for the implementation.
+4. **Add US4**: CI and the shared conventions from the lead's issues #4 and #5.
+5. **Polish**, then one PR for the implementation.
 
 GitHub issues for these tasks are titled `[001] T0NN: <description>` so they can't clash with
 other features' task numbers.

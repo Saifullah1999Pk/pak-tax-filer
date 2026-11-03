@@ -37,3 +37,17 @@ In Claude Code, in this repo:
 ## 4. Cross-platform (SC-006)
 
 Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** same results.
+
+## 5. Conventions and CI (User Story 4, SC-007, SC-008)
+
+1. Open a pull request that breaks a backend test. **Expected:** the `backend` CI job fails and
+   the PR is marked failing. Fix it → green.
+2. Open a pull request with a badly formatted `.tsx` file. **Expected:** the `frontend` job fails
+   on the Prettier check.
+3. In Claude Code, open a file in `backend/`. **Expected:** `backend/CLAUDE.md` and the backend,
+   API, testing and security rules apply (`/memory` lists them).
+4. Ask Claude to "build a backend feature" and to "review this change". **Expected:** it uses the
+   `fastapi-feature` and `code-review` skills; `/agents` lists `backend-reviewer` and
+   `frontend-reviewer`.
+5. Open `docs/api-conventions.md`. **Expected:** paths, bodies, errors, auth and keeping-in-step
+   rules as in [contracts/api-conventions.md](contracts/api-conventions.md).

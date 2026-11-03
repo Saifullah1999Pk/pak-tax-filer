@@ -29,7 +29,15 @@ product features are built here.
 
 ## Out of scope
 
-Auth, database tables, any tax logic, CI (feature 008), any real data.
+Auth, database tables, any tax logic, any real data.
+
+## Addendum (2026-11-03): lead's issues #4 and #5
+
+Added to this feature as User Story 4: CI in GitHub Actions (moved here from feature 008),
+backend and frontend `CLAUDE.md` files, `.claude/rules/` by topic (architecture, backend,
+frontend, API, testing, security), reusable skills (FastAPI feature, React feature, code
+review), backend and frontend review subagents, and a written API convention. The issues name
+OpenSpec; the lead agreed we stay on Spec Kit.
 
 ## Decisions
 
