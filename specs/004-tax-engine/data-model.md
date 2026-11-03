@@ -3,6 +3,8 @@
 No database tables: results are recalculated on every request (spec Edge Cases). These are the
 in-code structures.
 
+**Naming:** "tax year 2026" (TY2026) is the income year 1 July 2025 to 30 June 2026; code and the API identify it as `2025-26`.
+
 ## TaxYearRates (per tax year, in `backend/app/tax/rates/`)
 
 | Field | Content |

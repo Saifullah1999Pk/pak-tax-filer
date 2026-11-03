@@ -54,7 +54,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Create `backend/app/tax/engine.py` with `TaxInputs`, `TaxResult` and pure `calculate(inputs, rates)` per research R1 and R3: band selection with "does not exceed" upper limits, surcharge on "exceeds", profit tax, credits, separate balances, `ROUND_HALF_UP` only on final amounts; no imports from database, network or AI modules; T009 passes
+- [ ] T010 [US1] Create `backend/app/tax/engine.py` with `TaxInputs`, `TaxResult` and pure `calculate(inputs, rates)` per research R1 and R3: band selection with "does not exceed" upper limits, surcharge on "exceeds", profit tax, credits, separate balances, `ROUND_HALF_UP` only on final amounts; no imports from database, network or AI modules, enforced by a test in `backend/tests/tax/test_engine_imports.py` that fails if `engine.py` imports `anthropic`, `app.tax.summary` or any database module; T009 passes
 - [ ] T011 [US1] Create `backend/app/tax/service.py`: build `TaxInputs` from `confirmed_documents(user_id, tax_year)` (summing per type) and the `atl` query value, per research R5
 - [ ] T012 [US1] Write `backend/tests/tax/test_tax_api.py` (unauthenticated → `401`; unknown tax year → `404`; a user's confirmed certificates produce the contract's response shape with money as strings and the label), then create `backend/app/tax/router.py` with `GET /api/tax/{tax_year}` and include it in `backend/app/main.py`
 - [ ] T013 [P] [US1] Write `frontend/src/pages/TaxPage.test.tsx` (ATL question; salary and profit results shown separately with no combined total; practitioner label always visible), then create `frontend/src/pages/TaxPage.tsx` and its route under `RequireAuth`
@@ -73,12 +73,12 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 ### Tests for User Story 2 (write first, confirm they fail)
 
 - [ ] T015 [P] [US2] Extend `backend/tests/tax/test_worked_examples.py`: each example's breakdown has the expected steps in order, each with a `rule_location` naming the Ordinance row
-- [ ] T016 [P] [US2] Write `backend/tests/tax/test_summary_check.py` per research R8: a summary using only breakdown numbers passes; one with a wrong amount, a wrong percentage, a number with different formatting of a wrong value, or a number word ("1.8 million", "lakh") is rejected; an API error or refusal returns no summary and the breakdown is still returned
+- [ ] T016 [P] [US2] Write `backend/tests/tax/test_summary_check.py` per research R8: a summary using only breakdown numbers passes; one with a wrong amount, a wrong percentage, a number with different formatting of a wrong value, or a number word ("1.8 million", "lakh") is rejected; an API error, refusal or a response slower than 4 seconds returns no summary and the breakdown is still returned
 
 ### Implementation for User Story 2
 
 - [ ] T017 [US2] Create `backend/app/tax/breakdown.py`: step templates per research R7, used by `engine.py`; T015 passes
-- [ ] T018 [US2] Create `backend/app/tax/summary.py`: Claude call (official SDK, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
+- [ ] T018 [US2] Create `backend/app/tax/summary.py`: Claude call (official SDK, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
 - [ ] T019 [US2] Show the breakdown (with rule locations) and the summary (when present) on `frontend/src/pages/TaxPage.tsx`; extend its test
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 
@@ -112,7 +112,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 **Independent Test**: [quickstart.md](quickstart.md), section 4.
 
-- [ ] T025 [US4] Add a test in `backend/tests/tax/test_rates.py` that registering a second, made-up tax year with different bands changes results without any change to `engine.py` (FR-008), then remove nothing from the real registry
+- [ ] T025 [US4] Add a test in `backend/tests/tax/test_rates.py` that registering a second, made-up tax year with different bands changes results without any change to `engine.py` (FR-008); use a test-only registry so the real registry is unchanged
 - [ ] T026 [US4] Run [quickstart.md](quickstart.md) section 4, including the deliberate 1-rupee change and revert
 
 **Checkpoint**: all four user stories work.

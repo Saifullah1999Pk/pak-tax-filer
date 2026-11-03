@@ -78,7 +78,7 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
   - **reject** the summary if any extracted number isn't in the allowed set, or if it contains
     number words (`lakh`, `crore`, `million`, `thousand`, written-out numbers), since those can't
     be checked reliably.
-  A rejected summary, an API error or a refusal means no summary; the breakdown is always shown.
+  The call has a **4-second limit** so results stay within SC-004; a late, rejected or refused summary, or an API error, means no summary. The breakdown is always shown and never waits on Claude.
 - **Rationale:** enforces Principle I's "no new figures" mechanically instead of trusting the
   model.
 - **Alternatives:** trusting the prompt (unenforced); asking a second model to verify (still
