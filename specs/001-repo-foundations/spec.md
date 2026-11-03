@@ -140,8 +140,8 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
   must come from FBR's gazetted documents. Any shell command the AI assistant runs that
   mentions the tax-rates folder MUST trigger the same prompt (best effort). It MUST ask, not
   block.
-- **FR-010**: Every source file the AI assistant writes or edits MUST be formatted
-  automatically to the project's standard.
+- **FR-010**: Every source file the AI assistant writes or edits (the file types listed in the
+  hooks contract) MUST be formatted automatically to the project's standard.
 - **FR-011**: Shared AI permissions MUST allow tests, linters, formatters and read-only
   version-control commands without asking; require approval for pushing and deleting; and
   forbid reading local secrets files.
@@ -180,6 +180,6 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
   detectable; PR review by the lead is the backstop.
 - Actions not listed in the shared permissions (e.g. installing packages) fall back to the AI
   assistant's default behaviour of asking first.
-- Developers have the README's prerequisites installed (Docker + Docker Compose, Python 3.12+,
-  Node 20+).
+- Developers have the prerequisites in the updated README installed: Docker + Docker Compose,
+  `uv` (which provides Python) and Node 24+ (the README's Node 20 has reached end of life).
 - No secrets are needed for this feature; the local secrets file is first needed in feature 003.

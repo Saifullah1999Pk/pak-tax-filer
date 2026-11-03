@@ -40,7 +40,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 - [ ] T006 [P] Create `backend/Dockerfile`: `python:3.13-slim`, install uv, `uv sync` from `backend/uv.lock`, run `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
 - [ ] T007 [P] Create `frontend/Dockerfile`: `node:24-alpine`, `npm ci`, run `npm run dev -- --host 0.0.0.0 --port 5173`
-- [ ] T008 Create `docker-compose.yml` with services `db` (`pgvector/pgvector:pg17`, healthcheck with `pg_isready`, named volume), `backend` (builds `backend/`, port `8000:8000`, `DATABASE_URL` pointing at `db`, waits for `db` healthy, mounts `./backend`), `frontend` (builds `frontend/`, port `5173:5173`, mounts `./frontend` with `node_modules` kept in the container); no service requires a `.env` file
+- [ ] T008 Create `docker-compose.yml` with services `db` (`pgvector/pgvector:pg17`, `POSTGRES_USER=postgres`, `POSTGRES_PASSWORD=postgres` and `POSTGRES_DB=pak_tax_filer` as local-development-only values, healthcheck with `pg_isready`, named volume), `backend` (builds `backend/`, port `8000:8000`, `DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/pak_tax_filer`, waits for `db` healthy, mounts `./backend`), `frontend` (builds `frontend/`, port `5173:5173`, mounts `./frontend` with `node_modules` kept in the container); no service requires a `.env` file
 - [ ] T009 Create `backend/app/__init__.py`, `backend/app/tax/__init__.py` and `backend/app/tax/rates/__init__.py`, with a docstring in the last one stating that this module holds TY rates sourced only from FBR's gazetted documents and is guarded (constitution, Principle II)
 
 **Checkpoint**: `docker compose up -d` builds and starts all three containers.
@@ -116,7 +116,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 - [ ] T027 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 24+; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
 - [ ] T028 [P] Run `ruff check` and `ruff format --check` in `backend/` and `.claude/hooks/`, and `prettier --check` in `frontend/`; fix anything reported
-- [ ] T029 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, including section 4 on a second operating system if one is available; record the result in the PR description
+- [ ] T029 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, plus two extra checks: start the app with port 8000 already in use and confirm the error names the port; and run section 4 on a second operating system if one is available. Record the results in the PR description, stating plainly which operating systems were not checked so the lead can verify them
 
 ---
 
