@@ -27,8 +27,11 @@ which carries the Finance Act 2025 changes for TY2026.
 | Profit-on-debt limit | §7B(3)(b) | §7B does not apply where profit on debt exceeds Rs 5 million |
 | Rounding | §219 | tax or refund to the nearest rupee; fractions of 50 paisa or more round up |
 
-**Checked by hand by Saifullah** against the Ordinance text. **FBR Circular 01 of 2025-26 has two
-wrong slab amounts** (345,000 and 615,000); the Ordinance's 346,000 and 616,000 are the only
+**Status:** the slab table was located in the Ordinance text by Saifullah and cross-checked
+against the circular and by arithmetic; the other rows were read from the Ordinance text. Hand
+verification of the worked examples (and so of every calculation) is still pending and is the
+**first implementation task**: no engine code is written until those examples are signed off.
+**FBR Circular 01 of 2025-26 has two wrong slab amounts** (345,000 and 615,000); the Ordinance's 346,000 and 616,000 are the only
 values consistent with the bands (116,000 + 23% × 1,000,000 = 346,000; 346,000 + 30% × 900,000 =
 616,000), and the statute prevails. The superseded tables printed as footnotes (Finance Acts
 2023 and 2024) must never be used.
