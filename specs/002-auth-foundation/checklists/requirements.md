@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Taxpayer Profile + Auth
+# Specification Quality Checklist: Authentication Foundation
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-11-03
@@ -32,5 +32,6 @@
 ## Notes
 
 - Validation passed on the first iteration.
-- The session-cookie and password-hashing decisions from the design doc are deliberately kept
-  out of the spec; they belong in `/speckit-plan`.
+- Rewritten for the lead's auth-foundation scope (no sign-up, no profile). Session-cookie and
+  password-hashing decisions from the design doc are deliberately kept
+  out of the spec; they belong in `/speckit-plan`. Re-validated: 16/16.
