@@ -14,11 +14,14 @@ Each decision: what was chosen, why, and what else was considered.
 ## R2. Backend tooling
 
 - **Decision:** `uv` for dependencies and running; Uvicorn as the server; pytest + HTTPX
-  `TestClient` for tests; Ruff for formatting and linting.
+  `TestClient` for tests; Ruff for formatting; pylint for linting (amended 2026-11-04: the
+  lead's #10 hook lints with pylint, so Ruff no longer lints).
 - **Rationale:** `uv` is fast, handles Python versions, and is already used on the dev machine.
-  These are FastAPI's documented defaults. Ruff replaces Black, isort and Flake8 with one tool.
+  These are FastAPI's documented defaults. Ruff formats in one fast tool (replacing Black and
+  isort); pylint is the repo's existing linter, so we don't add a competing one.
 - **Alternatives:** pip + venv (slower, no lockfile by default); Poetry (heavier); Black +
-  Flake8 (three tools instead of one).
+  isort for formatting (two tools instead of one); Ruff for linting too (the original decision;
+  competes with the lead's pylint hook).
 
 ## R3. Database layer (for features 002+)
 
@@ -33,37 +36,46 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R4. Frontend tooling
 
-- **Decision:** Vite (React + TypeScript template), Vitest + React Testing Library, Prettier.
+- **Decision:** Vite (React + TypeScript template), Vitest + React Testing Library, Prettier
+  for formatting, and the template's own ESLint setup (`npm run lint`) for linting.
 - **Rationale:** Vite's dev server defaults to port 5173, matching the README; Vitest shares
-  Vite's config, so `npm test` needs no extra setup.
+  Vite's config, so `npm test` needs no extra setup. The lead's `check-frontend.sh` hook runs
+  the frontend's `lint` script, which the Vite template provides (amended 2026-11-04).
 - **Alternatives:** Create React App (deprecated); Jest (separate config for TypeScript/ESM).
 
-## R5. Claude Code hooks: mechanism and language
+## R5. Claude Code hooks: mechanism and language (amended 2026-11-04)
 
-- **Decision:** two hooks registered in the shared `.claude/settings.json`, each a small Python
-  script in `.claude/hooks/` using only the standard library, run with
-  `uv run --no-project python`.
+- **Decision:** two hooks, written in **bash + `jq` like the lead's #10 hooks**, saved as
+  `.claude/hooks/tax-rates-guard.sh` and `.claude/hooks/format-on-write.sh`, and registered in
+  the lead's existing `.claude/settings.json` **alongside** his entries (his are not changed).
   - **Tax-rates guard:** a `PreToolUse` hook on `Edit`, `Write`, `MultiEdit` and `Bash`. If the
     target path (or, for `Bash`, the command text) refers to `backend/app/tax/rates/`, it
     returns `permissionDecision: "ask"` with the FBR reason. Otherwise it returns nothing and
     normal rules apply.
   - **Format-on-write:** a `PostToolUse` hook on `Edit`, `Write`, `MultiEdit`. Runs
     `uvx ruff format` for `.py` files and `npx prettier --write` for `.ts`, `.tsx`, `.js`,
-    `.jsx`, `.css`. If the formatter fails, the file is left as written and the failure is
-    reported back to Claude.
-- **Rationale:** Python runs the same on Windows, macOS and Linux; `uv` guarantees a Python
-  interpreter regardless of whether the OS calls it `python` or `python3`. A hook (rather than
-  a permission rule alone) can explain *why* it asks, and can inspect `Bash` commands.
-- **Alternatives:** shell or PowerShell hooks (not cross-platform); a permission `ask` rule on
-  the folder (can't give the FBR reason or see shell commands); running formatters inside
-  the containers (would require the stack to be running while editing).
-- **Consequence:** `uv` and Node become host prerequisites for contributors using Claude Code;
-  the README lists them.
+    `.jsx`, `.css`. It formats only; linting stays with the lead's `check-python.sh` (pylint)
+    and `check-frontend.sh` (the frontend's `lint` script). If the formatter fails, the file is
+    left as written and the failure is reported back to Claude as `additionalContext`, the same
+    way his hooks report.
+- **Rationale:** one hook style in the repo (his rules: don't introduce a competing
+  convention). His hooks already require bash and `jq`, and Claude Code on Windows runs hooks
+  through Git Bash, so the cross-platform reason for Python no longer applies.
+- **Alternatives:** Python via `uv` (the original 2026-11-03 decision: works everywhere, but
+  would put two hook styles side by side); a permission `ask` rule on the folder (can't give
+  the FBR reason or see shell commands); running formatters inside the containers (would
+  require the stack to be running while editing).
+- **Consequence:** `uv`, Node, bash and `jq` are host prerequisites for contributors using
+  Claude Code; the README lists them. The lead's lint hooks also run on the host, so those
+  contributors run `uv sync` in `backend/` and `npm ci` in `frontend/` once; his
+  `check-python.sh` only looks for pylint in `<repo>/.venv`, `venv` or the PATH, so a small
+  change to also check `backend/.venv` is proposed to him (tasks T043), not made by us.
 
 ## R6. Permissions
 
-- **Decision:** shared `permissions` in `.claude/settings.json`:
-  - **allow:** pytest, Ruff, Vitest/`npm test`, Prettier, read-only git (`status`, `diff`,
+- **Decision:** shared `permissions` added to the lead's `.claude/settings.json` (amended
+  2026-11-04: his file already exists and has no permissions section):
+  - **allow:** pytest, Ruff, pylint, Vitest/`npm test`, `npm run lint`, Prettier, read-only git (`status`, `diff`,
     `log`, `show`, `branch`), `docker compose ps`/`logs`;
   - **ask:** `git push`, file deletion (`rm`, `git rm`);
   - **deny:** reading `.env` and `.env.*`.
@@ -78,35 +90,51 @@ Each decision: what was chosen, why, and what else was considered.
 - **Rationale:** the simplest common convention; enough for the spec (FR-003). Database
   connectivity checks come with the first feature that uses the database.
 
-## R8. CI (added for issues #4/#5)
+## R8. CI (added for issues #4/#5; amended 2026-11-04)
 
 - **Decision:** one GitHub Actions workflow, `.github/workflows/ci.yml`, on every pull request
-  and push to `main`, with three jobs: **backend** (uv; `ruff check`, `ruff format --check`,
+  and push to `main`, with three jobs: **backend** (uv; `ruff format --check`, `pylint app`,
   `mypy app`, `pytest` against a PostgreSQL + pgvector service container), **frontend**
-  (`npm ci`, `prettier --check`, `tsc --noEmit`, `npm test`) and **hooks** (`pytest
-  .claude/hooks/tests`). The eval gate is added when the first eval exists (003, 006).
-- **Rationale:** the constitution's merge gate needs lint, type checks and tests; separate jobs
-  run in parallel and show exactly which part failed. Running Postgres as a service container
-  matches the real database.
-- **Alternatives:** one combined job (slower, unclear failures); running CI through Docker
-  Compose (slower startup, harder caching); Pyright instead of mypy (either works; mypy is the
-  more common default with SQLAlchemy and Pydantic plugins).
+  (`npm ci`, `prettier --check`, `npm run lint`, `tsc --noEmit`, `npm test`) and **hooks**
+  (`pytest .claude/hooks/tests`, which runs every hook, ours and the lead's, against sample JSON
+  inputs; no lint or type checks for bash, per the 2026-11-04 clarification). The eval gate is
+  added when the first eval exists (003, 006).
+- **Rationale:** the constitution's merge gate needs lint, type checks and tests; CI uses the
+  same tools as the hooks (pylint and ESLint lint; Ruff and Prettier format), so local and CI
+  results agree (spec FR-015). Separate jobs run in parallel and show exactly which part
+  failed. Running Postgres as a service container matches the real database.
+- **Alternatives:** `ruff check` as the linter (the original decision; would compete with the
+  lead's pylint hook); ShellCheck on the hooks (a tool neither setup uses); one combined job
+  (slower, unclear failures); running CI through Docker Compose (slower startup, harder
+  caching); Pyright instead of mypy (either works; mypy is the more common default with
+  SQLAlchemy and Pydantic plugins).
 
-## R9. Claude Code conventions layout (added for issues #4/#5)
+## R9. Claude Code conventions layout (added for issues #4/#5; amended 2026-11-04)
 
 - **Decision:**
+  - **Root `CLAUDE.md`:** the lead's file from #10, **extended**, not replaced: his engineering
+    rules stay; we add the constitution's principles (one line each, linked), the repo layout,
+    the run/test/format commands, and a "Conventions" section linking the folder guides, rules,
+    skills and reviewers.
   - `backend/CLAUDE.md` and `frontend/CLAUDE.md`: short folder guides, loaded when Claude works
     in that folder; they don't repeat the root `CLAUDE.md`.
-  - `.claude/rules/`: one file per topic: `architecture.md`, `backend.md`, `frontend.md`,
-    `api.md`, `testing.md`, `security.md`. Backend- and frontend-specific rules are scoped to
-    their folders with `paths` front matter.
+  - `.claude/rules/`: the lead's `security.md`, `git-workflow.md` and `testing-quality.md`
+    are kept (project points they miss are added to them, not to new files); his
+    `python-django.md` is **renamed `python-backend.md`** with minimal edits for FastAPI
+    ("Alembic migrations", "routers/schemas"), the `@` import in `CLAUDE.md` updated, and the
+    change flagged in PR #3 for him. New files only for topics his don't cover:
+    `architecture.md`, `frontend.md` (scoped to `frontend/**` with `paths` front matter),
+    `api.md`. No `backend.md`, `testing.md` or second `security.md`.
   - `.claude/skills/`: `fastapi-feature`, `react-feature`, `code-review` (next to the existing
     `speckit-*` skills).
   - `.claude/agents/`: `backend-reviewer.md`, `frontend-reviewer.md`, each with read-only tools.
 - **Rationale:** these are Claude Code's own locations for each kind of guidance, so they load
-  automatically; one concern per file keeps each short and avoids duplication (issue #5).
-- **Alternatives:** one long `CLAUDE.md` (hard to maintain, always fully loaded); reviewers with
-  write access (a reviewer should report, not change code).
+  automatically; one concern per file keeps each short and avoids duplication (issue #5);
+  building on #10 avoids two files on the same topic.
+- **Alternatives:** our own six rule files (the original decision; would duplicate his
+  `security` and `testing-quality` and contradict his Django file); one long `CLAUDE.md` (hard
+  to maintain, always fully loaded); reviewers with write access (a reviewer should report,
+  not change code).
 
 ## R10. API convention (added for issue #4)
 
