@@ -14,6 +14,8 @@
 
 - Q: When Claude tries to change a tax-rates file through a shell command instead of its file-edit tool, should the guard also pause for approval? → A: Yes. Any shell command that mentions the tax-rates folder also asks for approval (best effort); PR review remains the final backstop.
 
+- Q: The lead's issues #4 and #5 ask for CI, folder guides, topic rules, reusable guides, reviewers and API conventions from the start; where do they go? → A: Into feature 001 as User Story 4 (FR-015 to FR-020), since they are project setup. CI moves here from feature 008. OpenSpec in those issues is replaced by Spec Kit (lead agreed).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start the whole app with one command (Priority: P1)
@@ -103,6 +105,40 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
 5. **Given** the shared permissions, **When** the AI assistant tries to read a local secrets
    file, **Then** it is refused.
 
+---
+
+### User Story 4 - Shared engineering conventions and automated checks (Priority: P4)
+
+Added at the lead's request (issues #4 and #5). Every change is checked automatically before it
+can be merged, and the AI assistant follows the same written conventions for each part of the
+codebase: topic-specific rules, guides for the backend and frontend, reusable how-to guides for
+building a backend or frontend feature and for code review, and specialised reviewers for
+backend and frontend changes. Backend and frontend agree on one documented API convention.
+
+**Why this priority**: it raises quality for every later feature, but Stories 1–3 are needed
+first for there to be anything to check.
+
+**Independent Test**: open a pull request with a failing test and one with a formatting error;
+both are marked as failing and cannot be merged until fixed. In a Claude Code session, ask for a
+backend feature and a code review; the matching guide and reviewer are used.
+
+**Acceptance Scenarios**:
+
+1. **Given** a pull request, **When** it is opened or updated, **Then** lint, format, type and
+   test checks run automatically for the backend, the frontend and the hooks, and the result is
+   shown on the pull request.
+2. **Given** any of those checks fails, **When** someone tries to merge, **Then** the pull
+   request is marked as failing.
+3. **Given** a Claude Code session, **When** the assistant works in the backend or frontend
+   folder, **Then** it has that folder's guide and the rules for the topic it is working on
+   (architecture, backend, frontend, API, testing, security).
+4. **Given** a developer asks the assistant to build a backend feature, a frontend feature, or
+   review code, **When** it starts, **Then** it follows the matching reusable guide.
+5. **Given** a change to backend or frontend code, **When** a review is requested, **Then** a
+   reviewer specialised for that part can be used.
+6. **Given** a new API endpoint, **When** it is designed, **Then** a written API convention
+   defines its path, request and response shapes, errors and authentication.
+
 ### Edge Cases
 
 - A required port (backend or frontend) is already in use on the developer's machine: the
@@ -149,8 +185,22 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
   every contributor gets them on clone, and MUST work on Windows, macOS and Linux.
 - **FR-013**: The README's setup section MUST be updated so its commands work for the chosen
   backend (replacing the Django-specific step).
-- **FR-014**: The skeleton MUST NOT include authentication, database tables, tax logic, CI or
-  any real data.
+- **FR-014**: The skeleton MUST NOT include authentication, database tables, tax logic or any
+  real data.
+- **FR-015**: Automated checks MUST run on every pull request: lint, format and type checks and
+  tests for the backend, the frontend and the hooks; a failure MUST mark the pull request as
+  failing.
+- **FR-016**: The backend and frontend folders MUST each have their own guide for the AI
+  assistant, kept short and not repeating the root guide.
+- **FR-017**: The repository MUST provide topic rules for the AI assistant covering
+  architecture, backend, frontend, API design, testing and security.
+- **FR-018**: The repository MUST provide reusable guides for building a backend feature,
+  building a frontend feature, and reviewing code, and the root guide MUST say when to use each.
+- **FR-019**: The repository MUST provide a backend reviewer and a frontend reviewer for the AI
+  assistant, each focused on that part's conventions, security and test coverage.
+- **FR-020**: The repository MUST contain one written API convention covering paths, request
+  and response shapes, errors, authentication and how changes are kept in step between backend
+  and frontend.
 
 ## Success Criteria *(mandatory)*
 
@@ -166,6 +216,10 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
   with no manual formatting step.
 - **SC-005**: The backend and frontend test commands each pass on a fresh clone.
 - **SC-006**: The same setup works unchanged on Windows and on macOS or Linux.
+- **SC-007**: 100% of pull requests show automated check results, and a pull request with a
+  failing test or formatting error is marked as failing.
+- **SC-008**: Each of the six rule topics, both folder guides, the three reusable guides and both
+  reviewers exists and is referenced from the root guide.
 
 ## Assumptions
 

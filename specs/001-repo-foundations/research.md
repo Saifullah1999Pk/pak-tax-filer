@@ -77,3 +77,42 @@ Each decision: what was chosen, why, and what else was considered.
 - **Decision:** `GET /health` returns `200` with `{"status": "ok"}`.
 - **Rationale:** the simplest common convention; enough for the spec (FR-003). Database
   connectivity checks come with the first feature that uses the database.
+
+## R8. CI (added for issues #4/#5)
+
+- **Decision:** one GitHub Actions workflow, `.github/workflows/ci.yml`, on every pull request
+  and push to `main`, with three jobs: **backend** (uv; `ruff check`, `ruff format --check`,
+  `mypy app`, `pytest` against a PostgreSQL + pgvector service container), **frontend**
+  (`npm ci`, `prettier --check`, `tsc --noEmit`, `npm test`) and **hooks** (`pytest
+  .claude/hooks/tests`). The eval gate is added when the first eval exists (003, 006).
+- **Rationale:** the constitution's merge gate needs lint, type checks and tests; separate jobs
+  run in parallel and show exactly which part failed. Running Postgres as a service container
+  matches the real database.
+- **Alternatives:** one combined job (slower, unclear failures); running CI through Docker
+  Compose (slower startup, harder caching); Pyright instead of mypy (either works; mypy is the
+  more common default with SQLAlchemy and Pydantic plugins).
+
+## R9. Claude Code conventions layout (added for issues #4/#5)
+
+- **Decision:**
+  - `backend/CLAUDE.md` and `frontend/CLAUDE.md`: short folder guides, loaded when Claude works
+    in that folder; they don't repeat the root `CLAUDE.md`.
+  - `.claude/rules/`: one file per topic: `architecture.md`, `backend.md`, `frontend.md`,
+    `api.md`, `testing.md`, `security.md`. Backend- and frontend-specific rules are scoped to
+    their folders with `paths` front matter.
+  - `.claude/skills/`: `fastapi-feature`, `react-feature`, `code-review` (next to the existing
+    `speckit-*` skills).
+  - `.claude/agents/`: `backend-reviewer.md`, `frontend-reviewer.md`, each with read-only tools.
+- **Rationale:** these are Claude Code's own locations for each kind of guidance, so they load
+  automatically; one concern per file keeps each short and avoids duplication (issue #5).
+- **Alternatives:** one long `CLAUDE.md` (hard to maintain, always fully loaded); reviewers with
+  write access (a reviewer should report, not change code).
+
+## R10. API convention (added for issue #4)
+
+- **Decision:** `docs/api-conventions.md` is the written standard (see
+  [contracts/api-conventions.md](contracts/api-conventions.md)); `.claude/rules/api.md` points to
+  it. Each feature's API contract lives in its `specs/NNN-*/contracts/` and follows it. FastAPI's
+  generated OpenAPI schema is the machine-readable source the frontend can check against.
+- **Rationale:** one human-readable standard, per-feature contracts reviewed with the spec, and
+  an automatically generated schema that can't drift from the code.
