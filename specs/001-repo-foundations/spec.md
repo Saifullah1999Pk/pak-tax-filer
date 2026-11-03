@@ -16,6 +16,10 @@
 
 - Q: The lead's issues #4 and #5 ask for CI, folder guides, topic rules, reusable guides, reviewers and API conventions from the start; where do they go? → A: Into feature 001 as User Story 4 (FR-015 to FR-020), since they are project setup. CI moves here from feature 008. OpenSpec in those issues is replaced by Spec Kit (lead agreed).
 
+### Session 2026-11-04
+
+- Q: Now that the hooks are bash scripts (like the lead's #10), what automated checks run on them? → A: Tests only: CI runs each hook (ours and the lead's) against sample inputs and checks the response; no lint or type checks for bash.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start the whole app with one command (Priority: P1)
@@ -95,7 +99,8 @@ constitution, but the app can be developed without it, unlike Stories 1 and 2.
 
 1. **Given** a fresh clone, **When** the AI assistant starts a session, **Then** it has access
    to a guide describing the constitution's key rules, the repo layout, and the commands to
-   run, test and format the project.
+   run, test and format the project (added to the lead's existing root guide, which keeps its
+   engineering rules).
 2. **Given** the AI assistant writes or edits a source file, **When** the write completes,
    **Then** the file is automatically formatted to the project's standard.
 3. **Given** the shared permissions, **When** the AI assistant runs tests, linters, formatters
@@ -125,8 +130,8 @@ backend feature and a code review; the matching guide and reviewer are used.
 **Acceptance Scenarios**:
 
 1. **Given** a pull request, **When** it is opened or updated, **Then** lint, format, type and
-   test checks run automatically for the backend, the frontend and the hooks, and the result is
-   shown on the pull request.
+   test checks run automatically for the backend and the frontend, hook tests run for the
+   hooks, and the result is shown on the pull request.
 2. **Given** any of those checks fails, **When** someone tries to merge, **Then** the pull
    request is marked as failing.
 3. **Given** a Claude Code session, **When** the assistant works in the backend or frontend
@@ -182,18 +187,22 @@ backend feature and a code review; the matching guide and reviewer are used.
   version-control commands without asking; require approval for pushing and deleting; and
   forbid reading local secrets files.
 - **FR-012**: The guard, formatting and permissions MUST be shared through the repository, so
-  every contributor gets them on clone, and MUST work on Windows, macOS and Linux.
+  every contributor gets them on clone, and MUST work on Windows, macOS and Linux. They MUST be
+  added alongside the lead's existing shared hooks and settings (#10), never replacing them.
 - **FR-013**: The README's setup section MUST be updated so its commands work for the chosen
   backend (replacing the Django-specific step).
 - **FR-014**: The skeleton MUST NOT include authentication, database tables, tax logic or any
   real data.
 - **FR-015**: Automated checks MUST run on every pull request: lint, format and type checks and
-  tests for the backend, the frontend and the hooks; a failure MUST mark the pull request as
-  failing.
+  tests for the backend and the frontend, and tests for the hooks (each hook run against sample
+  inputs); a failure MUST mark the pull request as failing. Each check MUST use the same tool the repository's hooks already use for it (one
+  linter per language), so local and automated checks agree.
 - **FR-016**: The backend and frontend folders MUST each have their own guide for the AI
   assistant, kept short and not repeating the root guide.
 - **FR-017**: The repository MUST provide topic rules for the AI assistant covering
-  architecture, backend, frontend, API design, testing and security.
+  architecture, backend, frontend, API design, testing and security. Topics the lead's rules
+  (#10) already cover MUST be extended in those files, not duplicated; the backend rule MUST
+  describe the FastAPI backend, not Django.
 - **FR-018**: The repository MUST provide reusable guides for building a backend feature,
   building a frontend feature, and reviewing code, and the root guide MUST say when to use each.
 - **FR-019**: The repository MUST provide a backend reviewer and a frontend reviewer for the AI
@@ -218,8 +227,8 @@ backend feature and a code review; the matching guide and reviewer are used.
 - **SC-006**: The same setup works unchanged on Windows and on macOS or Linux.
 - **SC-007**: 100% of pull requests show automated check results, and a pull request with a
   failing test or formatting error is marked as failing.
-- **SC-008**: Each of the six rule topics, both folder guides, the three reusable guides and both
-  reviewers exists and is referenced from the root guide.
+- **SC-008**: Each of the six rule topics (in the lead's rule files or ours), both folder guides,
+  the three reusable guides and both reviewers exists and is referenced from the root guide.
 
 ## Assumptions
 
@@ -235,5 +244,9 @@ backend feature and a code review; the matching guide and reviewer are used.
 - Actions not listed in the shared permissions (e.g. installing packages) fall back to the AI
   assistant's default behaviour of asking first.
 - Developers have the prerequisites in the updated README installed: Docker + Docker Compose,
-  `uv` (which provides Python) and Node 24+ (the README's Node 20 has reached end of life).
+  `uv` (which provides Python), Node 24+ (the README's Node 20 has reached end of life), and
+  bash with `jq` for the shared hooks (Git Bash on Windows).
+- The lead's #10 already provides a root `CLAUDE.md`, rules for security, Python, git workflow
+  and testing quality, and hooks for risky git operations and lint after edits. This feature
+  builds on those files and fills only the gaps (design addendum, 2026-11-04).
 - No secrets are needed for this feature; the local secrets file is first needed in feature 003.
