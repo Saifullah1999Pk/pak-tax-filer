@@ -39,6 +39,23 @@ frontend, API, testing, security), reusable skills (FastAPI feature, React featu
 review), backend and frontend review subagents, and a written API convention. The issues name
 OpenSpec; the lead agreed we stay on Spec Kit.
 
+## Addendum (2026-11-04): building on the lead's #10
+
+The lead merged #10 (root `CLAUDE.md`; rules `security`, `python-django`, `git-workflow`,
+`testing-quality`; `settings.json` hooks: a git-safety guard and pylint/frontend-lint after
+edits), which covers part of issue #5. This feature now **builds on #10 and only fills the
+gaps**: it extends his `CLAUDE.md`, `settings.json` and rules instead of creating them; reuses
+his `security` and `testing-quality` rules (no separate `security`/`testing` files); adds
+`architecture`, `frontend` and `api` rules; and keeps the tax-rates guard, format-on-write,
+permissions, folder guides, skills, reviewers, CI and the API convention. Decided by
+Saifullah:
+
+| Clash | Chosen | Rejected |
+|---|---|---|
+| Linter | **pylint lints** (his hook, and CI); **Ruff only formats** | Ruff for both (rewrites his hook); both linting (competing rules) |
+| Hook style | **bash + `jq`, like his**; `jq` becomes a prerequisite | Python via `uv` (two styles in one repo) |
+| `python-django.md` | **renamed `python-backend.md`, minimally edited for FastAPI + Alembic**, flagged in PR #3 for the lead | leaving it and adding `backend.md` (contradictory instructions) |
+
 ## Decisions
 
 - **Guard behaviour:** ask for approval, not block (decided by Saifullah).

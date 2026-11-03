@@ -1,9 +1,23 @@
 # Contract: Claude Code hooks and permissions
 
-Shared through `.claude/settings.json`; scripts in `.claude/hooks/`. Each hook reads Claude
-Code's JSON event from standard input.
+Added to the lead's existing `.claude/settings.json` (#10) **alongside** his hooks
+(`git-safety.sh`, `check-python.sh`, `check-frontend.sh`), which are unchanged. Our scripts are
+bash + `jq` in `.claude/hooks/`, like his; each reads Claude Code's JSON event from standard
+input. (Amended 2026-11-04.)
 
-## Tax-rates guard (`PreToolUse`)
+## Hook scripts
+
+| Script | Event | Owner |
+|---|---|---|
+| `git-safety.sh` | `PreToolUse` (Bash): asks on risky git operations | lead (#10) |
+| `check-python.sh` | `PostToolUse`: pylint on written `.py` files | lead (#10) |
+| `check-frontend.sh` | `PostToolUse`: the frontend's `lint` script | lead (#10) |
+| `tax-rates-guard.sh` | `PreToolUse`: asks on tax-rates changes | 001 |
+| `format-on-write.sh` | `PostToolUse`: Ruff / Prettier formatting | 001 |
+
+All five are tested by `pytest .claude/hooks/tests` with sample JSON inputs (CI hooks job).
+
+## Tax-rates guard (`PreToolUse`, `tax-rates-guard.sh`)
 
 - **Matches tools:** `Edit`, `Write`, `MultiEdit`, `Bash`.
 - **Triggers when:** the tool's `file_path` is inside `backend/app/tax/rates/`, or a `Bash`
@@ -24,20 +38,22 @@ Code's JSON event from standard input.
 - **Never** returns `deny`: it asks, it does not block (spec FR-009).
 - Covers spec FR-008, FR-009, User Story 2.
 
-## Format-on-write (`PostToolUse`)
+## Format-on-write (`PostToolUse`, `format-on-write.sh`)
 
 - **Matches tools:** `Edit`, `Write`, `MultiEdit`.
 - **Formats:** `.py` with Ruff; `.ts`, `.tsx`, `.js`, `.jsx`, `.css` with Prettier. Other files
   are left alone.
+- **Formats only:** linting is done by the lead's `check-python.sh` and `check-frontend.sh`.
 - **On formatter failure:** the file is kept as written; the error is reported back to Claude
-  (exit code 2 with the message on standard error). The write itself is never undone.
+  as `hookSpecificOutput.additionalContext`, the same way the lead's hooks report. The write
+  itself is never undone.
 - Covers spec FR-010.
 
 ## Permissions
 
 | Rule | Actions |
 |---|---|
-| allow | pytest, Ruff, `npm test`/Vitest, Prettier, read-only git (`status`, `diff`, `log`, `show`, `branch`), `docker compose ps`/`logs` |
+| allow | pytest, Ruff, pylint, `npm test`/Vitest, `npm run lint`, Prettier, read-only git (`status`, `diff`, `log`, `show`, `branch`), `docker compose ps`/`logs` |
 | ask | `git push`, `rm`, `git rm` |
 | deny | reading `.env`, `.env.*` |
 
