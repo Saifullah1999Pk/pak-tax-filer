@@ -36,3 +36,6 @@ or when used after expiry. A user may have several sessions (several devices).
 
 Used only for throttling (FR-007): an email is throttled while it has 10 or more rows with
 `attempted_at` in the last 15 minutes. Rows older than 15 minutes have no effect.
+
+**Known limitation:** rows are never deleted, so the table grows over time. This is harmless at
+demo scale; a cleanup job can be added when the app has real traffic.

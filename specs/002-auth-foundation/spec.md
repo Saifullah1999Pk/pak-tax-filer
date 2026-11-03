@@ -12,7 +12,7 @@
 
 ### Session 2026-11-03
 
-- Q: What should happen when someone keeps guessing passwords for the same account? → A: After 10 failed sign-in attempts for an email within 15 minutes, further attempts for that email are refused until the 15 minutes pass; no permanent lockout.
+- Q: What should happen when someone keeps guessing passwords for the same account? → A: After 10 failed login attempts for an email within 15 minutes, further attempts for that email are refused until the 15 minutes pass; no permanent lockout.
 
 ## User Scenarios & Testing *(mandatory)*
 

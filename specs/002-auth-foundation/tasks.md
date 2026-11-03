@@ -26,7 +26,7 @@ feature 001 implemented.
 - [ ] T001 Add `pwdlib[argon2]` to `backend/pyproject.toml` with `uv add` and update `backend/uv.lock`
 - [ ] T002 [P] Add `react-router` to `frontend/package.json` with `npm install`
 - [ ] T003 [P] Add a proxy in `frontend/vite.config.ts` sending `/api` to `http://backend:8000`
-- [ ] T004 [P] Create `backend/app/settings.py`: reads `DATABASE_URL` and `COOKIE_SECURE` (default `false` for local development) from the environment
+- [ ] T004 [P] Create `backend/app/settings.py`: reads `DATABASE_URL` and `COOKIE_SECURE` from the environment, with `COOKIE_SECURE` defaulting to `true` (safe by default); set `COOKIE_SECURE=false` only in the `backend` service of `docker-compose.yml` for local development
 
 ---
 
@@ -97,7 +97,7 @@ feature 001 implemented.
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T023 [P] [US3] Write `frontend/src/pages/LoginPage.test.tsx` (with `fetch` mocked): the demo-data notice and the "no password reset yet" note render; a successful login navigates to `next` or `/`; a `401` shows the server's message; a `429` shows "Too many attempts. Try again later."
+- [ ] T023 [P] [US3] Write `frontend/src/pages/LoginPage.test.tsx` (with `fetch` mocked): the demo-data notice and the "no password reset yet" note render; a successful login navigates to `next` or `/`; a `401` shows the server's message; a `429` shows "Too many attempts. Try again later."; opening `/login` while logged in goes to `/`
 - [ ] T024 [P] [US3] Write `frontend/src/pages/HomePage.test.tsx`: logged out → redirected to `/login?next=/`; logged in → shows "Logged in as <email>" and a logout button; logout → on `/login`; an API `401` → on `/login` with "Your session has ended, please log in again."
 
 ### Implementation for User Story 3

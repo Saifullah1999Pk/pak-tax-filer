@@ -14,8 +14,8 @@ Each decision: what was chosen, why, and what else was considered.
 
 - **Decision:** at login, generate a random token (`secrets.token_urlsafe(32)`); store only its
   SHA-256 hash in the `sessions` table; send the token in a cookie named `session` with
-  `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` of 7 days, and `Secure` everywhere except
-  local development (controlled by a setting).
+  `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` of 7 days, and `Secure` on by default (a
+  setting turns it off only for local development over plain HTTP).
 - **Rationale:** an opaque token reveals nothing; hashing it means a leaked database can't be
   used to log in; `HttpOnly` keeps scripts from reading it.
 - **Alternatives:** signed cookie holding the user ID (can't be revoked on logout); storing the
