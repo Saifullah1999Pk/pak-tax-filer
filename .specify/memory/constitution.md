@@ -119,9 +119,10 @@ worth more than a wide scope done approximately.
 - **Traceability:** every GitHub Issue MUST link to the spec and task it implements.
 - **Review before build:** a feature's spec and plan MUST be reviewed by the project lead
   before its implementation starts.
-- **Merge gates:** until CI exists (feature 008), the project lead's PR review is the merge
-  gate. Once CI exists, it MUST pass lint, type checks, tests, and the eval-accuracy gate
-  before merge. Every plan MUST pass the Constitution Check in `plan-template.md`.
+- **Merge gates:** until CI exists (feature 001), the project lead's PR review is the merge
+  gate. Once CI exists, it MUST pass lint, type checks and tests before merge; the
+  eval-accuracy gate joins CI when the first eval exists (features 003 and 006). Every plan
+  MUST pass the Constitution Check in `plan-template.md`.
 
 ## Governance
 
@@ -136,4 +137,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-02
+**Version**: 1.2.1 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
