@@ -23,8 +23,9 @@ built as custom authentication in our FastAPI backend.
 
 ## Later increments (out of scope here)
 
-Sign-up, email verification, forgot password and password reset (lead's instruction); the
-taxpayer profile (its own feature, built on this one); AWS Cognito (out of scope per the lead).
+Sign-up, email verification, forgot password and password reset (lead's instruction); AWS
+Cognito (out of scope per the lead). The taxpayer profile was added to this feature on
+2026-11-04 (addendum below).
 
 ## Decisions
 
@@ -61,6 +62,32 @@ auth can be added for them without changing the browser flow.
 - After logout or expiry, the old session no longer works, on the API and in the UI.
 - Requests without a valid session to protected APIs are refused.
 - Passwords are never stored or logged in plain text.
+
+## Addendum (2026-11-04): taxpayer profile
+
+README milestone 2 is "Taxpayer profile + auth", and the README's MVP has "one taxpayer profile,
+one configurable tax year (TY2026)". The 8 README milestones are the 8 features, so the profile
+is added here (User Stories 4 and 5), not as a separate feature. Brainstormed with Saifullah:
+
+- **Fields:** tax year (one option, 2025-26) and ATL status (on FBR's Active Taxpayers' List:
+  yes/no). Both required; no "not sure". A link to FBR's "Check Active Taxpayer Status" page
+  sits beside the ATL question.
+- **Residency** is a one-line notice ("This app covers people who live in Pakistan and earn a
+  salary."), not a question: non-residents are outside the MVP.
+- **No identity fields** (name, CNIC, NTN): Principle V.
+- **When:** a "set up your profile" step on first login, before anything else; changeable any
+  time; a change applies to the next calculation and changes nothing already saved.
+- **Enforced by the backend**, not only the UI: helpers let later features read the profile or
+  refuse without one.
+- **Effect on 003–006:** they read the tax year and ATL status from the profile instead of a
+  setting or a question (their specs are updated; constitution: "an update to every affected
+  spec or plan").
+
+| Approach | Trade-off | Outcome |
+|---|---|---|
+| **A. Separate profile table, one row per account** | One more table; keeps `users` login-only | **Chosen** (Saifullah) |
+| B. Columns on `users` | Less code; mixes tax answers into the login table | Rejected |
+| C. Answers per tax year | Ready for TY2027; builds for years the MVP doesn't have | Rejected for now; A → C later is one migration |
 
 ## Left to the plan
 
