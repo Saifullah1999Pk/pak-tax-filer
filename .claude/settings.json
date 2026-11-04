@@ -30,6 +30,17 @@
             "statusMessage": "Checking git safety..."
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/tax-rates-guard.sh",
+            "timeout": 10,
+            "statusMessage": "Checking the tax-rates guard..."
+          }
+        ]
       }
     ]
   }
