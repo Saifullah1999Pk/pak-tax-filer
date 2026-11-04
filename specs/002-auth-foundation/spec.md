@@ -1,4 +1,4 @@
-# Feature Specification: Authentication Foundation
+# Feature Specification: Authentication Foundation and Taxpayer Profile
 
 **Feature Branch**: `002-auth-foundation`
 
@@ -13,6 +13,11 @@
 ### Session 2026-11-03
 
 - Q: What should happen when someone keeps guessing passwords for the same account? → A: After 10 failed login attempts for an email within 15 minutes, further attempts for that email are refused until the 15 minutes pass; no permanent lockout.
+
+### Session 2026-11-04
+
+- Q: README milestone 2 is "Taxpayer profile + auth"; where does the taxpayer profile go? → A: Into this feature as User Stories 4 and 5 (FR-016 to FR-023). The 8 README milestones are the 8 features; the profile is not a separate feature.
+- Q: Can a user save the profile without answering ATL status? → A: No. ATL status is a required yes/no with no "not sure"; a link to FBR's "Check Active Taxpayer Status" page helps people find out.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -97,6 +102,58 @@ the next action).
    does something that needs login, **Then** they are sent to the login page with a short
    explanation.
 
+---
+
+### User Story 4 - Set up the taxpayer profile on first login (Priority: P4)
+
+A logged-in user who has no profile yet is taken to a short "set up your profile" step before
+anything else. They choose the tax year (only 2025-26 is offered) and say whether they are on
+FBR's Active Taxpayers' List (ATL), with a link to FBR's ATL check beside the question. A one-line
+notice says the app covers people who live in Pakistan and earn a salary. After saving, they
+reach the app.
+
+**Why this priority**: README milestone 2 and MVP ("one taxpayer profile, one configurable tax
+year"); the tax calculation (004) and the workflow (007) need the tax year and ATL status.
+
+**Independent Test**: create a demo user, log in, check that every other page leads to the setup
+step until it is saved, save it, and check that the app opens and the saved answers are shown
+when the profile is reopened.
+
+**Acceptance Scenarios**:
+
+1. **Given** a logged-in user with no profile, **When** they open any page of the app, **Then**
+   they are taken to the setup step.
+2. **Given** the setup step, **When** it is shown, **Then** it offers tax year 2025-26 as the only
+   choice, asks ATL status as yes or no with a link to FBR's ATL check, shows the residency
+   notice, and has the logout button.
+3. **Given** the setup step, **When** the user tries to save without answering ATL status,
+   **Then** saving is refused with a message asking for the answer.
+4. **Given** both answers, **When** the user saves, **Then** the profile is stored and the user
+   reaches the page they wanted, or the home page.
+5. **Given** a user with no profile, **When** a backend request that needs the profile is made
+   directly, **Then** it is refused with "Set up your profile first."
+
+---
+
+### User Story 5 - Change the taxpayer profile (Priority: P5)
+
+A user whose ATL status changes opens their profile, changes the answer and saves.
+
+**Why this priority**: ATL status can change during the year, but this matters only once a
+profile exists.
+
+**Independent Test**: with a saved profile, change ATL status, reopen the profile, and check the
+new answer is shown and nothing else the user saved changed.
+
+**Acceptance Scenarios**:
+
+1. **Given** a saved profile, **When** the user opens the profile page from the app, **Then**
+   their current answers are shown and can be changed.
+2. **Given** the user changes ATL status and saves, **When** they reopen the profile, **Then** the
+   new answer is shown, and the next calculation uses it.
+3. **Given** a change is saved, **When** the user looks at anything else they have saved,
+   **Then** nothing has been deleted or altered.
+
 ### Edge Cases
 
 - Leading or trailing spaces around an email are ignored when creating users and logging in.
@@ -106,6 +163,10 @@ the next action).
   to contact the developer.
 - The login page is opened while already logged in: the user is taken to the home page.
 - The throttle message must not reveal whether the email is registered.
+- A user logs out from the profile setup step: allowed; the step appears again at the next login.
+- A tax year other than 2025-26 is submitted (e.g. by editing the request): refused.
+- Two profile saves arrive close together (two tabs): the last one wins; there is still one
+  profile.
 
 ## Requirements *(mandatory)*
 
@@ -137,7 +198,24 @@ the next action).
 - **FR-014**: The login page MUST show a clear notice that the app is a demo and real personal
   information must not be entered.
 - **FR-015**: The feature MUST NOT include sign-up, email verification, forgot password,
-  password reset, a taxpayer profile, or any external identity provider.
+  password reset, or any external identity provider.
+- **FR-016**: Each account MUST have at most one taxpayer profile, holding exactly two required
+  answers: tax year and ATL status (yes or no). There MUST be no "not sure" option.
+- **FR-017**: The only tax year offered and accepted MUST be 2025-26 (TY2026), taken from one list
+  of supported tax years, so adding a year later adds it to the profile.
+- **FR-018**: The profile MUST NOT hold identity fields (name, CNIC, NTN or similar) or a
+  residency answer (Principle V).
+- **FR-019**: The profile setup step MUST show a link to FBR's official ATL check page beside the
+  ATL question and the notice "This app covers people who live in Pakistan and earn a salary."
+- **FR-020**: A logged-in user without a profile MUST be taken to the setup step from every page
+  except logout.
+- **FR-021**: A user MUST be able to view and change their profile at any time; saving MUST NOT
+  change or delete anything else the user has saved, and a change applies from the next
+  calculation.
+- **FR-022**: The backend MUST provide reusable protections for later features: one that gives an
+  endpoint the user's profile (or none), and one that refuses requests from a user without a
+  profile with "Set up your profile first."
+- **FR-023**: A profile MUST be visible and changeable only by its own account.
 
 ### Key Entities
 
@@ -147,6 +225,8 @@ the next action).
   creation, whichever comes first.
 - **Failed login record**: a count of recent failed attempts per email, used only for
   throttling.
+- **Taxpayer profile**: belongs to one User (one-to-one); tax year (one of the supported years,
+  today only 2025-26); ATL status (yes/no); when created and last changed. No identity fields.
 
 ## Success Criteria *(mandatory)*
 
@@ -159,12 +239,23 @@ the next action).
 - **SC-004**: 0 passwords appear in readable form in stored data or logs.
 - **SC-005**: The 11th failed login within 15 minutes is refused in 100% of tests.
 - **SC-006**: The "demo data only" notice is visible on 100% of loads of the login page.
+- **SC-007**: A new user completes the profile setup step and reaches the app in under 1 minute.
+- **SC-008**: In tests, 100% of pages lead a user without a profile to the setup step, and 100% of
+  requests that need the profile are refused without one.
+- **SC-009**: Saving or changing a profile leaves every other saved record unchanged (test).
+- **SC-010**: The stored profile contains no identity or residency data (data model review and a
+  test).
 
 ## Assumptions
 
 - Builds on feature 001's running backend, frontend and database.
 - Demo data only (constitution, Principle V); users have no identity fields.
 - Sign-up, email verification, forgot password and password reset are later increments, per the
-  lead; the taxpayer profile is a separate feature built on this one.
+  lead.
+- The taxpayer profile is part of this feature (README milestone 2). Features 003–006 read the
+  tax year and ATL status from it; their specs say so.
+- Only people who live in Pakistan and earn a salary are in scope (README), so residency is a
+  notice, not a question. The FBR link is a plain external link; the app never looks up ATL
+  status itself (that would need a CNIC).
 - The only client of the user-facing API is the project's own web app; non-browser clients are
   out of scope.

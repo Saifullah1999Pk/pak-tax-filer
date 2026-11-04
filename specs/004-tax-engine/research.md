@@ -38,7 +38,7 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
 
 - **Decision:** checked first; any failure returns a `TaxResult` with `blocked_reason` and no
   figures:
-  - ATL unanswered; no confirmed salary certificate;
+  - no taxpayer profile; no confirmed salary certificate;
   - summed bank profit > Rs 5,000,000;
   - salary share > 75% with and without bank profit in taxable income gives different answers;
   - taxable income > Rs 10,000,000 with and without bank profit gives different answers.
@@ -50,13 +50,13 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
 - **Decision:** `backend/app/tax/service.py` builds `TaxInputs` from 003's
   `confirmed_documents(user_id, tax_year)`: sums taxable salary and tax deducted across salary
   certificates, and gross profit and tax withheld across bank certificates. ATL comes from the
-  request until the profile increment exists. Results are recalculated on every request, never
-  stored.
+  user's taxpayer profile (feature 002's `get_profile`; amended 2026-11-04). Results are
+  recalculated on every request, never stored.
 
 ## R6. API
 
-- **Decision:** `GET /api/tax/{tax_year}?atl=true|false` (protected by `current_user`; `atl`
-  optional, missing means unanswered). Returns the result, breakdown, optional summary and the
+- **Decision:** `GET /api/tax/{tax_year}` (protected by `current_user`; ATL from the profile).
+  Returns the result, breakdown, optional summary and the
   "not practitioner-reviewed" label text. `GET` because nothing changes on the server.
 
 ## R7. Breakdown text

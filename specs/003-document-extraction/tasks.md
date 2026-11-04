@@ -24,7 +24,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ## Phase 1: Setup
 
 - [ ] T001 Add `anthropic`, `pypdf` and `python-multipart` to `backend/pyproject.toml`, and `reportlab` and `Pillow` as dev dependencies, with `uv add`; update `backend/uv.lock`
-- [ ] T002 [P] Add settings to `backend/app/settings.py`: `ANTHROPIC_API_KEY` (optional; extraction fails with a clear reason if missing), `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `UPLOAD_DIR` (default `/data/uploads`), `TAX_YEAR` (default `2025-26`)
+- [ ] T002 [P] Add settings to `backend/app/settings.py`: `ANTHROPIC_API_KEY` (optional; extraction fails with a clear reason if missing), `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `UPLOAD_DIR` (default `/data/uploads`); the tax year comes from the user's profile (feature 002), not a setting
 - [ ] T003 [P] Add a named volume `uploads` mounted at `/data/uploads` on the `backend` service in `docker-compose.yml`; add `ANTHROPIC_API_KEY=` to `.env.example`; git-ignore `backend/evals/extraction/cases/` and `report.md`
 
 ---
@@ -50,14 +50,14 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T010 [P] [US1] Write `backend/tests/documents/test_uploads.py`: a valid PDF, JPG and PNG are accepted; a `.docx` renamed to `.pdf` (wrong magic bytes) → `415`; 10 MB + 1 byte → `413`; a 6-page PDF, an encrypted PDF and a corrupt (unreadable) PDF → `422`; nothing is sent to the extractor for refused files; stored path is `UPLOAD_DIR/<user_id>/<uuid>.<ext>`, not the uploaded name
+- [ ] T010 [P] [US1] Write `backend/tests/documents/test_uploads.py`: a valid PDF, JPG and PNG are accepted; a `.docx` renamed to `.pdf` (wrong magic bytes) → `415`; 10 MB + 1 byte → `413`; a 6-page PDF, an encrypted PDF and a corrupt (unreadable) PDF → `422`; nothing is sent to the extractor for refused files; stored path is `UPLOAD_DIR/<user_id>/<uuid>.<ext>`, not the uploaded name; a user without a profile → `409` "Set up your profile first."; the document's `tax_year` is the profile's
 - [ ] T011 [P] [US1] Write `backend/tests/documents/test_extraction.py` with `FakeExtractor`: a salary result produces 4 fields and a bank result 3, with value, confidence, page and label per [contracts/documents-api.md](contracts/documents-api.md); a rule-breaking result lowers the involved fields to `low` with `rule_reason`; an extractor failure or refusal gives status `failed` with a reason and saves no fields; an extractor result containing extra keys (e.g. a name) stores only the listed fields (FR-003)
 
 ### Implementation for User Story 1
 
 - [ ] T012 [US1] Create `backend/app/documents/uploads.py`: content-type check by magic bytes, size limit, `pypdf` page-count and encryption checks, save to `UPLOAD_DIR` per research R4; T010 passes
 - [ ] T013 [US1] Create `extract_document()` in `backend/app/documents/service.py`: set `extracting`, call the extractor, normalise, apply rules, save fields, set `needs_review` or `failed`; record `model`; T011 passes
-- [ ] T014 [US1] Create `backend/app/documents/router.py` with `POST /api/documents` (multipart `file`, `doc_type`), `GET /api/documents/{id}` and `GET /api/documents/{id}/file`, all with `current_user` and `404` for other users' documents; include it in `backend/app/main.py`
+- [ ] T014 [US1] Create `backend/app/documents/router.py` with `POST /api/documents` (multipart `file`, `doc_type`), `GET /api/documents/{id}` and `GET /api/documents/{id}/file`, all with `current_user` and `404` for other users' documents, the upload also with feature 002's `require_profile` (its `tax_year` stamps the document and is the year the rule checks compare with); include it in `backend/app/main.py`
 - [ ] T015 [P] [US1] Write `frontend/src/pages/DocumentsPage.test.tsx` (demo notice shown; type choice required; progress shown while uploading; errors from `413`/`415`/`422` displayed; success navigates to the review page), then create `frontend/src/pages/DocumentsPage.tsx` (upload part) and add its route under `RequireAuth` in `frontend/src/App.tsx`
 - [ ] T016 [US1] Run [quickstart.md](quickstart.md) section 1 with a real API key
 

@@ -1,4 +1,4 @@
-# Quickstart: validating Authentication Foundation (002)
+# Quickstart: validating Authentication Foundation and Taxpayer Profile (002)
 
 **Prerequisites:** feature 001 running (`docker compose up -d`).
 
@@ -33,7 +33,18 @@ docker compose exec backend python -m app.cli create-user --email demo@example.c
 4. Log in, delete the session row in the database, click anything that calls the API → sent to
    `/login` with the session-ended message.
 
-## 4. Tests
+## 4. Taxpayer profile (User Stories 4 and 5)
+
+1. Log in as a new demo user → sent to `/profile`; opening `/` brings you back to `/profile`.
+2. Tax year offers only 2025-26; ATL yes/no has nothing selected; the FBR link opens FBR's
+   "Check Active Taxpayer Status" page in a new tab; the residency notice and logout button are
+   shown. Saving without an ATL answer is refused.
+3. Choose "No" and save → the home page opens, in under 1 minute from login (SC-007). Reopen
+   `/profile` → "No".
+4. Change to "Yes", save, reopen → "Yes"; nothing else changed.
+5. Log out from `/profile` with a new user → works; the step reappears at the next login.
+
+## 5. Tests
 
 ```bash
 docker compose exec backend pytest

@@ -15,7 +15,7 @@ The MVP is the README's "In" list. Each item maps to the feature(s) that deliver
 
 | README "In" item | Feature |
 |---|---|
-| One taxpayer profile, one configurable tax year (TY2026) | 002 (auth) + taxpayer-profile increment, 004 |
+| One taxpayer profile, one configurable tax year (TY2026) | 002 (auth + taxpayer profile), 004 |
 | Salary certificate + bank profit certificate, AI extraction, human confirmation | 003 |
 | Deterministic tax calculation (salary + §151) with step-by-step explanation | 004 |
 | Wealth statement with deterministic reconciliation | 005 |
@@ -34,7 +34,7 @@ The MVP is complete when features 001–008 are done.
 | # | Feature | Depends on | Done when |
 |---|---|---|---|
 | 001 | Repo foundations | – | `docker compose up` runs db, backend and frontend from a fresh clone; `CLAUDE.md`, the tax-rates guard hook, format-on-write and permissions are in place; the README's setup section reflects FastAPI; CI checks lint, types and tests on every PR; shared Claude Code conventions in place (issues #4, #5) |
-| 002 | Authentication foundation | 001 | A demo user can log in and out; protected APIs refuse requests without a valid session; the web app has a login page and protected pages |
+| 002 | Authentication foundation + taxpayer profile | 001 | A demo user can log in and out; protected APIs refuse requests without a valid session; the web app has a login page and protected pages; each user sets up one profile (tax year, ATL status) before using the app |
 | 003 | Upload + AI extraction | 002 | Both document types extract with per-field confidence; nothing is used until the user confirms it (enforced by the backend); an eval reports per-field accuracy on synthetic documents |
 | 004 | Tax engine | 001 | Every TY2026 rate cites its FBR source; FBR-derived worked examples pass as tests; the explanation only restates computed numbers |
 | 005 | Wealth statement + reconciliation | 004 | Reconciliation is computed by code and tested; the LLM only explains the result |
@@ -42,10 +42,10 @@ The MVP is complete when features 001–008 are done.
 | 007 | Agentic workflow | 003, 004, 006 | Runs end to end on synthetic documents and cannot reach calculation without human approval |
 | 008 | Telemetry, guardrails, PDF export | 001–007 | CI (from 001) also enforces the eval thresholds; guardrail tests cover Principles I, III, IV; every PDF carries the "not yet practitioner-reviewed" banner |
 
-**Milestone 2 increments:** at the lead's request, 002 is a minimal authentication foundation.
-Sign-up, email verification, password reset and the taxpayer profile (tax year, ATL status) are
-specified separately and take the next free feature numbers. The taxpayer profile must exist
-before 007, whose workflow reads it.
+**Milestone 2 increments:** at the lead's request, 002 starts as a minimal authentication
+foundation. The README's 8 milestones are the 8 features, so milestone 2's later parts are added
+to 002 rather than given new numbers: the taxpayer profile (tax year, ATL status) was added on
+2026-11-04; sign-up, email verification and password reset follow the same way.
 
 **CI** moved from 008 to 001 at the lead's request (issues #4, #5).
 
