@@ -8,5 +8,6 @@ export default defineConfig({
   // Vitest shares Vite's config (research R4); jsdom lets tests render components without a browser.
   test: {
     environment: "jsdom",
+    setupFiles: ["./src/test-setup.ts"],
   },
 });
