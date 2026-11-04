@@ -119,7 +119,7 @@ review subagents and an API convention.
 
 **Independent Test**: [quickstart.md](quickstart.md), section 5.
 
-- [ ] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff format --check`, `pylint app`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 24, `npm ci`, `prettier --check .`, `npm run lint`, `tsc --noEmit`, `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`, with `jq` available; no lint or type checks for bash)
+- [X] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff format --check`, `pylint app`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 26, `npm ci`, `prettier --check .`, `npm run lint`, `tsc -b` (the root tsconfig only references sub-configs, so `tsc --noEmit` would check nothing), `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`, with `jq` available; no lint or type checks for bash)
 - [ ] T028 [US4] Push a branch with a deliberately failing backend test and one with a misformatted `.tsx` file; confirm each CI job fails and the PR shows it; delete both branches
 - [ ] T029 [P] [US4] Write `docs/api-conventions.md` exactly as [contracts/api-conventions.md](contracts/api-conventions.md)
 - [ ] T030 [P] [US4] Write `backend/CLAUDE.md` (layout of `backend/app/`, how to add an endpoint, migration commands, test database notes; no repetition of the root guide)
@@ -141,7 +141,7 @@ review subagents and an API convention.
 ## Phase 7: Polish
 
 - [ ] T039 Update the "Development setup" section of `README.md`: prerequisites Docker + Docker Compose, `uv`, Node 26+, bash and `jq`; for contributors using Claude Code, the host steps `uv sync` in `backend/` and `npm ci` in `frontend/` so the lead's lint hooks can run pylint and `npm run lint` on the host; replace `python manage.py migrate` with `alembic upgrade head`; add the hook test command; leave the rest of the README unchanged
-- [ ] T040 [P] Run `ruff format --check`, `pylint app` and `mypy app` in `backend/`; `prettier --check`, `npm run lint` and `tsc --noEmit` in `frontend/`; and the hook tests; fix anything reported
+- [ ] T040 [P] Run `ruff format --check`, `pylint app` and `mypy app` in `backend/`; `prettier --check`, `npm run lint` and `tsc -b` in `frontend/`; and the hook tests; fix anything reported
 - [ ] T041 Run the whole of [quickstart.md](quickstart.md) from a fresh clone, plus two extra checks: start the app with port 8000 already in use and confirm the error names the port; and run section 4 on a second operating system if one is available. Record the results in the PR description, stating plainly which operating systems were not checked so the lead can verify them
 
 ---

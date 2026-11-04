@@ -101,7 +101,7 @@ Each decision: what was chosen, why, and what else was considered.
 - **Decision:** one GitHub Actions workflow, `.github/workflows/ci.yml`, on every pull request
   and push to `main`, with three jobs: **backend** (uv; `ruff format --check`, `pylint app`,
   `mypy app`, `pytest` against a PostgreSQL + pgvector service container), **frontend**
-  (`npm ci`, `prettier --check`, `npm run lint`, `tsc --noEmit`, `npm test`) and **hooks**
+  (`npm ci`, `prettier --check`, `npm run lint`, `tsc -b`, `npm test`) and **hooks**
   (`pytest .claude/hooks/tests`, which runs every hook, ours and the lead's, against sample JSON
   inputs; no lint or type checks for bash, per the 2026-11-04 clarification). The eval gate is
   added when the first eval exists (003, 006).
