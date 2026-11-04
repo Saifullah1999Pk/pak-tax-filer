@@ -44,8 +44,8 @@ each shows its fields with values, confidence and source location.
    the AI.
 5. **Given** extracted values that break a consistency rule (an amount that isn't a valid
    non-negative number; tax deducted or taxable salary greater than gross salary; tax withheld
-   greater than profit amount; a tax year not in the form 2025-26 or not equal to the
-   configured tax year), **When** results are shown, **Then** each field involved is shown as
+   greater than profit amount; a tax year not in the form 2025-26 or not equal to the tax
+   year in the user's taxpayer profile), **When** results are shown, **Then** each field involved is shown as
    low confidence with the reason.
 6. **Given** extraction is in progress, **When** the user waits, **Then** progress is shown
    until results appear.
@@ -211,8 +211,8 @@ each model tried.
 - Builds on features 001 (running app, CI) and 002 (logged-in users).
 - Synthetic documents only (constitution, Principle V); no real certificates are uploaded,
   stored or used in the eval.
-- The configured tax year is TY2026 (2025-26); the taxpayer profile, a later increment, is not
-  needed.
+- The tax year comes from the user's taxpayer profile (feature 002; today only 2025-26). A user
+  without a profile cannot upload; the app sends them to set it up first (amended 2026-11-04).
 - An API key with credits is available for development, testing and the automated eval
   (pending from the lead).
 - Known limitation: synthetic certificates can't reproduce the variety of real ones, so eval
