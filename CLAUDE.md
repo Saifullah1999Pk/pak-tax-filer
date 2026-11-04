@@ -3,7 +3,7 @@
 General-purpose rules for working in this repo. See the detailed rule files:
 
 - @.claude/rules/security.md
-- @.claude/rules/python-django.md
+- @.claude/rules/python-backend.md
 - @.claude/rules/git-workflow.md
 - @.claude/rules/testing-quality.md
 
