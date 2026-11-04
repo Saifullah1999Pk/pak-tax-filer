@@ -4,49 +4,20 @@ Run: uv run --no-project --with pytest pytest .claude/hooks/tests
 """
 
 import json
-import os
-import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
+from conftest import run_hook as run_script
 
-HOOK = Path(__file__).resolve().parents[1] / "tax-rates-guard.sh"
 REASON = (
     "Tax-rates module: rates must come from FBR's gazetted documents (constitution, Principle II). "
     "Approve only if this change cites its FBR source."
 )
 
 
-def bash() -> str:
-    """Git Bash on Windows (plain `bash` there is WSL's), `bash` elsewhere.
-
-    Claude Code runs hooks with Git Bash on Windows, so the tests do too.
-    """
-    if os.name == "nt":
-        git = shutil.which("git")
-        if git:
-            # git.exe sits in Git\cmd, Git\bin or Git\mingw64\bin; bash.exe is in Git\bin.
-            for folder in Path(git).resolve().parents:
-                candidate = folder / "bin" / "bash.exe"
-                if candidate.exists():
-                    return str(candidate)
-        raise RuntimeError(
-            "Git Bash not found; Claude Code on Windows needs Git for Windows."
-        )
-    return "bash"
-
-
 def run_hook(event: dict[str, object]) -> subprocess.CompletedProcess[str]:
-    """Feed one Claude Code PreToolUse event to the hook on standard input."""
-    return subprocess.run(
-        [bash(), str(HOOK)],
-        input=json.dumps(event),
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=10,
-    )
+    """Feed one Claude Code PreToolUse event to tax-rates-guard.sh."""
+    return run_script("tax-rates-guard.sh", event)
 
 
 def edit_event(tool: str, file_path: str) -> dict[str, object]:

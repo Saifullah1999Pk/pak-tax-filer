@@ -98,7 +98,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T021 [P] [US3] Write `.claude/hooks/tests/test_format_on_write.py`, running `bash .claude/hooks/format-on-write.sh`: a badly formatted `.py` file is reformatted; a file with a syntax error is left unchanged and the failure is reported as `hookSpecificOutput.additionalContext`; a `.md` file is left alone
+- [X] T021 [P] [US3] Write `.claude/hooks/tests/test_format_on_write.py`, running `bash .claude/hooks/format-on-write.sh`: a badly formatted `.py` file is reformatted; a file with a syntax error is left unchanged and the failure is reported as `hookSpecificOutput.additionalContext`; a `.md` file is left alone
 
 ### Implementation for User Story 3
 
