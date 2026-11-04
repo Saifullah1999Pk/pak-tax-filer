@@ -86,3 +86,46 @@ Each decision: what was chosen, why, and what else was considered.
   touching development data.
 - **Alternatives:** SQLite for tests (behaves differently from PostgreSQL); mocking the
   database (misses real constraint behaviour).
+
+## R11. Taxpayer profile storage and saving (added 2026-11-04)
+
+- **Decision:** a separate `taxpayer_profiles` table with `user_id` unique (approach A in the
+  design addendum). `PUT /api/profile` creates or replaces it with one
+  `INSERT … ON CONFLICT (user_id) DO UPDATE`.
+- **Rationale:** keeps `users` login-only; the unique key enforces one profile per user (FR-016)
+  in the database; the upsert settles two saves arriving together (last one wins, one row).
+- **Alternatives:** columns on `users`; separate create and edit endpoints (two code paths for
+  two fields); read-then-write in code (races).
+
+## R12. FBR ATL check link
+
+- **Decision:** link to FBR's "Check Active Taxpayer Status" page,
+  `https://www.fbr.gov.pk/categ/active-taxpayer-list-income-tax/51147/30859/71169`, opened in a new tab.
+- **Rationale:** FBR's own page (Principle II), listing all three official checks: the online
+  "ATL status check", SMS ("ATL (space) 13-digit CNIC" to 9966) and the downloadable list
+  (checked 2026-11-04).
+- **Alternatives:** the online check's own address (`e.fbr.gov.pk/esbn/Service.aspx?PID=…`: an
+  opaque service id likely to change); checking ATL status from the app (needs the user's CNIC:
+  Principle V).
+
+## R13. Reading the profile and supported tax years
+
+- **Decision:** `GET /api/profile` always returns `200` with
+  `{"profile": null | {...}, "supported_tax_years": [...]}`. `SUPPORTED_TAX_YEARS = ("2025-26",)`
+  in `backend/app/settings.py` is the one list (FR-017); feature 004 tests that every supported
+  year has a rates module.
+- **Rationale:** "no profile yet" is a normal state for the setup page, not an error, and the page
+  needs the years either way.
+- **Alternatives:** `404` when missing (the fetch helper would treat a normal state as an error);
+  deriving years from 004's rates folder (004 is built after 002).
+
+## R14. Enforcing the profile
+
+- **Decision:** frontend `RequireProfile`, nested in `RequireAuth`, sends users without a profile
+  to `/profile?next=<path>` (`/profile` itself is not wrapped). Backend: `get_profile(db, user)`
+  returns the profile or `None`; `require_profile` returns it or answers `409`
+  `{"detail": "Set up your profile first."}`.
+- **Rationale:** FR-020 and FR-022: the UI guides, the backend enforces. `409` means "your account
+  isn't in the state this needs", distinct from `401`.
+- **Alternatives:** `403` (reads as a permissions problem); enforcing only in the UI (fails
+  FR-022, SC-008).

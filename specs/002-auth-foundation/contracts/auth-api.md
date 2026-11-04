@@ -37,3 +37,28 @@ Protected. With a valid session: `200` `{"email": "demo@example.com"}`. Otherwis
 Any endpoint that depends on `current_user` returns `401` `{"detail": "Not logged in."}` when the
 session is missing, unknown, logged out or expired, and otherwise receives the logged-in user.
 Covers FR-010.
+
+## Taxpayer profile: /api/profile (added 2026-11-04)
+
+Both endpoints depend on `current_user` and only touch the caller's own profile (FR-023).
+
+### GET /api/profile
+
+`200` always: `{"profile": {"tax_year": "2025-26", "on_atl": true, "updated_at": "2026-11-04T10:00:00Z"}, "supported_tax_years": ["2025-26"]}`, with `"profile": null` when the user has none.
+
+### PUT /api/profile
+
+Request: `{"tax_year": "2025-26", "on_atl": false}` (`Content-Type: application/json`).
+
+| Outcome | Status | Body |
+|---|---|---|
+| Created or replaced | `200` | the `profile` object as in `GET` |
+| `tax_year` not supported | `422` | `{"detail": "Tax year 2024-25 is not supported."}` |
+| `on_atl` missing or not a boolean; unknown fields (e.g. `cnic`) | `422` | FastAPI validation error |
+
+### Helpers for other features (`app/profile/`)
+
+- `get_profile(db, user)` → the profile or `None`.
+- `require_profile` (dependency) → the profile, or `409` `{"detail": "Set up your profile first."}`.
+
+Covers FR-016 to FR-018, FR-021 to FR-023.

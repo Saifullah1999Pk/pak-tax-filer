@@ -1,4 +1,4 @@
-# Data Model: Authentication Foundation (002)
+# Data Model: Authentication Foundation and Taxpayer Profile (002)
 
 Created by Alembic migration `0002_auth_tables`. All timestamps are UTC.
 
@@ -39,3 +39,19 @@ Used only for throttling (FR-007): an email is throttled while it has 10 or more
 
 **Known limitation:** rows are never deleted, so the table grows over time. This is harmless at
 demo scale; a cleanup job can be added when the app has real traffic.
+
+## taxpayer_profiles (added 2026-11-04)
+
+| Column | Type | Rules |
+|---|---|---|
+| `id` | UUID | primary key |
+| `user_id` | UUID | required; references `users.id`, deleted with the user; **unique** (FR-016) |
+| `tax_year` | text | required; one of `SUPPORTED_TAX_YEARS` (today only `2025-26`), checked on save (FR-017) |
+| `on_atl` | boolean | required; no "unknown" value (FR-016) |
+| `created_at` | timestamptz | required, defaults to now |
+| `updated_at` | timestamptz | required, defaults to now; set on every save |
+
+No other columns: no name, CNIC, NTN or residency (FR-018, Principle V). Created by
+`0002_auth_tables` with the other tables.
+
+**Lifecycle:** no profile → saved → replaced by each later save; deleted only with the user.
