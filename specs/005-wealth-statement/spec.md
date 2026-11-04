@@ -199,6 +199,9 @@ figure is shown; delete and re-confirm a certificate after saving and confirm th
 
 ## Assumptions
 
+- The tax year comes from the user's taxpayer profile (feature 002; today only 2025-26): the
+  wealth page opens on it (amended 2026-11-04).
+
 - MVP users are resident salaried individuals whose only income is salary and bank profit;
   synthetic data only.
 - The form lines and codes are from the TY2026 return form, SRO 1495(I)/2026, which prints no
