@@ -1,8 +1,9 @@
 # Contract: Tax API
 
-`GET /api/tax/{tax_year}?atl=true|false`. Requires `current_user`. Follows the
+`GET /api/tax/{tax_year}`. Requires `current_user`. ATL status is read from the user's taxpayer
+profile (feature 002's `get_profile`). Follows the
 [API conventions](../../001-repo-foundations/contracts/api-conventions.md): money as decimal
-strings. `atl` omitted means unanswered.
+strings.
 
 ## 200: calculated
 
@@ -24,7 +25,7 @@ strings. `atl` omitted means unanswered.
 ## 200: blocked
 
 ```json
-{ "tax_year": "2025-26", "blocked_reason": "needs_atl_answer", "message": "Tell us whether you are on FBR's Active Taxpayers' List.", "steps": [], "summary": null, "label": "…" }
+{ "tax_year": "2025-26", "blocked_reason": "needs_atl_answer", "message": "Set your ATL status in your profile.", "steps": [], "summary": null, "label": "…" }
 ```
 
 `blocked_reason` values: `needs_atl_answer`, `no_confirmed_salary_certificate`,

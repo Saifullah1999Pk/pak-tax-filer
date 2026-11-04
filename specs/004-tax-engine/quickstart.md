@@ -14,7 +14,7 @@ source row, and `signed_off_by` / `signed_off_date` filled in after checking aga
 *Figures below are illustrative; the authoritative cases are the signed-off worked examples.*
 
 1. Confirm a salary certificate with taxable salary Rs 1,800,000 and tax deducted Rs 75,000; open
-   **Tax**, answer ATL "yes". Expected: salary tax Rs 72,000, over-deducted Rs 3,000
+   **Tax** with ATL "yes" in the profile. Expected: salary tax Rs 72,000, over-deducted Rs 3,000
    ([contract](contracts/tax-api.md)).
 2. Add a second confirmed salary certificate: figures are summed.
 3. Add a bank certificate (profit Rs 50,000, withheld Rs 10,000): profit tax Rs 10,000, balance 0;
@@ -29,9 +29,9 @@ source row, and `signed_off_by` / `signed_off_date` filled in after checking aga
 
 ## 3. Honest limits (User Story 3)
 
-Leave ATL unanswered; delete all salary certificates; confirm a bank certificate with profit
-Rs 5,000,001: each shows its reason and no figures. Answer ATL "no" with 40% withheld: the
-difference is labelled "to be confirmed".
+Call the tax API for a user with no profile; delete all salary certificates; confirm a bank
+certificate with profit Rs 5,000,001: each shows its reason and no figures. Set ATL "no" in the
+profile with 40% withheld: the difference is labelled "to be confirmed".
 
 ## 4. Traceable rates (User Story 4)
 
