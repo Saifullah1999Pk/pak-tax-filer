@@ -15,9 +15,10 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R2. Backend tooling
 
-- **Decision:** `uv` for dependencies and running; Uvicorn as the server; pytest + HTTPX
-  `TestClient` for tests; Ruff for formatting; pylint for linting (amended 2026-11-04: the
-  lead's #10 hook lints with pylint, so Ruff no longer lints).
+- **Decision:** `uv` for dependencies and running; Uvicorn as the server; pytest + FastAPI's
+  `TestClient` (on `httpx2`) for tests; Ruff for formatting; pylint for linting (amended
+  2026-11-04: the lead's #10 hook lints with pylint, so Ruff no longer lints; amended
+  2026-11-05: Starlette now deprecates `httpx` for the test client in favour of `httpx2`).
 - **Rationale:** `uv` is fast, handles Python versions, and is already used on the dev machine.
   These are FastAPI's documented defaults. Ruff formats in one fast tool (replacing Black and
   isort); pylint is the repo's existing linter, so we don't add a competing one.
