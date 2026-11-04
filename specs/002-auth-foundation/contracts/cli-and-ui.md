@@ -22,3 +22,13 @@ docker compose exec backend python -m app.cli create-user --email demo@example.c
 Any page wrapped in `RequireAuth` redirects logged-out users to `/login?next=<path>`. Any API
 `401` sends the user to `/login` with "Your session has ended, please log in again." The logout
 button calls `POST /api/auth/logout`, then shows `/login`. Covers FR-012, FR-013.
+
+## Taxpayer profile page (added 2026-11-04)
+
+| Path | Who can see it | Behaviour |
+|---|---|---|
+| `/profile` | logged-in users | Setup (no profile) or edit form: tax-year select from `supported_tax_years`; ATL yes/no with nothing preselected and the link "Check your ATL status on FBR's website" (research R12, new tab); the notice "This app covers people who live in Pakistan and earn a salary."; the logout button. Saving without an ATL answer shows "Tell us whether you are on the ATL." After saving, goes to `next` or `/`. |
+
+Every page wrapped in `RequireAuth`, except `/profile`, is also wrapped in `RequireProfile`, which
+redirects to `/profile?next=<path>` while `"profile"` is `null`. The home page links to
+`/profile`. Covers FR-019 to FR-021.

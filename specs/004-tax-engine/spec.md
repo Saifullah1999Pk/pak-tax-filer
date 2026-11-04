@@ -18,8 +18,8 @@
 
 ### User Story 1 - See my tax and whether I owe or overpaid (Priority: P1)
 
-A salaried user whose certificates are confirmed opens the tax page, says whether they are on
-FBR's Active Taxpayers' List (ATL), and sees their TY2026 tax: tax on salary, any surcharge, tax
+A salaried user whose certificates are confirmed opens the tax page and, using the ATL status
+from their taxpayer profile (feature 002), sees their TY2026 tax: tax on salary, any surcharge, tax
 on bank profit, the tax already taken by their employer and bank, and whether they owe more or
 had too much taken.
 
@@ -27,7 +27,7 @@ had too much taken.
 inputs.
 
 **Independent Test**: with confirmed synthetic certificates whose correct results were worked out
-by hand from the Ordinance, open the tax page, answer ATL, and compare every figure shown with the
+by hand from the Ordinance, set ATL status in the profile, open the tax page, and compare every figure shown with the
 hand-worked result.
 
 **Acceptance Scenarios**:
@@ -88,7 +88,7 @@ shown.
 
 **Acceptance Scenarios**:
 
-1. **Given** ATL status is unanswered, or no confirmed salary certificate exists, **When** the
+1. **Given** the user has no taxpayer profile, or no confirmed salary certificate exists, **When** the
    user opens the tax page, **Then** they are told what is missing and no calculation is shown.
 2. **Given** summed bank profit above Rs 5 million, **When** the tax is requested, **Then** the
    user is told this case isn't supported yet, and no figure is shown.
@@ -145,7 +145,7 @@ fixed amount by 1 rupee and confirm the consistency check fails.
 - **FR-003**: The system MUST calculate tax on bank profit at 20% of gross profit (§7B with
   Division IIIA(a)).
 - **FR-004**: Inputs MUST come only from confirmed certificates (feature 003), summed per type,
-  plus the user's ATL answer.
+  plus the ATL status in the user's taxpayer profile (feature 002).
 - **FR-005**: The system MUST show salary-side and profit-side results: tax, credits and the
   balance as payable or over-deducted. The two balances MUST NOT be combined into one total.
   *(Provisional, pending the lead.)*
@@ -161,7 +161,7 @@ fixed amount by 1 rupee and confirm the consistency check fails.
   its rule and source.
 - **FR-011**: An AI-written summary MAY be shown only when every number in it appears in the
   breakdown; otherwise it MUST be omitted.
-- **FR-012**: The system MUST refuse to calculate, with a reason, when ATL status is unanswered,
+- **FR-012**: The system MUST refuse to calculate, with a reason, when the user has no taxpayer profile,
   no confirmed salary certificate exists, summed bank profit exceeds Rs 5 million, or the 75%
   salary condition or the Rs 10 million surcharge limit gives different answers with and without
   bank profit. *(The last three are provisional, pending the lead.)*
@@ -193,8 +193,8 @@ fixed amount by 1 rupee and confirm the consistency check fails.
 - **SC-002**: 100% of stored rates show their source document, location and Finance Act.
 - **SC-003**: 0 summaries containing a number absent from the breakdown are ever shown (tested
   with deliberately wrong summaries).
-- **SC-004**: A user with confirmed certificates sees their result within 5 seconds of answering
-  ATL status.
+- **SC-004**: A user with confirmed certificates sees their result within 5 seconds of opening
+  the tax page.
 - **SC-005**: Every blocked case in User Story 3 shows a reason and no tax figure.
 
 ## Assumptions
@@ -202,7 +202,8 @@ fixed amount by 1 rupee and confirm the consistency check fails.
 - The certificate's taxable salary is used as stated; analysing allowances or exemptions is out
   of scope.
 - MVP users are resident salaried individuals whose only income is salary and bank profit.
-- ATL status is asked on the tax page until the taxpayer-profile increment exists.
+- ATL status comes from the user's taxpayer profile (feature 002); the tax page does not ask it
+  (amended 2026-11-04).
 - Rates are from the Ordinance as amended up to 31.07.2025 (TY2026). FBR Circular 01 of 2025-26
   has two wrong slab amounts and is not used as a source.
 - The three provisional rules are asked of the lead in the pull request and may change.

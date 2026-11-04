@@ -30,7 +30,7 @@ summary-check tests; Vitest
 
 **Project Type**: web application
 
-**Performance Goals**: result within 5 seconds of answering ATL (SC-004); the calculation itself
+**Performance Goals**: result within 5 seconds of opening the tax page (SC-004); the calculation itself
 is instant, the summary call is the slow part
 
 **Constraints**: `Decimal` only; `ROUND_HALF_UP` at final amounts; no AI in any figure; rates
@@ -48,7 +48,7 @@ only in the guarded folder
 | II. Authoritative sources | PASS | Every rate from the Ordinance as amended up to 31.07.2025 with location and Finance Act; one module per year in the guarded folder; FBR circular with wrong amounts rejected |
 | III. Human confirmation | PASS | Only confirmed certificates are used (003's `confirmed_documents`) |
 | IV. Honest output | PASS | Practitioner label on every result; unclear cases refused; "to be confirmed" instead of "refund" |
-| V. Synthetic data only | PASS | No new data collected; ATL answer is not stored |
+| V. Synthetic data only | PASS | No new data collected; ATL status is read from feature 002's profile |
 | VI. Test-first, measured AI | PASS | Hand-worked, signed-off examples become the tests before the code (R9); a test fails while any is unsigned |
 | VII. MVP scope | PASS | Salary + bank profit only; out-of-scope items listed in the spec |
 | Stack / Secrets | PASS | No new components; API key as in 003 |

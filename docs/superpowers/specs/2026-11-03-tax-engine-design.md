@@ -39,8 +39,8 @@ values consistent with the bands (116,000 + 23% × 1,000,000 = 346,000; 346,000 
 ## Scope
 
 **Inputs:** the user's confirmed certificates for TY2026 (from 003's `confirmed_documents`),
-summed per type; ATL status (asked on the tax page itself until the taxpayer-profile
-increment exists, then read from the profile).
+summed per type; ATL status from the user's taxpayer profile (feature 002; amended
+2026-11-04, previously asked on the tax page).
 
 **Calculation:**
 1. **Salary tax:** apply the salaried slabs to the summed taxable salary.
@@ -106,7 +106,7 @@ filing.
 - **Pure function core:** `calculate(inputs, rates) -> breakdown`, with no database or network,
   so it is trivially testable and reusable by the MCP tool `calculate_income_tax` (006).
   *(Builder's call.)*
-- **Not ready to calculate** when ATL status is unanswered, no confirmed salary certificate
+- **Not ready to calculate** when the user has no taxpayer profile, no confirmed salary certificate
   exists, or a provisional rule blocks; the user is told why. *(Builder's call.)*
 - **Not tax advice:** results carry the "not yet practitioner-reviewed" label (Principle IV).
 

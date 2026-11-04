@@ -9,7 +9,7 @@ Created by Alembic migration `0003_documents`. Timestamps are UTC.
 | `id` | UUID | primary key |
 | `user_id` | UUID | required; references `users.id`, deleted with the user |
 | `doc_type` | enum | `salary_certificate` or `bank_profit_certificate` |
-| `tax_year` | text | configured tax year at upload (`2025-26`) |
+| `tax_year` | text | the uploader's profile tax year at upload (`2025-26`; feature 002) |
 | `file_path` | text | required; random name under `/data/uploads/<user_id>/` |
 | `media_type` | text | `application/pdf`, `image/jpeg` or `image/png` |
 | `page_count` | int | 1–5 |

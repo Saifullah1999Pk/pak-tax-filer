@@ -19,7 +19,7 @@ in-code structures.
 
 ## TaxInputs
 
-`tax_year`, `atl` (true / false / None = unanswered), `taxable_salary`, `tax_deducted`,
+`tax_year`, `atl` (true / false from the profile; None = no profile), `taxable_salary`, `tax_deducted`,
 `gross_profit`, `tax_withheld`, `has_salary_certificate`. All amounts `Decimal`.
 
 ## TaxResult
