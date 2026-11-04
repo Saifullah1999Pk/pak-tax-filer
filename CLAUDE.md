@@ -60,3 +60,15 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
 | Hook tests (need bash and `jq`) | `uv run --no-project --with pytest pytest .claude/hooks/tests` |
 | Lint | `uv run --project backend pylint backend/app`; `npm run lint` in `frontend/` |
 | Format | `uv run --project backend ruff format backend`; `npx prettier --write src` in `frontend/` |
+
+## Conventions
+
+| Use | When |
+|---|---|
+| `backend/CLAUDE.md`, `frontend/CLAUDE.md` | Loaded automatically when working in that folder |
+| `.claude/rules/` (security, python-backend, git-workflow, testing-quality, architecture, frontend, api) | Always apply; `frontend.md` only under `frontend/` |
+| `docs/api-conventions.md` | Designing or changing any endpoint |
+| Skill `fastapi-feature` / `react-feature` | Building or changing a backend endpoint / frontend page |
+| Skill `code-review` | Reviewing a diff or PR; it uses the subagents below |
+| Subagents `backend-reviewer`, `frontend-reviewer` | Read-only review of `backend/` / `frontend/` changes |
+| Spec Kit (`/speckit-*`) and `superpowers:brainstorming` | Planning a feature or non-trivial change (README "Planning process") |
