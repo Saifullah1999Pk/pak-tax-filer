@@ -29,8 +29,9 @@ The token value comes from the developer's own environment, never from a committ
 
 ## calculate_income_tax
 
-- **Input:** `tax_year` (`"2025-26"`), `atl` (boolean).
-- **Output:** exactly the body of `GET /api/tax/{tax_year}?atl=…` (004's
+- **Input:** none; the tax year and ATL status come from the token owner's taxpayer profile
+  (feature 002). No profile → 004's `needs_atl_answer` body.
+- **Output:** exactly the body of `GET /api/tax/{profile tax year}` (004's
   [tax-api contract](../../004-tax-engine/contracts/tax-api.md)) for the token's owner, built
   from their **confirmed** certificates only; the same `blocked_reason` values; always the
   practitioner label.
@@ -40,4 +41,4 @@ The token value comes from the developer's own environment, never from a committ
 - **Input:** `tax_year` (string), `gross_salary`, `taxable_salary`, `tax_deducted` (decimal
   strings).
 - **Output:** `{ "ok": bool, "issues": [{ "field": "…", "reason": "…" }] }` from 003's rule
-  checks. Never a tax figure.
+  checks, with `tax_year` compared to the token owner's profile tax year. Never a tax figure.

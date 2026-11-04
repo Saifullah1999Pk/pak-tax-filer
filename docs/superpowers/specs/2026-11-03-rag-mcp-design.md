@@ -89,7 +89,7 @@ so every citation points somewhere exact. The manual is cited as "how to file", 
 | Tool | Does | Data |
 |---|---|---|
 | `search_tax_documents(query)` | same retrieval as the Ask page; returns passages with citations, no written answer | corpus only |
-| `calculate_income_tax(tax_year, atl)` | runs 004's engine and returns figures and breakdown | **the authenticated user's confirmed certificates only** (decided by Saifullah); tests use synthetic users with confirmed dummy certificates |
+| `calculate_income_tax()` | runs 004's engine for the tax year and ATL status in the token owner's taxpayer profile (feature 002; amended 2026-11-04) and returns figures and breakdown | **the authenticated user's confirmed certificates only** (decided by Saifullah); tests use synthetic users with confirmed dummy certificates |
 | `validate_salary_information(fields)` | runs 003's plain-code rule checks on supplied salary figures and returns issues | figures passed in (validation happens before confirmation in 007's flow; it never calculates) |
 
 **Runs locally** over stdio inside the backend container (Claude Code starts it via the repo's

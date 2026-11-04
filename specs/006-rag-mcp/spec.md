@@ -116,8 +116,9 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
    search tax documents, calculate income tax, validate salary information.
 2. **Given** a query, **When** search is called, **Then** it returns the same passages, with
    citations, as the Ask page would find, and no written answer.
-3. **Given** a user with confirmed certificates, **When** calculate is called with a tax year and
-   ATL answer, **Then** it returns exactly the Tax page's figures and breakdown for that user.
+3. **Given** a user with confirmed certificates and a taxpayer profile, **When** calculate is
+   called, **Then** it uses the profile's tax year and ATL status and returns exactly the Tax
+   page's figures and breakdown for that user.
 4. **Given** a user with only unconfirmed certificates, **When** calculate is called, **Then** it
    returns the same "not ready" reason as the Tax page and no figures.
 5. **Given** salary figures (e.g. taxable salary above gross), **When** validate is called,

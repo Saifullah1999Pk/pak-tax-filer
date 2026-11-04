@@ -42,7 +42,8 @@ with random passages locally: the run exits non-zero. Revert.
    shell.
 2. Start Claude Code in the repo; `/mcp` shows `pak-tax-filer` with exactly three tools.
 3. Ask Claude Code to search for "§149": passages with citations.
-4. Ask it to calculate your TY2026 tax with ATL yes: the same figures as the Tax page.
+4. Ask it to calculate your tax: the same figures as the Tax page, using your profile's ATL
+   status.
 5. Ask it to validate taxable salary 2,100,000 with gross 2,000,000: an issue is reported.
 6. Revoke the token in the app: the next tool call is refused.
 
