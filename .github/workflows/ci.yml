@@ -43,11 +43,11 @@ jobs:
       - name: Format (Ruff)
         run: uv run ruff format --check .
       - name: Lint (pylint)
-        run: uv run pylint app
+        run: uv run pylint --recursive=y app alembic tests
       - name: Types (mypy)
-        run: uv run mypy app
-      - name: Migrations apply
-        run: uv run alembic upgrade head
+        run: uv run mypy app alembic tests
+      - name: Migrations apply, roll back and re-apply
+        run: uv run alembic upgrade head && uv run alembic downgrade base && uv run alembic upgrade head
       - name: Tests (pytest)
         run: uv run pytest
 

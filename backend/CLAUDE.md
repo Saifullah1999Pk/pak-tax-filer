@@ -17,13 +17,19 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
    `docs/api-conventions.md`.
 2. Write the failing test in `tests/` with FastAPI's `TestClient`; run it and see it fail.
 3. Add the route in `app/<area>/router.py`, keeping logic in `service.py`; money is `Decimal`.
-4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint app`, `uv run mypy app`.
+4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint --recursive=y app alembic tests`,
+   `uv run mypy app alembic tests` (the same checks as CI).
 
 ## Database and migrations
 
-- Change models, then create a migration:
-  `docker compose exec backend alembic revision --autogenerate -m "<what>"`; review it, then
+- Change models, then create a migration with the next number as its id, e.g.
+  `docker compose exec backend alembic revision --autogenerate --rev-id 0002 -m "<what>"`
+  (without `--rev-id` Alembic uses a random id); review it, then
   `docker compose exec backend alembic upgrade head`. Never edit the schema by hand.
+- On a Linux host, files created inside the container (new migrations, `__pycache__`) are
+  owned by root, because the container runs as root; `sudo chown` them or create migrations
+  from the host with `uv run alembic ...` and a host `DATABASE_URL`. Windows and macOS are not
+  affected.
 - `DATABASE_URL` comes from the environment (docker-compose sets it); never put it in a file.
 - Tests that need the database use a separate test database (set up in feature 002).
 
