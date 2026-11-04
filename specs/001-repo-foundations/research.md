@@ -4,12 +4,14 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R1. Runtime versions
 
-- **Decision:** Python 3.13, Node 24 (LTS), PostgreSQL 17 with pgvector.
+- **Decision:** Python 3.13, Node 26 (LTS), PostgreSQL 17 with pgvector. *(Amended
+  2026-11-05: planned as Node 24, but Node 26 became the current LTS in October 2026; it is
+  also what the host installs, so container and host match.)*
 - **Rationale:** the README sets minimums (Python 3.12+, Node 20+). Node 20 reached end of
   life in April 2026, so the current LTS is used. Python 3.13 is current and widely supported
   by libraries. PostgreSQL 17 is current and has an official pgvector image.
 - **Alternatives:** Python 3.12 (security fixes only now); Python 3.14 (newest, library
-  support still catching up); Node 22 (older LTS).
+  support still catching up); Node 24 (previous LTS, supported until 2028; the original choice).
 
 ## R2. Backend tooling
 

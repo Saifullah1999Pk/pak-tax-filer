@@ -18,7 +18,7 @@ subagents and a written API convention. Decisions and alternatives are in
 
 ## Technical Context
 
-**Language/Version**: Python 3.13 (backend, hooks), TypeScript on Node 24 LTS (frontend)
+**Language/Version**: Python 3.13 (backend, hooks), TypeScript on Node 26 LTS (frontend)
 
 **Primary Dependencies**: FastAPI, Uvicorn, SQLAlchemy 2.0 (async) + asyncpg, Alembic; React,
 Vite; dev: pytest, HTTPX, Ruff (formatting only), pylint (linting, as in the lead's hook), mypy,
