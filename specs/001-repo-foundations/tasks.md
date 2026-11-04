@@ -26,7 +26,7 @@ two hooks are tested before they are written (constitution, Principle VI).
 
 **Purpose**: create the project skeletons.
 
-- [ ] T001 Create the directory layout from plan.md: `backend/app/`, `backend/tests/`, `backend/alembic/versions/`, `frontend/src/`, `.claude/hooks/tests/`
+- [X] T001 Create the directory layout from plan.md: `backend/app/`, `backend/tests/`, `backend/alembic/versions/`, `frontend/src/`, `.claude/hooks/tests/`
 - [ ] T002 Create `backend/pyproject.toml` with uv (Python 3.13): dependencies `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`; dev dependencies `pytest`, `httpx`, `ruff` (formatting only), `pylint`, `mypy`; Ruff format, pylint, mypy and pytest config in the same file; generate `backend/uv.lock`
 - [ ] T003 [P] Create the React + TypeScript app in `frontend/` from the Vite template; keep the template's ESLint setup and its `lint` script (the lead's `check-frontend.sh` runs it); add dev dependencies `vitest`, `@testing-library/react`, `jsdom`, `prettier`; set `"test": "vitest run"` in `frontend/package.json`; configure Vitest (jsdom) in `frontend/vite.config.ts`
 - [ ] T004 [P] Create `.env.example` at the repo root with placeholder values only (`DATABASE_URL`, `ANTHROPIC_API_KEY=` left empty) and a comment that real values go in an uncommitted `.env`
