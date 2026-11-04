@@ -121,7 +121,7 @@ review subagents and an API convention.
 
 - [X] T027 [US4] Create `.github/workflows/ci.yml` per research R8: on pull requests and pushes to `main`; job `backend` (uv, `ruff format --check`, `pylint app`, `mypy app`, `pytest` with a `pgvector/pgvector:pg17` service and `DATABASE_URL` set); job `frontend` (Node 26, `npm ci`, `prettier --check .`, `npm run lint`, `tsc -b` (the root tsconfig only references sub-configs, so `tsc --noEmit` would check nothing), `npm test`); job `hooks` (`uv run --no-project --with pytest pytest .claude/hooks/tests`, with `jq` available; no lint or type checks for bash)
 - [ ] T028 [US4] Push a branch with a deliberately failing backend test and one with a misformatted `.tsx` file; confirm each CI job fails and the PR shows it; delete both branches
-- [ ] T029 [P] [US4] Write `docs/api-conventions.md` exactly as [contracts/api-conventions.md](contracts/api-conventions.md)
+- [X] T029 [P] [US4] Write `docs/api-conventions.md` exactly as [contracts/api-conventions.md](contracts/api-conventions.md)
 - [ ] T030 [P] [US4] Write `backend/CLAUDE.md` (layout of `backend/app/`, how to add an endpoint, migration commands, test database notes; no repetition of the root guide)
 - [ ] T031 [P] [US4] Write `frontend/CLAUDE.md` (layout of `frontend/src/`, how to add a page, calling the API through one helper, test commands; no repetition of the root guide)
 - [ ] T032 [P] [US4] Write `.claude/rules/architecture.md` (constitution Principles I and II in practice: no LLM maths, guarded rates); in the lead's existing `.claude/rules/security.md`, add only the points it lacks (e.g. never log secrets or passwords). No second security file
