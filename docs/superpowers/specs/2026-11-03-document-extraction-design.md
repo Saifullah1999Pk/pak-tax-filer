@@ -42,8 +42,8 @@ background job queues.
   result, and any failed check sets that field to low confidence:
   - amounts are valid non-negative numbers (stored as `Decimal`, Principle I);
   - tax deducted ≤ gross salary; taxable salary ≤ gross salary; tax withheld ≤ profit amount;
-  - tax year looks like `2025-26` and matches the configured tax year (TY2026, i.e. 2025-26;
-    the taxpayer profile, a later increment, isn't needed for this).
+  - tax year looks like `2025-26` and matches the tax year in the user's taxpayer profile
+    (feature 002; today only 2025-26). Uploading needs a profile (amended 2026-11-04).
 - **Model chosen by the eval** (decided by Saifullah): start with Claude Opus 5.5; run the eval
   on Opus 5.5, Sonnet 5.5 and Haiku 5.5 and use the cheapest that meets the accuracy bar. The
   model is a setting, not hard-coded.

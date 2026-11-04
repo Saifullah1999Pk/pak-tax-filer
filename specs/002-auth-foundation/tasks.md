@@ -1,9 +1,9 @@
 ---
 
-description: "Task list for feature 002: Authentication Foundation"
+description: "Task list for feature 002: Authentication Foundation and Taxpayer Profile"
 ---
 
-# Tasks: Authentication Foundation
+# Tasks: Authentication Foundation and Taxpayer Profile
 
 **Input**: Design documents from `/specs/002-auth-foundation/`
 
@@ -17,7 +17,7 @@ feature 001 implemented.
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: can run in parallel (different files, no dependency on an unfinished task)
-- **[Story]**: the spec user story it serves (US1, US2, US3)
+- **[Story]**: the spec user story it serves (US1 to US5)
 
 ---
 
@@ -113,9 +113,50 @@ feature 001 implemented.
 
 ---
 
-## Phase 6: Polish
+## Phase 6: User Story 4 - Set up the taxpayer profile on first login (Priority: P4)
 
-- [ ] T031 [P] Add an "Authentication" section to `CLAUDE.md`: protect new endpoints with `current_user`; never log passwords or tokens; how to create a demo user
+**Goal**: a user without a profile is sent to the setup step, saves it, and reaches the app; the
+backend enforces it (FR-016 to FR-020, FR-022, FR-023).
+
+**Independent Test**: [quickstart.md](quickstart.md) section 4, steps 1–3 and 5.
+
+### Tests for User Story 4 (write first, confirm they fail)
+
+- [ ] T034 [P] [US4] Write `backend/tests/profile/test_profile_service.py`: first save creates, second save replaces, two saves leave exactly one row, a `tax_year` outside `SUPPORTED_TAX_YEARS` raises
+- [ ] T035 [P] [US4] Write `backend/tests/profile/test_profile_api.py` per [contracts/auth-api.md](contracts/auth-api.md) (profile section): unauthenticated `GET`/`PUT` → `401`; `GET` with no profile → `200` `{"profile": null, "supported_tax_years": ["2025-26"]}`; valid `PUT` → `200`, then `GET` returns it; `tax_year` `2024-25` → `422` "Tax year 2024-25 is not supported."; missing or non-boolean `on_atl` → `422`; unknown field `cnic` → `422`; one user's `PUT` never changes another user's profile
+- [ ] T036 [P] [US4] Write `backend/tests/profile/test_require_profile.py`: a test-only endpoint using `require_profile` returns `409` `{"detail": "Set up your profile first."}` without a profile and receives the profile once saved
+- [ ] T037 [P] [US4] Write `frontend/src/pages/ProfilePage.test.tsx` (with `fetch` mocked) per [contracts/cli-and-ui.md](contracts/cli-and-ui.md): tax-year select lists only `supported_tax_years`; ATL has nothing selected and saving without it shows "Tell us whether you are on the ATL."; the FBR link has the research R12 URL and opens in a new tab; the residency notice and logout button are shown; a successful save navigates to `next` or `/`; a user without a profile opening `/` is redirected to `/profile?next=/`
+
+### Implementation for User Story 4
+
+- [ ] T038 [US4] Add `SUPPORTED_TAX_YEARS` (tuple, default `("2025-26",)`) to `backend/app/settings.py`; create `backend/app/profile/models.py` with `TaxpayerProfile` exactly as in [data-model.md](data-model.md): `user_id` "references users.id, deleted with the user; unique"; `tax_year` "one of SUPPORTED_TAX_YEARS"; `on_atl` "required; no unknown value"; `updated_at` "set on every save"; no other columns; add the table to `backend/alembic/versions/0002_auth_tables.py`
+- [ ] T039 [US4] Create `backend/app/profile/service.py` with `get_profile(db, user)` and `save_profile(db, user, tax_year, on_atl)` (one `INSERT … ON CONFLICT (user_id) DO UPDATE` that also sets `updated_at`, research R11); T034 passes
+- [ ] T040 [US4] Create `backend/app/profile/dependencies.py` (`require_profile`, research R14) and `backend/app/profile/router.py` (`GET`/`PUT /api/profile`, request model forbids extra fields); include the router in `backend/app/main.py`; T035 and T036 pass
+- [ ] T041 [US4] Create `frontend/src/profile/ProfileContext.tsx` (loads `GET /api/profile` after login; exposes `profile`, `supportedTaxYears`, `save`), `frontend/src/profile/RequireProfile.tsx` and `frontend/src/pages/ProfilePage.tsx` (with `LogoutButton`); in `frontend/src/App.tsx` add `/profile` under `RequireAuth` only and wrap every other `RequireAuth` route in `RequireProfile`; update `frontend/src/App.test.tsx`; T037 passes
+- [ ] T042 [US4] Run [quickstart.md](quickstart.md) section 4, steps 1–3 and 5
+
+**Checkpoint**: new users must set up a profile.
+
+---
+
+## Phase 7: User Story 5 - Change the taxpayer profile (Priority: P5)
+
+**Goal**: the saved profile can be reopened and changed (FR-021).
+
+**Independent Test**: [quickstart.md](quickstart.md) section 4, step 4.
+
+- [ ] T043 [P] [US5] Extend `frontend/src/pages/ProfilePage.test.tsx`: with a saved profile the form shows the saved answers; changing ATL and saving sends the new value and shows it on reopening
+- [ ] T044 [P] [US5] Extend `backend/tests/profile/test_profile_api.py`: replacing a profile changes `on_atl` and `updated_at` but not `created_at`, and leaves the user's other rows unchanged (SC-009)
+- [ ] T045 [US5] Pre-fill `frontend/src/pages/ProfilePage.tsx` from the saved profile and add a "Profile" link next to the logout button on `frontend/src/pages/HomePage.tsx`; T043 and T044 pass
+- [ ] T046 [US5] Run [quickstart.md](quickstart.md) section 4, step 4
+
+**Checkpoint**: all five stories work.
+
+---
+
+## Phase 8: Polish
+
+- [ ] T031 [P] Add an "Authentication" section to `CLAUDE.md`: protect new endpoints with `current_user`; never log passwords or tokens; how to create a demo user; read the profile with `get_profile`, refuse with `require_profile`, never add identity fields to it
 - [ ] T032 [P] Add "Create a demo user" to the README's development setup section
 - [ ] T033 Run Ruff and Prettier checks, both test suites, and all of [quickstart.md](quickstart.md); record results in the PR description
 
@@ -128,18 +169,24 @@ feature 001 implemented.
   endpoints to exist (its tests mock them, so T023–T024 can be written earlier).
 - Within each story: tests → implementation → quickstart check.
 - `backend/app/auth/router.py` is edited by T015 then T021, in that order.
+- **US4** needs US2 (`current_user`) and US3 (`RequireAuth`, `App.tsx`); T038 adds to the
+  `0002_auth_tables` migration from T007. **US5** needs US4.
+- `ProfilePage.tsx` is edited by T041 then T045; `test_profile_api.py` by T035 then T044;
+  `App.tsx` by T029 then T041.
 
 ## Parallel Opportunities
 
 - Setup: T002, T003, T004 together after T001.
 - US1 tests T010, T011, T012 together; US3 tests T023, T024 alongside US1/US2 work.
 - T027 and T028 together; T031 and T032 together.
+- US4 tests T034–T037 together; US5 tests T043, T044 together.
 
 ## Implementation Strategy
 
 1. **MVP = User Story 1**: log in and out from the API with demo users.
 2. **Add US2**: the `current_user` protection that every later feature uses.
 3. **Add US3**: the browser experience.
-4. **Polish**, then one implementation PR.
+4. **Add US4 and US5**: the taxpayer profile, required before 003's uploads and 004's tax page.
+5. **Polish**, then one implementation PR.
 
 GitHub issues for these tasks are titled `[002] T0NN: <description>`.
