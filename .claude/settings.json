@@ -1,4 +1,37 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(docker compose exec backend pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uvx ruff:*)",
+      "Bash(pylint:*)",
+      "Bash(uv run pylint:*)",
+      "Bash(npm test:*)",
+      "Bash(npx vitest:*)",
+      "Bash(docker compose exec frontend npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx prettier:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(docker compose ps:*)",
+      "Bash(docker compose logs:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(rm:*)",
+      "Bash(git rm:*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
