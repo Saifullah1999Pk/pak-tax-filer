@@ -17,6 +17,17 @@
             "statusMessage": "Running frontend lint..."
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-on-write.sh",
+            "timeout": 180,
+            "statusMessage": "Formatting..."
+          }
+        ]
       }
     ],
     "PreToolUse": [
