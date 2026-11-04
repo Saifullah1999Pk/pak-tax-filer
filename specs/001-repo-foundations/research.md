@@ -37,7 +37,10 @@ Each decision: what was chosen, why, and what else was considered.
 ## R4. Frontend tooling
 
 - **Decision:** Vite (React + TypeScript template), Vitest + React Testing Library, Prettier
-  for formatting, and the template's own ESLint setup (`npm run lint`) for linting.
+  for formatting, and the template's own linter (`npm run lint`) for linting: **oxlint**
+  (amended 2026-11-05: Vite's React + TypeScript template now ships oxlint instead of ESLint;
+  the plan's intent was "keep the template's linter", and the lead's hook runs `npm run lint`
+  whichever linter is behind it).
 - **Rationale:** Vite's dev server defaults to port 5173, matching the README; Vitest shares
   Vite's config, so `npm test` needs no extra setup. The lead's `check-frontend.sh` hook runs
   the frontend's `lint` script, which the Vite template provides (amended 2026-11-04).
@@ -100,7 +103,7 @@ Each decision: what was chosen, why, and what else was considered.
   inputs; no lint or type checks for bash, per the 2026-11-04 clarification). The eval gate is
   added when the first eval exists (003, 006).
 - **Rationale:** the constitution's merge gate needs lint, type checks and tests; CI uses the
-  same tools as the hooks (pylint and ESLint lint; Ruff and Prettier format), so local and CI
+  same tools as the hooks (pylint and oxlint lint; Ruff and Prettier format), so local and CI
   results agree (spec FR-015). Separate jobs run in parallel and show exactly which part
   failed. Running Postgres as a service container matches the real database.
 - **Alternatives:** `ruff check` as the linter (the original decision; would compete with the
