@@ -26,3 +26,37 @@ General-purpose rules for working in this repo. See the detailed rule files:
 Project scope, MVP decisions, and the non-negotiables (deterministic tax
 math, FBR-sourced rates, synthetic data only, planning-via-brainstorming)
 are in `README.md` — read it before making product decisions.
+
+## Project principles
+
+The constitution (`.specify/memory/constitution.md`) overrides everything else. In one line each:
+
+1. **Deterministic tax math:** every tax and reconciliation figure is plain code with `Decimal`, never an LLM.
+2. **Authoritative sources only:** rates come from FBR's own gazetted documents, recorded with their source.
+3. **Human confirmation before use:** AI-extracted values are used only after the user confirms them; the workflow stops for approval before calculating.
+4. **Honest, labelled output:** "not yet practitioner-reviewed" on every report; the assistant always cites, or says it can't answer.
+5. **Synthetic data only:** no real CNICs, NTNs, documents or salary records, anywhere.
+6. **Test-first calculation, measured AI:** a failing test before the code; AI features have evals that CI enforces.
+7. **MVP scope discipline:** nothing outside the approved specs; simplest design that meets them.
+
+`backend/app/tax/rates/` is **guarded**: the tax-rates hook asks a human before any change there.
+
+## Repo layout
+
+- `backend/`: FastAPI app (`app/`), Alembic migrations (`alembic/`), tests (`tests/`); uv project.
+- `frontend/`: React + TypeScript (Vite), tests next to components (`*.test.tsx`).
+- `.claude/`: settings (hooks, permissions), rules, hooks and their tests (`hooks/tests/`).
+- `specs/NNN-*/`: Spec Kit specs, plans, contracts and tasks, one folder per feature (001–008).
+- `docs/superpowers/specs/`: brainstorming design docs.
+
+## Commands
+
+| What | Command |
+|---|---|
+| Start the app | `docker compose up -d` (backend :8000, frontend :5173) |
+| Run migrations | `docker compose exec backend alembic upgrade head` |
+| Backend tests | `docker compose exec backend pytest` |
+| Frontend tests | `docker compose exec frontend npm test` |
+| Hook tests (need bash and `jq`) | `uv run --no-project --with pytest pytest .claude/hooks/tests` |
+| Lint | `uv run --project backend pylint backend/app`; `npm run lint` in `frontend/` |
+| Format | `uv run --project backend ruff format backend`; `npx prettier --write src` in `frontend/` |
