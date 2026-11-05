@@ -34,3 +34,22 @@ export function mockFetch(routes: FakeRoutes) {
   vi.stubGlobal("fetch", fake);
   return fake;
 }
+
+/** A saved taxpayer profile, as GET /api/profile returns it (feature 002, US4). */
+export const SAVED_PROFILE = {
+  tax_year: "2025-26",
+  on_atl: true,
+  updated_at: "2026-11-05T10:00:00Z",
+};
+
+/** GET /api/profile for a user who has set up their profile. */
+export const hasProfile = (): FakeReply => ({
+  status: 200,
+  body: { profile: SAVED_PROFILE, supported_tax_years: ["2025-26"] },
+});
+
+/** GET /api/profile for a user who hasn't set up their profile yet. */
+export const noProfile = (): FakeReply => ({
+  status: 200,
+  body: { profile: null, supported_tax_years: ["2025-26"] },
+});
