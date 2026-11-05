@@ -11,6 +11,11 @@ export default defineConfig({
     proxy: {
       "/api": "http://backend:8000",
     },
+    // File-change events don't reach a Linux container from a Windows (or macOS) host folder,
+    // so in Docker Vite polls instead; docker-compose.yml sets VITE_USE_POLLING=true.
+    watch: {
+      usePolling: process.env.VITE_USE_POLLING === "true",
+    },
   },
   // Vitest shares Vite's config (research R4); jsdom lets tests render components without a browser.
   test: {
