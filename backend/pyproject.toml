@@ -32,6 +32,10 @@ max-line-length = 100
 [tool.pylint.main]
 py-version = "3.13"
 
+# SQLAlchemy models and settings dataclasses are data holders with no methods by design.
+[tool.pylint.design]
+min-public-methods = 0
+
 [tool.mypy]
 python_version = "3.13"
 strict = true
