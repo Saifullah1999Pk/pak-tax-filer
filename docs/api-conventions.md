@@ -13,7 +13,9 @@ rules. Source: [specs/001-repo-foundations/contracts/api-conventions.md](../spec
 - **Errors:** `{"detail": "<human-readable message>"}`. Status codes: `400` bad input that passed
   validation, `401` not logged in, `403` logged in but not allowed, `404` not found or not
   yours (never reveal that another user's item exists), `409` conflict, `415` not JSON on a
-  state-changing request, `422` validation error, `429` throttled.
+  state-changing request, `422` validation error, `429` throttled. A `422` keeps FastAPI's list of field errors
+  (`loc`, `msg`, `type`) but never echoes the rejected value (`input`), which could be a
+  password or personal data.
 - **Authentication:** the `session` cookie; protected endpoints use `current_user`
   (feature 002).
 - **Keeping in step:** a change to an endpoint updates, in the same pull request, the feature's
