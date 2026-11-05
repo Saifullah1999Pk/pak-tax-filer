@@ -10,7 +10,7 @@ that don't exist **or belong to someone else**.
 ```json
 {
   "id": "…", "doc_type": "salary_certificate", "tax_year": "2025-26",
-  "status": "needs_review", "failure_reason": null, "page_count": 1,
+  "status": "needs_review", "failure_reason": null, "media_type": "application/pdf", "page_count": 1,
   "created_at": "2026-11-03T10:00:00Z", "confirmed_at": null,
   "fields": [
     { "name": "gross_salary", "value": "1800000.00", "confidence": "high",
@@ -21,6 +21,8 @@ that don't exist **or belong to someone else**.
 ```
 
 `value` is a decimal string for amounts, `"2025-26"` for `tax_year`, or `null` if not found.
+`media_type` (`application/pdf`, `image/jpeg` or `image/png`) tells the review page whether to
+show the original as a PDF or an image.
 
 ## Endpoints
 

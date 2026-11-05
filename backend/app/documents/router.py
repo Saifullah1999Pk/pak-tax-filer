@@ -93,6 +93,8 @@ class DocumentSummary(BaseModel):
     tax_year: str
     status: DocStatus
     failure_reason: str | None
+    # application/pdf, image/jpeg or image/png: how the review page shows the original.
+    media_type: str
     page_count: int
     created_at: datetime
     confirmed_at: datetime | None
@@ -138,6 +140,7 @@ def document_out(document: Document) -> DocumentOut:
         tax_year=document.tax_year,
         status=document.status,
         failure_reason=document.failure_reason,
+        media_type=document.media_type,
         page_count=document.page_count,
         created_at=document.created_at,
         confirmed_at=document.confirmed_at,

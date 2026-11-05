@@ -38,6 +38,7 @@ async def test_pdf_jpg_and_png_are_accepted(
     assert response.status_code == 201, response.text
     assert response.json()["status"] == "needs_review"
     assert response.json()["page_count"] == 1
+    assert response.json()["media_type"] == media_type
     file = await client.get(f"/api/documents/{response.json()['id']}/file")
     assert file.headers["content-type"] == media_type
 
