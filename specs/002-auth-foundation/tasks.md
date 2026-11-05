@@ -34,7 +34,7 @@ feature 001 implemented.
 
 **Purpose**: database access, tables and test fixtures every story uses.
 
-- [ ] T005 Create `backend/app/db.py`: async SQLAlchemy engine from `settings.DATABASE_URL`, a declarative `Base`, and a `get_db` dependency yielding an `AsyncSession`
+- [X] T005 Create `backend/app/db.py`: async SQLAlchemy engine from `settings.DATABASE_URL`, a declarative `Base`, and a `get_db` dependency yielding an `AsyncSession`
 - [ ] T006 Create `backend/app/auth/models.py` with `User`, `Session` and `LoginFailure` exactly as in [data-model.md](data-model.md): `users.email` "stored trimmed and lower-cased; unique"; `sessions.token_hash` "SHA-256 of the cookie token; unique"; `sessions.user_id` "deleted with the user"; `login_failures` indexed on `(email, attempted_at)`
 - [ ] T007 Create `backend/alembic/versions/0002_auth_tables.py` creating the three tables and indexes (revises `0001_enable_vector`); point `backend/alembic/env.py` at `Base.metadata`
 - [ ] T008 Create `backend/tests/conftest.py`: creates database `pak_tax_filer_test` if missing, runs `alembic upgrade head` on it once per test run, wraps each test in a rolled-back transaction, and provides an HTTPX `AsyncClient` with `get_db` overridden to that transaction
