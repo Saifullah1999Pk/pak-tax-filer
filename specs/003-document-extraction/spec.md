@@ -14,6 +14,10 @@
 
 - Q: Can a user have more than one confirmed certificate of the same type (e.g. two employers or two banks in the same year)? → A: Yes. Any number of confirmed certificates per type and tax year; the tax engine (feature 004) sums them, matching the README's "simple sum" of multiple employers.
 
+### Session 2026-11-05
+
+- Q: Can a certificate whose tax year differs from the profile's be confirmed (the rule check only flags it)? → A: No. Confirming is refused until the certificate's tax year equals the profile's, so a certificate for another year can never be counted in the profile's year. Confirmed amounts must also be non-negative, whether typed or extracted (found in code review).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Upload a certificate and get its figures (Priority: P1)
@@ -160,7 +164,8 @@ each model tried.
   Principle I).
 - **FR-007**: Users MUST be able to edit any field before confirmation; edited values MUST pass
   the same rules and be marked as user-entered.
-- **FR-008**: A document MUST only become confirmed once every field is confirmed; confirmed
+- **FR-008**: A document MUST only become confirmed once every field is confirmed, every amount
+  is non-negative and its tax year equals the tax year in the user's profile; confirmed
   documents MUST NOT be editable.
 - **FR-009**: Figures from a document that is not confirmed MUST NOT be available to any other
   part of the system, enforced by the backend.
