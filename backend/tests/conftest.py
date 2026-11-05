@@ -138,18 +138,18 @@ async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
 # Feature 003: documents.
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def upload_dir(tmp_path: Path) -> Iterator[Path]:
-    """A temporary UPLOAD_DIR for the app."""
+    """A temporary UPLOAD_DIR for every test, so no test ever writes to the real uploads
+    volume (development data), even one that forgets to ask for this fixture."""
     app.dependency_overrides[get_upload_dir] = lambda: tmp_path
     yield tmp_path
     app.dependency_overrides.pop(get_upload_dir, None)
 
 
 @pytest.fixture
-def fake_extractor(upload_dir: Path) -> Iterator[FakeExtractor]:
+def fake_extractor() -> Iterator[FakeExtractor]:
     """The app's extractor, replaced by a fake returning SALARY_RESULT (change .result to vary)."""
-    del upload_dir  # Requested so uploads never touch a real folder.
     fake = FakeExtractor(SALARY_RESULT)
     app.dependency_overrides[get_extractor] = lambda: fake
     yield fake
