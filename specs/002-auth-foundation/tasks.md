@@ -62,7 +62,7 @@ feature 001 implemented.
 - [X] T014 [US1] Create `backend/app/auth/throttle.py`: `is_throttled(email)` (10+ failures in the last 15 minutes) and `record_failure(email)`
 - [X] T015 [US1] Create `backend/app/auth/router.py` with `POST /api/auth/login` and `POST /api/auth/logout` per [contracts/auth-api.md](contracts/auth-api.md): normalize the email; check throttle first; verify against `DUMMY_HASH` when the email is unknown; record failures; set the cookie from research R2 with `Secure` from `settings.COOKIE_SECURE`; require `Content-Type: application/json`; include the router in `backend/app/main.py`; T011 and T012 pass
 - [X] T016 [US1] Create `backend/app/cli.py` (`python -m app.cli create-user --email`, `argparse` + `getpass`, hidden password prompted twice); T010 passes
-- [ ] T017 [US1] Check that no password or session token is logged: add a test in `backend/tests/auth/test_login_logout.py` capturing log output during login and failed login and asserting neither value appears
+- [X] T017 [US1] Check that no password or session token is logged: add a test in `backend/tests/auth/test_login_logout.py` capturing log output during login and failed login and asserting neither value appears
 - [ ] T018 [US1] Run [quickstart.md](quickstart.md) section 1 and confirm each expected result
 
 **Checkpoint**: User Story 1 works on its own.

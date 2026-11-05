@@ -5,6 +5,7 @@ Story 2 and has its own tests.
 """
 
 import hashlib
+import logging
 
 import pytest
 from httpx2 import AsyncClient, Response
@@ -119,3 +120,19 @@ async def test_two_logins_are_independent_sessions(client: AsyncClient, db: Asyn
     assert await get_user_for_token(db, first) is None
     still_logged_in = await get_user_for_token(db, second)
     assert still_logged_in is not None and still_logged_in.email == EMAIL
+
+
+@pytest.mark.usefixtures("user")
+async def test_passwords_and_tokens_never_reach_the_logs(
+    client: AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Fails if any logger (ours or a library's, at any level) records a password or a session
+    token during a successful or failed login (FR-003; security rules)."""
+    caplog.set_level(logging.DEBUG)
+
+    token = (await login(client, EMAIL, PASSWORD)).cookies["session"]
+    await login(client, EMAIL, "wrong-password-typed")
+
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+    for secret in (PASSWORD, "wrong-password-typed", token):
+        assert secret not in logged
