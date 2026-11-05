@@ -77,7 +77,11 @@ async def db(test_database_url: str) -> AsyncIterator[AsyncSession]:
     connection = await engine.connect()
     transaction = await connection.begin()
     # Code under test may commit; savepoints keep those commits inside the outer transaction.
-    session = AsyncSession(bind=connection, join_transaction_mode="create_savepoint")
+    # Same settings as app.db.get_sessionmaker (expire_on_commit=False), so tests behave like the
+    # app: after a commit, objects keep their loaded values instead of reloading lazily.
+    session = AsyncSession(
+        bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False
+    )
     try:
         yield session
     finally:
@@ -96,7 +100,7 @@ async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
 
     app.dependency_overrides[get_db] = _test_db
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as http:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as http:
             yield http
     finally:
         app.dependency_overrides.pop(get_db, None)

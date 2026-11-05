@@ -52,9 +52,9 @@ feature 001 implemented.
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T010 [P] [US1] Write `backend/tests/auth/test_cli.py`: `create-user` creates a user with a lower-cased, trimmed email; refuses a duplicate in another letter case (exit 1, nothing created); refuses passwords under 8 characters or mismatched confirmation, per [contracts/cli-and-ui.md](contracts/cli-and-ui.md)
-- [ ] T011 [P] [US1] Write `backend/tests/auth/test_login_logout.py`, per [contracts/auth-api.md](contracts/auth-api.md): correct login (any email case) → `200`, `session` cookie with `HttpOnly` and `SameSite=Lax`, a `sessions` row whose `token_hash` is not the cookie value; wrong password and unknown email → identical `401` body; non-JSON request → refused; logout → `204`, cookie cleared, session row deleted, old cookie now gets `401` from `/api/auth/me`; two logins give two independent sessions
-- [ ] T012 [P] [US1] Write `backend/tests/auth/test_throttle.py`: 10 failures for an email → 11th attempt `429` even with the correct password, with the same message for unknown and known emails; failures older than 15 minutes don't count; a throttled attempt records no session
+- [X] T010 [P] [US1] Write `backend/tests/auth/test_cli.py`: `create-user` creates a user with a lower-cased, trimmed email; refuses a duplicate in another letter case (exit 1, nothing created); refuses passwords under 8 characters or mismatched confirmation, per [contracts/cli-and-ui.md](contracts/cli-and-ui.md)
+- [X] T011 [P] [US1] Write `backend/tests/auth/test_login_logout.py`, per [contracts/auth-api.md](contracts/auth-api.md): correct login (any email case) → `200`, `session` cookie with `HttpOnly` and `SameSite=Lax`, a `sessions` row whose `token_hash` is not the cookie value; wrong password and unknown email → identical `401` body; non-JSON request → refused; logout → `204`, cookie cleared, session row deleted, old cookie now gets `401` from `/api/auth/me`; two logins give two independent sessions
+- [X] T012 [P] [US1] Write `backend/tests/auth/test_throttle.py`: 10 failures for an email → 11th attempt `429` even with the correct password, with the same message for unknown and known emails; failures older than 15 minutes don't count; a throttled attempt records no session
 
 ### Implementation for User Story 1
 
