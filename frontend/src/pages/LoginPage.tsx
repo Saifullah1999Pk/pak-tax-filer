@@ -1,0 +1,87 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { ApiError } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
+
+// Login page, per specs/002-auth-foundation/contracts/cli-and-ui.md (task T027).
+
+/** Only follow `next` within this app (never to another site). */
+function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
+export function LoginPage() {
+  const { user, loading, notice, login } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const next = safeNext(searchParams.get("next"));
+
+  if (loading) {
+    return <p>Loading…</p>;
+  }
+  if (user !== null && !submitting) {
+    return <Navigate to={next} replace />;
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(email, password);
+      navigate(next, { replace: true });
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError
+          ? caught.message
+          : "Something went wrong. Try again.",
+      );
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main>
+      <h1>Log in</h1>
+      <p>
+        <strong>Demo data only.</strong> Do not enter real personal information.
+      </p>
+      {notice && <p>{notice}</p>}
+      <form onSubmit={handleSubmit}>
+        <label>
+          Email
+          <input
+            type="email"
+            autoComplete="username"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        {error && <p role="alert">{error}</p>}
+        <button type="submit" disabled={submitting}>
+          Log in
+        </button>
+      </form>
+      <p>
+        Password reset isn't available yet: this is a demo, so ask the developer
+        for help.
+      </p>
+    </main>
+  );
+}
