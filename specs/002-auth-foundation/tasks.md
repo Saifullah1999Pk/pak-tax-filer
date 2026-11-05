@@ -133,7 +133,7 @@ backend enforces it (FR-016 to FR-020, FR-022, FR-023).
 - [X] T039 [US4] Create `backend/app/profile/service.py` with `get_profile(db, user)` and `save_profile(db, user, tax_year, on_atl)` (one `INSERT … ON CONFLICT (user_id) DO UPDATE` that also sets `updated_at`, research R11); T034 passes
 - [X] T040 [US4] Create `backend/app/profile/dependencies.py` (`require_profile`, research R14) and `backend/app/profile/router.py` (`GET`/`PUT /api/profile`, request model forbids extra fields); include the router in `backend/app/main.py`; T035 and T036 pass
 - [X] T041 [US4] Create `frontend/src/profile/ProfileContext.tsx` (loads `GET /api/profile` after login; exposes `profile`, `supportedTaxYears`, `save`), `frontend/src/profile/RequireProfile.tsx` and `frontend/src/pages/ProfilePage.tsx` (with `LogoutButton`); in `frontend/src/App.tsx` add `/profile` under `RequireAuth` only and wrap every other `RequireAuth` route in `RequireProfile`; update `frontend/src/App.test.tsx`; T037 passes
-- [ ] T042 [US4] Run [quickstart.md](quickstart.md) section 4, steps 1–3 and 5
+- [X] T042 [US4] Run [quickstart.md](quickstart.md) section 4, steps 1–3 and 5
 
 **Checkpoint**: new users must set up a profile.
 
@@ -148,7 +148,7 @@ backend enforces it (FR-016 to FR-020, FR-022, FR-023).
 - [X] T043 [P] [US5] Extend `frontend/src/pages/ProfilePage.test.tsx`: with a saved profile the form shows the saved answers; changing ATL and saving sends the new value and shows it on reopening
 - [X] T044 [P] [US5] Extend `backend/tests/profile/test_profile_api.py`: replacing a profile changes `on_atl` and `updated_at` but not `created_at`, and leaves the user's other rows unchanged (SC-009)
 - [X] T045 [US5] Pre-fill `frontend/src/pages/ProfilePage.tsx` from the saved profile and add a "Profile" link next to the logout button on `frontend/src/pages/HomePage.tsx`; T043 and T044 pass
-- [ ] T046 [US5] Run [quickstart.md](quickstart.md) section 4, step 4
+- [X] T046 [US5] Run [quickstart.md](quickstart.md) section 4, step 4
 
 **Checkpoint**: all five stories work.
 
