@@ -77,7 +77,7 @@ feature 001 implemented.
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T019 [P] [US2] Write `backend/tests/auth/test_protected.py`: `GET /api/auth/me` with no cookie, an unknown token, a logged-out token, and a token whose `expires_at` is in the past → `401` `{"detail": "Not logged in."}`; with a valid token → `200` with only `{"email": ...}`
+- [X] T019 [P] [US2] Write `backend/tests/auth/test_protected.py`: `GET /api/auth/me` with no cookie, an unknown token, a logged-out token, and a token whose `expires_at` is in the past → `401` `{"detail": "Not logged in."}`; with a valid token → `200` with only `{"email": ...}`
 
 ### Implementation for User Story 2
 
