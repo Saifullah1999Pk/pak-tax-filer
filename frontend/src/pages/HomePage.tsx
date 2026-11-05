@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { apiFetch } from "../api/client";
 import type { User } from "../auth/AuthContext";
 import { LogoutButton } from "../components/LogoutButton";
@@ -22,7 +23,9 @@ export function HomePage() {
     <main>
       <h1>pak-tax-filer</h1>
       {user && <p>Logged in as {user.email}</p>}
-      <LogoutButton />
+      <nav>
+        <Link to="/profile">Profile</Link> <LogoutButton />
+      </nav>
     </main>
   );
 }

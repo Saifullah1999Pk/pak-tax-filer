@@ -3,7 +3,9 @@
 Other features read the profile with get_profile (or refuse with require_profile).
 """
 
-from sqlalchemy import func, select
+from datetime import UTC, datetime
+
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +37,8 @@ async def save_profile(
         .values(user_id=user.id, tax_year=tax_year, on_atl=on_atl)
         .on_conflict_do_update(
             index_elements=[TaxpayerProfile.user_id],
-            set_={"tax_year": tax_year, "on_atl": on_atl, "updated_at": func.now()},
+            # The save time itself, not PostgreSQL now() (which is the transaction start).
+            set_={"tax_year": tax_year, "on_atl": on_atl, "updated_at": datetime.now(UTC)},
         )
         .returning(TaxpayerProfile)
     )
