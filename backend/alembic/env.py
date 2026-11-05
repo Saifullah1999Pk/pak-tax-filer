@@ -20,6 +20,7 @@ from alembic import context
 
 # Importing a models module registers its tables on Base.metadata.
 from app.auth import models as _auth_models  # pylint: disable=unused-import
+from app.documents import models as _documents_models  # pylint: disable=unused-import
 from app.profile import models as _profile_models  # pylint: disable=unused-import
 from app.db import Base
 
