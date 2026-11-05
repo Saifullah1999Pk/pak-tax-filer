@@ -58,7 +58,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 - [X] T012 [US1] Create `backend/app/documents/uploads.py`: content-type check by magic bytes, size limit, `pypdf` page-count and encryption checks, save to `UPLOAD_DIR` per research R4; T010 passes
 - [X] T013 [US1] Create `extract_document()` in `backend/app/documents/service.py`: set `extracting`, call the extractor, normalise, apply rules, save fields, set `needs_review` or `failed`; record `model`; T011 passes
 - [X] T014 [US1] Create `backend/app/documents/router.py` with `POST /api/documents` (multipart `file`, `doc_type`), `GET /api/documents/{id}` and `GET /api/documents/{id}/file`, all with `current_user` and `404` for other users' documents, the upload also with feature 002's `require_profile` (its `tax_year` stamps the document and is the year the rule checks compare with); include it in `backend/app/main.py`
-- [ ] T015 [P] [US1] Write `frontend/src/pages/DocumentsPage.test.tsx` (demo notice shown; type choice required; progress shown while uploading; errors from `413`/`415`/`422` displayed; success navigates to the review page), then create `frontend/src/pages/DocumentsPage.tsx` (upload part) and add its route under `RequireAuth` in `frontend/src/App.tsx`
+- [X] T015 [P] [US1] Write `frontend/src/pages/DocumentsPage.test.tsx` (demo notice shown; type choice required; progress shown while uploading; errors from `413`/`415`/`422` displayed; success navigates to the review page), then create `frontend/src/pages/DocumentsPage.tsx` (upload part) and add its route under `RequireAuth` in `frontend/src/App.tsx`
 - [ ] T016 [US1] Run [quickstart.md](quickstart.md) section 1 with a real API key
 
 **Checkpoint**: User Story 1 works on its own.
@@ -78,7 +78,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ### Implementation for User Story 2
 
 - [X] T018 [US2] Add `edit_field()`, `confirm_document()` and `confirmed_documents()` to `backend/app/documents/service.py`, and `PATCH /api/documents/{id}/fields/{name}` and `POST /api/documents/{id}/confirm` to `backend/app/documents/router.py`; T017 passes
-- [ ] T019 [P] [US2] Write `frontend/src/pages/ReviewPage.test.tsx` (file shown beside fields; low-confidence fields highlighted with reason; editing and confirming a field; document confirm blocked with a list of missing fields; read-only once confirmed), then create `frontend/src/pages/ReviewPage.tsx` and its route
+- [X] T019 [P] [US2] Write `frontend/src/pages/ReviewPage.test.tsx` (file shown beside fields; low-confidence fields highlighted with reason; editing and confirming a field; document confirm blocked with a list of missing fields; read-only once confirmed), then create `frontend/src/pages/ReviewPage.tsx` and its route
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 
 **Checkpoint**: User Story 2 works on its own.
@@ -98,7 +98,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ### Implementation for User Story 3
 
 - [X] T022 [US3] Add `GET /api/documents`, `POST /api/documents/{id}/retry` and `DELETE /api/documents/{id}` (deleting the stored file) to `backend/app/documents/router.py` and `service.py`; T021 passes
-- [ ] T023 [US3] Add the document list (type, upload time, status, retry and delete buttons) to `frontend/src/pages/DocumentsPage.tsx` and its test file
+- [X] T023 [US3] Add the document list (type, upload time, status, retry and delete buttons) to `frontend/src/pages/DocumentsPage.tsx` and its test file
 - [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
 
 **Checkpoint**: User Stories 1–3 work.

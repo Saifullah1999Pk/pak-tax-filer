@@ -1,0 +1,239 @@
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import type { DocumentSummary } from "../api/documents";
+import { hasProfile, mockFetch } from "../test/mockFetch";
+import type { FakeRoutes } from "../test/mockFetch";
+import { renderApp } from "../test/renderApp";
+
+// Upload and the document list, per specs/003-document-extraction/contracts/documents-api.md
+// (tasks T015, T023; spec User Stories 1 and 3).
+
+const ME = { status: 200, body: { email: "demo@example.com" } };
+
+const SUMMARY: DocumentSummary = {
+  id: "d1",
+  doc_type: "salary_certificate",
+  tax_year: "2025-26",
+  status: "needs_review",
+  failure_reason: null,
+  media_type: "application/pdf",
+  page_count: 1,
+  created_at: "2026-11-05T10:00:00Z",
+  confirmed_at: null,
+};
+const FAILED: DocumentSummary = {
+  ...SUMMARY,
+  id: "d2",
+  doc_type: "bank_profit_certificate",
+  status: "failed",
+  failure_reason: "The AI service is busy. Try again in a minute.",
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+function routes(extra: FakeRoutes = {}): FakeRoutes {
+  return {
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/documents": () => ({ status: 200, body: [] }),
+    ...extra,
+  };
+}
+
+function chooseFile(name = "certificate.pdf") {
+  const input = screen.getByLabelText(/file/i);
+  const file = new File(["%PDF-1.7 synthetic"], name, {
+    type: "application/pdf",
+  });
+  fireEvent.change(input, { target: { files: [file] } });
+  return file;
+}
+
+function chooseType(label: RegExp) {
+  fireEvent.change(screen.getByLabelText(/document type/i), {
+    target: {
+      value: /salary/i.test(label.source)
+        ? "salary_certificate"
+        : "bank_profit_certificate",
+    },
+  });
+}
+
+test("the upload page says to use demo data only", async () => {
+  mockFetch(routes());
+  renderApp("/documents");
+
+  await screen.findByText(/demo data only/i);
+  screen.getByText(/do not upload real documents/i);
+});
+
+test("the document type must be chosen before uploading", async () => {
+  const fetch = mockFetch(routes());
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /choose the document type/i,
+  );
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+    false,
+  );
+});
+
+test("progress is shown while the document is being read", async () => {
+  mockFetch(routes({ "POST /api/documents": () => new Promise(() => {}) }));
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("status")).textContent).toMatch(
+    /reading the document/i,
+  );
+  expect(
+    screen.getByRole("button", { name: /upload/i }) as
+      HTMLButtonElement | HTMLInputElement,
+  ).toHaveProperty("disabled", true);
+});
+
+test.each([
+  [413, "The file is over 10 MB."],
+  [415, "Only PDF, JPG or PNG files can be uploaded."],
+  [422, "The PDF has 6 pages; the limit is 5 pages."],
+])(
+  "a refused upload (%i) shows the server's reason",
+  async (status, detail) => {
+    mockFetch(
+      routes({ "POST /api/documents": () => ({ status, body: { detail } }) }),
+    );
+    renderApp("/documents");
+    await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+    chooseType(/salary/);
+    chooseFile();
+    fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(detail);
+  },
+);
+
+test("a successful upload sends the file and type, then opens its review page", async () => {
+  let sent: unknown = null;
+  mockFetch(
+    routes({
+      "POST /api/documents": ({ body }) => {
+        sent = body;
+        return { status: 201, body: { ...SUMMARY, fields: [] } };
+      },
+      "GET /api/documents/d1": () => ({
+        status: 200,
+        body: { ...SUMMARY, fields: [] },
+      }),
+    }),
+  );
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  const file = chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  await screen.findByRole("heading", { level: 1, name: /check the figures/i });
+  expect(sent).toBeInstanceOf(FormData);
+  expect((sent as FormData).get("doc_type")).toBe("salary_certificate");
+  expect((sent as FormData).get("file")).toBe(file);
+});
+
+test("the list shows each document's type and status, with failed ones' reasons", async () => {
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [SUMMARY, FAILED] }),
+    }),
+  );
+  renderApp("/documents");
+
+  const salary = await screen.findByRole("row", {
+    name: /salary certificate/i,
+  });
+  within(salary).getByText(/ready to review/i);
+  expect(
+    within(salary)
+      .getByRole("link", { name: /review/i })
+      .getAttribute("href"),
+  ).toBe("/documents/d1");
+  const bank = screen.getByRole("row", { name: /bank profit certificate/i });
+  within(bank).getByText(/the ai service is busy/i);
+});
+
+test("a failed document can be retried, and the list refreshes", async () => {
+  let current = [FAILED];
+  const fetch = mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: current }),
+      "POST /api/documents/d2/retry": () => {
+        current = [{ ...FAILED, status: "needs_review", failure_reason: null }];
+        return { status: 200, body: { ...current[0], fields: [] } };
+      },
+    }),
+  );
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /bank profit/i });
+  fireEvent.click(within(row).getByRole("button", { name: /retry/i }));
+
+  await screen.findByText(/ready to review/i);
+  expect(
+    fetch.mock.calls.some(
+      ([path, init]) =>
+        path === "/api/documents/d2/retry" && init?.method === "POST",
+    ),
+  ).toBe(true);
+});
+
+test("deleting asks first, then removes the document", async () => {
+  let current = [SUMMARY];
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: current }),
+      "DELETE /api/documents/d1": () => {
+        current = [];
+        return { status: 204 };
+      },
+    }),
+  );
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /salary certificate/i });
+  fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+
+  expect(confirm).toHaveBeenCalled();
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("row", { name: /salary certificate/i }),
+    ).toBeNull(),
+  );
+});
+
+test("cancelling the delete question keeps the document", async () => {
+  const fetch = mockFetch(
+    routes({ "GET /api/documents": () => ({ status: 200, body: [SUMMARY] }) }),
+  );
+  vi.spyOn(window, "confirm").mockReturnValue(false);
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /salary certificate/i });
+  fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "DELETE")).toBe(
+    false,
+  );
+});

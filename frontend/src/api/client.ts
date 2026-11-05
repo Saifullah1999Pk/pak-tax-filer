@@ -39,7 +39,28 @@ export async function apiFetch<T>(
     // State-changing requests always send JSON (the backend refuses anything else).
     body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
   });
+  return readReply<T>(response, allowUnauthenticated);
+}
 
+/**
+ * Upload a file as multipart form data: the one request that isn't JSON (feature 003).
+ * No Content-Type is set, so the browser adds the multipart boundary itself.
+ */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const response = await fetch(path, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+    body: form,
+  });
+  return readReply<T>(response, false);
+}
+
+/** Turn a reply into its JSON body, or throw an ApiError with the server's `detail`. */
+async function readReply<T>(
+  response: Response,
+  allowUnauthenticated: boolean,
+): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
