@@ -145,8 +145,8 @@ backend enforces it (FR-016 to FR-020, FR-022, FR-023).
 
 **Independent Test**: [quickstart.md](quickstart.md) section 4, step 4.
 
-- [ ] T043 [P] [US5] Extend `frontend/src/pages/ProfilePage.test.tsx`: with a saved profile the form shows the saved answers; changing ATL and saving sends the new value and shows it on reopening
-- [ ] T044 [P] [US5] Extend `backend/tests/profile/test_profile_api.py`: replacing a profile changes `on_atl` and `updated_at` but not `created_at`, and leaves the user's other rows unchanged (SC-009)
+- [X] T043 [P] [US5] Extend `frontend/src/pages/ProfilePage.test.tsx`: with a saved profile the form shows the saved answers; changing ATL and saving sends the new value and shows it on reopening
+- [X] T044 [P] [US5] Extend `backend/tests/profile/test_profile_api.py`: replacing a profile changes `on_atl` and `updated_at` but not `created_at`, and leaves the user's other rows unchanged (SC-009)
 - [ ] T045 [US5] Pre-fill `frontend/src/pages/ProfilePage.tsx` from the saved profile and add a "Profile" link next to the logout button on `frontend/src/pages/HomePage.tsx`; T043 and T044 pass
 - [ ] T046 [US5] Run [quickstart.md](quickstart.md) section 4, step 4
 

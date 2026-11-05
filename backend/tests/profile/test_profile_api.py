@@ -6,9 +6,11 @@ FR-016 to FR-018, FR-021 to FR-023.
 import pytest
 from conftest import TEST_PASSWORD, make_user
 from httpx2 import AsyncClient
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.models import User
+from app.auth.models import Session, User
+from app.profile.service import get_profile
 
 pytestmark = pytest.mark.anyio
 
@@ -93,3 +95,26 @@ async def test_one_users_save_never_touches_anothers_profile(
 
     assert others_view.json()["profile"] is None
     assert (await client.get("/api/profile")).json()["profile"]["on_atl"] is True
+
+
+async def test_changing_the_profile_updates_it_and_nothing_else(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if a change doesn't replace the answer and update the time, or touches anything
+    else the user has saved (FR-021, SC-009)."""
+    first = (await client.put("/api/profile", json={"tax_year": "2025-26", "on_atl": True})).json()
+    sessions_before = (await db.execute(select(func.count()).select_from(Session))).scalar_one()
+    before = await get_profile(db, logged_in_user)
+    assert before is not None
+    created_before = before.created_at
+
+    second = (
+        await client.put("/api/profile", json={"tax_year": "2025-26", "on_atl": False})
+    ).json()
+
+    assert second["on_atl"] is False
+    assert second["updated_at"] > first["updated_at"]
+    after = await get_profile(db, logged_in_user)
+    assert after is not None and after.created_at == created_before
+    sessions_after = (await db.execute(select(func.count()).select_from(Session))).scalar_one()
+    assert sessions_after == sessions_before

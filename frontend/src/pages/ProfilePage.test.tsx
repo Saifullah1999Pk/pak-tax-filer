@@ -108,3 +108,34 @@ test("saving the answers goes on to the page the user wanted", async () => {
   await screen.findByText(/logged in as demo@example\.com/i);
   expect(user.saved()).toMatchObject({ tax_year: "2025-26", on_atl: false });
 });
+
+test("the home page links to the profile, which shows the saved answers for editing", async () => {
+  const user = newUser();
+  mockFetch(user.routes);
+  renderApp("/profile?next=/");
+  fireEvent.click(await screen.findByRole("radio", { name: /yes/i }));
+  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+  fireEvent.click(await screen.findByRole("link", { name: /profile/i }));
+
+  await screen.findByRole("heading", { level: 1, name: /your profile/i });
+  expect(screen.getByRole("radio", { name: /yes/i })).toHaveProperty(
+    "checked",
+    true,
+  );
+});
+
+test("changing ATL status saves the new answer", async () => {
+  const user = newUser();
+  mockFetch(user.routes);
+  renderApp("/profile?next=/");
+  fireEvent.click(await screen.findByRole("radio", { name: /yes/i }));
+  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+  fireEvent.click(await screen.findByRole("link", { name: /profile/i }));
+
+  fireEvent.click(await screen.findByRole("radio", { name: /no/i }));
+  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+  await screen.findByText(/logged in as demo@example\.com/i);
+  expect(user.saved()).toMatchObject({ on_atl: false });
+});
