@@ -1,6 +1,11 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { mockFetch, noProfile, SAVED_PROFILE } from "../test/mockFetch";
+import {
+  hasProfile,
+  mockFetch,
+  noProfile,
+  SAVED_PROFILE,
+} from "../test/mockFetch";
 import type { FakeRoutes } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
@@ -52,9 +57,9 @@ test("the setup step offers only the supported tax years and no preselected ATL 
   renderApp("/profile");
 
   const taxYear = await screen.findByLabelText(/tax year/i);
-  const options = Array.from(taxYear.querySelectorAll("option")).map(
-    (o) => o.textContent,
-  );
+  const options = within(taxYear)
+    .getAllByRole("option")
+    .map((o) => o.textContent);
   expect(options).toEqual(["2025-26"]);
   expect(screen.getByRole("radio", { name: /yes/i })).toHaveProperty(
     "checked",
@@ -138,4 +143,64 @@ test("changing ATL status saves the new answer", async () => {
 
   await screen.findByText(/logged in as demo@example\.com/i);
   expect(user.saved()).toMatchObject({ on_atl: false });
+});
+
+test("if the profile can't be loaded, the user is told and can retry", async () => {
+  let failing = true;
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": () =>
+      failing
+        ? { status: 500, body: { detail: "Server error." } }
+        : noProfile(),
+  });
+  renderApp("/");
+
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    expect.stringMatching(/couldn't load your profile/i),
+  );
+  failing = false;
+  fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+  await screen.findByRole("heading", {
+    level: 1,
+    name: /set up your profile/i,
+  });
+});
+
+test("after one user logs out, the next user doesn't see the first user's profile", async () => {
+  let current: string | null = "a@example.com";
+  mockFetch({
+    "GET /api/auth/me": () =>
+      current
+        ? { status: 200, body: { email: current } }
+        : { status: 401, body: { detail: "Not logged in." } },
+    "GET /api/profile": () =>
+      current === "a@example.com" ? hasProfile() : noProfile(),
+    "POST /api/auth/logout": () => {
+      current = null;
+      return { status: 204 };
+    },
+    "POST /api/auth/login": () => {
+      current = "b@example.com";
+      return { status: 200, body: { email: current } };
+    },
+  });
+  renderApp("/");
+
+  fireEvent.click(await screen.findByRole("button", { name: /log out/i }));
+  await screen.findByRole("heading", { name: /log in/i });
+  fireEvent.change(screen.getByLabelText(/email/i), {
+    target: { value: "b@example.com" },
+  });
+  fireEvent.change(screen.getByLabelText(/password/i), {
+    target: { value: "b-pass-123" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /log in/i }));
+
+  await screen.findByRole("heading", {
+    level: 1,
+    name: /set up your profile/i,
+  });
 });

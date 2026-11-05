@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
@@ -34,10 +35,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const navigate = useNavigate();
+  const userRef = useRef<User | null>(null);
 
   useEffect(() => {
-    // Any API call that finds the session gone sends the user to log in again (FR-013).
+    // Kept in a ref so the session-ended handler below always sees the current user.
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    // Any API call that finds the session gone sends the user to log in again (FR-013). A late
+    // 401 arriving after a deliberate logout isn't a "session ended" (frontend review L3).
     setSessionEndedHandler(() => {
+      if (userRef.current === null) {
+        return;
+      }
       setUser(null);
       setNotice(SESSION_ENDED);
       navigate("/login", { replace: true });

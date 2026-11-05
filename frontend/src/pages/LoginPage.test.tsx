@@ -106,3 +106,66 @@ test("opening the login page while logged in goes to the home page", async () =>
 
   await screen.findByText(/logged in as demo@example\.com/i);
 });
+
+function loggedOutThenIn() {
+  let loggedIn = false;
+  return {
+    "GET /api/auth/me": () =>
+      loggedIn
+        ? { status: 200, body: { email: "demo@example.com" } }
+        : { status: 401, body: { detail: "Not logged in." } },
+    "GET /api/profile": hasProfile,
+    "POST /api/auth/login": () => {
+      loggedIn = true;
+      return { status: 200, body: { email: "demo@example.com" } };
+    },
+  };
+}
+
+test("after login the user goes to the page they wanted, not just home", async () => {
+  mockFetch(loggedOutThenIn());
+  renderApp("/profile");
+
+  await screen.findByRole("heading", { name: /log in/i });
+  submitLogin("demo@example.com", "demo-pass-123");
+
+  await screen.findByRole("heading", { level: 1, name: /your profile/i });
+});
+
+test("a next link to another site is ignored", async () => {
+  mockFetch(loggedOutThenIn());
+  renderApp("/login?next=//evil.example");
+
+  await screen.findByRole("heading", { name: /log in/i });
+  submitLogin("demo@example.com", "demo-pass-123");
+
+  await screen.findByText(/logged in as demo@example\.com/i);
+});
+
+test("a next link back to the login page doesn't leave the user stuck", async () => {
+  mockFetch(loggedOutThenIn());
+  renderApp("/login?next=/login");
+
+  await screen.findByRole("heading", { name: /log in/i });
+  submitLogin("demo@example.com", "demo-pass-123");
+
+  await screen.findByText(/logged in as demo@example\.com/i);
+});
+
+test("new visitors and wrong passwords never see 'session ended'", async () => {
+  mockFetch({
+    ...LOGGED_OUT,
+    "POST /api/auth/login": () => ({
+      status: 401,
+      body: { detail: "Invalid email or password." },
+    }),
+  });
+  renderApp("/login");
+
+  await screen.findByRole("heading", { name: /log in/i });
+  expect(screen.queryByText(/session has ended/i)).toBeNull();
+  submitLogin("demo@example.com", "wrong-pass-1");
+  await screen.findByRole("alert");
+
+  expect(screen.queryByText(/session has ended/i)).toBeNull();
+});

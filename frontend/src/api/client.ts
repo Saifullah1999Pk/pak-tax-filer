@@ -43,7 +43,20 @@ export async function apiFetch<T>(
   if (response.status === 204) {
     return undefined as T;
   }
-  const data: unknown = await response.json().catch(() => ({}));
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    // A successful reply must be JSON: anything else (e.g. a proxy's HTML error page) is an
+    // error, never an empty success. Error replies may lack JSON; their status still counts.
+    if (response.ok) {
+      throw new ApiError(
+        response.status,
+        "The server sent an unexpected reply.",
+      );
+    }
+    data = {};
+  }
   if (!response.ok) {
     if (response.status === 401 && !allowUnauthenticated) {
       onSessionEnded();

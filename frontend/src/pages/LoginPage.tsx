@@ -18,7 +18,7 @@ export function LoginPage() {
   const next = safeNext(searchParams.get("next"));
 
   if (loading) {
-    return <p>Loading…</p>;
+    return <p role="status">Loading…</p>;
   }
   if (user !== null && !submitting) {
     return <Navigate to={next} replace />;
@@ -47,7 +47,7 @@ export function LoginPage() {
       <p>
         <strong>Demo data only.</strong> Do not enter real personal information.
       </p>
-      {notice && <p>{notice}</p>}
+      {notice && <p role="status">{notice}</p>}
       <form onSubmit={handleSubmit}>
         <label>
           Email
@@ -64,12 +64,18 @@ export function LoginPage() {
           <input
             type="password"
             autoComplete="current-password"
+            aria-invalid={error !== null}
+            aria-describedby={error ? "login-error" : undefined}
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p id="login-error" role="alert">
+            {error}
+          </p>
+        )}
         <button type="submit" disabled={submitting}>
           Log in
         </button>

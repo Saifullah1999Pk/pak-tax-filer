@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
 import { LogoutButton } from "../components/LogoutButton";
 import { useProfile } from "../profile/ProfileContext";
+import { ProfileLoadError } from "../profile/ProfileLoadError";
 import { safeNext } from "../navigation";
 
 // Taxpayer profile setup and edit, per specs/002-auth-foundation/contracts/cli-and-ui.md
@@ -13,7 +14,13 @@ const FBR_ATL_PAGE =
   "https://www.fbr.gov.pk/categ/active-taxpayer-list-income-tax/51147/30859/71169";
 
 export function ProfilePage() {
-  const { profile, supportedTaxYears, loading, save } = useProfile();
+  const {
+    profile,
+    supportedTaxYears,
+    loading,
+    error: loadError,
+    save,
+  } = useProfile();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [taxYear, setTaxYear] = useState<string | null>(null);
@@ -21,8 +28,11 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  if (loadError !== null) {
+    return <ProfileLoadError />;
+  }
   if (loading) {
-    return <p>Loading…</p>;
+    return <p role="status">Loading…</p>;
   }
 
   // Until the user picks, show the saved answers (editing) or the first supported year.
@@ -68,7 +78,7 @@ export function ProfilePage() {
             ))}
           </select>
         </label>
-        <fieldset>
+        <fieldset aria-describedby={error ? "profile-error" : undefined}>
           <legend>Are you on FBR's Active Taxpayers' List (ATL)?</legend>
           <label>
             <input
@@ -91,10 +101,15 @@ export function ProfilePage() {
           <p>
             <a href={FBR_ATL_PAGE} target="_blank" rel="noopener noreferrer">
               Check your ATL status on FBR's website
+              <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
           </p>
         </fieldset>
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p id="profile-error" role="alert">
+            {error}
+          </p>
+        )}
         <button type="submit" disabled={saving}>
           Save
         </button>

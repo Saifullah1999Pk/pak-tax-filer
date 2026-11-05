@@ -8,7 +8,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const location = useLocation();
 
   if (loading) {
-    return <p>Loading…</p>;
+    return <p role="status">Loading…</p>;
   }
   if (user === null) {
     const next = encodeURIComponent(location.pathname + location.search);
