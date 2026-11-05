@@ -81,7 +81,7 @@ feature 001 implemented.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Create `backend/app/auth/dependencies.py` with `current_user`: reads the `session` cookie, calls `get_user_for_token`, raises `401` "Not logged in." otherwise
+- [X] T020 [US2] Create `backend/app/auth/dependencies.py` with `current_user`: reads the `session` cookie, calls `get_user_for_token`, raises `401` "Not logged in." otherwise
 - [ ] T021 [US2] Add `GET /api/auth/me` to `backend/app/auth/router.py` using `current_user`, returning only the email; T019 passes
 - [ ] T022 [US2] Run [quickstart.md](quickstart.md) section 2
 
