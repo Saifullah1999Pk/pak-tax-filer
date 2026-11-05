@@ -7,13 +7,15 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from conftest import make_user
 from document_helpers import BANK_RESULT, SALARY_RESULT, make_pdf, upload, value
 from httpx2 import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.documents.extraction.client import ExtractionResult, FakeExtractor
-from app.documents.models import DocType, FieldName
+from app.documents.models import DocType, ExtractedField, FieldName
 from app.documents.service import confirmed_documents
 
 pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("user_with_profile", "fake_extractor")]
@@ -183,3 +185,78 @@ async def test_only_confirmed_documents_reach_other_features(
     salary = next(d for d in found if d.doc_type is DocType.SALARY_CERTIFICATE)
     assert salary.values[FieldName.GROSS_SALARY] == Decimal("1800000.00")
     assert await confirmed_documents(db, user_with_profile.id, "2024-25") == []
+
+
+# Code review findings (2026-11-05).
+
+
+async def test_negative_extracted_amount_cannot_be_confirmed(
+    client: AsyncClient, fake_extractor: FakeExtractor
+) -> None:
+    """Fails if a negative amount read by the AI can be confirmed (typed ones already can't)."""
+    fields = dict(SALARY_RESULT.fields)
+    fields["tax_deducted"] = value("(5,000)")
+    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    document_id = await new_document(client)
+
+    response = await patch(client, document_id, "tax_deducted", {"confirmed": True})
+
+    assert response.status_code == 422
+    assert "negative" in response.json()["detail"]
+
+
+async def test_wrong_tax_year_document_cannot_be_confirmed(
+    client: AsyncClient, fake_extractor: FakeExtractor
+) -> None:
+    """Fails if a certificate for another year can be confirmed into the profile's year."""
+    fields = dict(SALARY_RESULT.fields)
+    fields["tax_year"] = value("Tax Year 2025")
+    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    document_id = await new_document(client)
+    await confirm_all_fields(client, document_id)
+
+    response = await client.post(f"/api/documents/{document_id}/confirm", json={})
+
+    assert response.status_code == 409
+    assert "2024-25" in response.json()["detail"]
+    assert "2025-26" in response.json()["detail"]
+
+
+async def test_unknown_field_name_is_404(client: AsyncClient) -> None:
+    """Fails if a field name that no document has gives anything but 404 (contract)."""
+    document_id = await new_document(client)
+
+    response = await patch(client, document_id, "employee_name", {"value": "1"})
+
+    assert response.status_code == 404
+
+
+async def test_document_with_an_unconfirmed_field_never_reaches_other_features(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if confirmed_documents trusts the status alone (defence against a lost race)."""
+    document_id = await new_document(client)
+    await confirm_all_fields(client, document_id)
+    assert (await client.post(f"/api/documents/{document_id}/confirm", json={})).status_code == 200
+    field = (
+        await db.scalars(
+            select(ExtractedField).where(ExtractedField.name == FieldName.GROSS_SALARY)
+        )
+    ).one()
+    field.confirmed = False
+    await db.flush()
+
+    assert await confirmed_documents(db, user_with_profile.id, YEAR) == []
+
+
+async def test_other_users_confirmed_documents_are_not_returned(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if one user's confirmed figures could reach another user's calculation."""
+    document_id = await new_document(client)
+    await confirm_all_fields(client, document_id)
+    await client.post(f"/api/documents/{document_id}/confirm", json={})
+    other = await make_user(db, "other@example.com")
+
+    assert await confirmed_documents(db, other.id, YEAR) == []
+    assert len(await confirmed_documents(db, user_with_profile.id, YEAR)) == 1

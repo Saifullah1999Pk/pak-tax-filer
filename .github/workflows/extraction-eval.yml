@@ -12,6 +12,9 @@ on:
     branches: [main]
     paths:
       - "backend/app/documents/extraction/**"
+      # The eval also uses the app's field building and field list.
+      - "backend/app/documents/service.py"
+      - "backend/app/documents/models.py"
       - "backend/evals/**"
   workflow_dispatch:
     inputs:

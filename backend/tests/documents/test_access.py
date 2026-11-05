@@ -123,3 +123,22 @@ async def test_state_changes_must_be_json(client: AsyncClient) -> None:
     ]
 
     assert [r.status_code for r in responses] == [415] * 4
+
+
+async def test_missing_stored_file_is_404_and_retry_fails_cleanly(
+    client: AsyncClient, db: AsyncSession, fake_extractor: FakeExtractor
+) -> None:
+    """Fails if a stored file that has gone (e.g. volume reset) crashes instead of answering."""
+    fake_extractor.result = ExtractionResult(failure_reason="busy")
+    document_id = (await upload(client, make_pdf())).json()["id"]
+    document = await db.get(Document, document_id)
+    assert document is not None
+    Path(document.file_path).unlink()
+
+    file = await client.get(f"/api/documents/{document_id}/file")
+    retried = await client.post(f"/api/documents/{document_id}/retry", json={})
+
+    assert file.status_code == 404
+    assert retried.status_code == 200
+    assert retried.json()["status"] == "failed"
+    assert "upload it again" in retried.json()["failure_reason"]

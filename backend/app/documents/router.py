@@ -156,7 +156,16 @@ async def owned_document(document_id: uuid.UUID, user: CurrentUser, db: DbSessio
     return document
 
 
+async def locked_document(document_id: uuid.UUID, user: CurrentUser, db: DbSession) -> Document:
+    """The caller's document, row-locked for a state change; 404 if it isn't theirs."""
+    document = await get_document(db, user.id, document_id, for_update=True)
+    if document is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NOT_FOUND)
+    return document
+
+
 OwnedDocument = Annotated[Document, Depends(owned_document)]
+LockedDocument = Annotated[Document, Depends(locked_document)]
 ExtractorDep = Annotated[Extractor, Depends(get_extractor)]
 
 
@@ -187,16 +196,21 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
     except UploadRefused as refused:
         raise HTTPException(refused.status_code, refused.detail) from refused
     path = await save_file(upload_dir, user.id, content, checked.extension)
-    document = await create_document(
-        db,
-        user_id=user.id,
-        tax_year=profile.tax_year,
-        doc_type=doc_type,
-        checked=checked,
-        file_path=path,
-    )
-    await extract_document(db, document, extractor, content)
-    await db.commit()
+    try:
+        document = await create_document(
+            db,
+            user_id=user.id,
+            tax_year=profile.tax_year,
+            doc_type=doc_type,
+            checked=checked,
+            file_path=path,
+        )
+        await extract_document(db, document, extractor, content)
+        await db.commit()
+    except BaseException:
+        # Nothing records the file now, so delete could never remove it: remove it here.
+        await remove_stored_file(path)
+        raise
     return document_out(document)
 
 
@@ -209,16 +223,24 @@ async def read_document(document: OwnedDocument) -> DocumentOut:
 @router.get("/{document_id}/file")
 async def read_document_file(document: OwnedDocument) -> FileResponse:
     """The original file, for the review page."""
+    if not Path(document.file_path).is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "The stored file is missing.")
     return FileResponse(document.file_path, media_type=document.media_type)
 
 
 @router.patch("/{document_id}/fields/{name}", dependencies=[Depends(require_json)])
 async def update_field(
-    document: OwnedDocument, name: FieldName, body: FieldEdit, db: DbSession
+    document: LockedDocument, name: str, body: FieldEdit, db: DbSession
 ) -> FieldOut:
     """Edit and/or confirm one field; the rules run again after an edit."""
     try:
-        field = await edit_field(db, document, name, value=body.value, confirmed=body.confirmed)
+        field_name = FieldName(name)
+    except ValueError as unknown:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Field not found.") from unknown
+    try:
+        field = await edit_field(
+            db, document, field_name, value=body.value, confirmed=body.confirmed
+        )
     except DocumentLocked as locked:
         raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
     except FieldNotOnDocument as missing:
@@ -230,7 +252,7 @@ async def update_field(
 
 
 @router.post("/{document_id}/confirm", dependencies=[Depends(require_json)])
-async def confirm(document: OwnedDocument, db: DbSession) -> DocumentOut:
+async def confirm(document: LockedDocument, db: DbSession) -> DocumentOut:
     """Confirm the document; only then can other features use its figures."""
     try:
         await confirm_document(db, document)
@@ -244,7 +266,7 @@ async def confirm(document: OwnedDocument, db: DbSession) -> DocumentOut:
 
 
 @router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
-async def retry(document: OwnedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
+async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
     """Re-run a failed extraction."""
     try:
         await retry_extraction(db, document, extractor)
@@ -259,7 +281,7 @@ async def retry(document: OwnedDocument, db: DbSession, extractor: ExtractorDep)
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_json)],
 )
-async def delete(document: OwnedDocument, db: DbSession) -> Response:
+async def delete(document: LockedDocument, db: DbSession) -> Response:
     """Delete the document, its fields and its stored file."""
     path = await delete_document(db, document)
     await db.commit()

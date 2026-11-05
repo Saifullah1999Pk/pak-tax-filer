@@ -136,7 +136,8 @@ def _field(name: FieldName, raw: ExtractedValue | None) -> ExtractedField:
         field.amount = parse_amount(raw.value)
     except ValueError:
         field.confidence = Confidence.LOW
-        field.rule_reason = f"{UNREADABLE} {raw.value!r} as an amount."
+        # Generic on purpose: the misread text could be anything on the page (FR-003).
+        field.rule_reason = f"{UNREADABLE} the printed amount."
     return field
 
 
@@ -206,8 +207,8 @@ async def edit_field(
         field.confirmed = False
         _recheck(document)
     if confirmed is not None:
-        if confirmed and field_value(field) is None:
-            raise ValueError("Enter a value before confirming this field.")
+        if confirmed:
+            _check_confirmable(field)
         field.confirmed = confirmed
     await db.flush()
     return field
@@ -225,10 +226,28 @@ async def confirm_document(db: AsyncSession, document: Document) -> Document:
     ]
     if missing:
         raise IncompleteDocument(missing)
+    for field in document.fields:
+        _check_confirmable(field)
+    year = next((f.text_value for f in document.fields if f.name is FieldName.TAX_YEAR), None)
+    if year != document.tax_year:
+        # FR-008: a certificate for another year must never be counted in the profile's year.
+        raise DocumentLocked(
+            f"This certificate is for {year}; your profile's tax year is {document.tax_year}. "
+            "Correct the tax year if it was misread, or upload this year's certificate."
+        )
     document.status = DocStatus.CONFIRMED
     document.confirmed_at = datetime.now(UTC)
     await db.flush()
     return document
+
+
+def _check_confirmable(field: ExtractedField) -> None:
+    """A field can be confirmed only with a value, and amounts only if not negative (FR-008)."""
+    value = field_value(field)
+    if value is None:
+        raise ValueError("Enter a value before confirming this field.")
+    if isinstance(value, Decimal) and value < 0:
+        raise ValueError("The amount can't be negative. Correct it before confirming.")
 
 
 def _locked_reason(document: Document) -> str:
@@ -263,17 +282,23 @@ async def confirmed_documents(
             },
         )
         for document in documents
+        # Defence in depth: the status alone isn't trusted if any field is unconfirmed.
+        if all(f.confirmed for f in document.fields)
     ]
 
 
 async def get_document(
-    db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID
+    db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID, *, for_update: bool = False
 ) -> Document | None:
-    """The user's document, or None if it doesn't exist or belongs to someone else."""
-    document = await db.get(Document, document_id)
-    if document is None or document.user_id != user_id:
-        return None
-    return document
+    """The user's document, or None if it doesn't exist or belongs to someone else.
+
+    `for_update` locks the row until the transaction ends, so an edit and a confirm of the
+    same document can't interleave (a confirm could otherwise pass on a just-edited field).
+    """
+    query = select(Document).where(Document.id == document_id, Document.user_id == user_id)
+    if for_update:
+        query = query.with_for_update().execution_options(populate_existing=True)
+    return (await db.scalars(query)).one_or_none()
 
 
 async def list_documents(db: AsyncSession, user_id: uuid.UUID) -> list[Document]:
@@ -290,8 +315,14 @@ async def retry_extraction(db: AsyncSession, document: Document, extractor: Extr
     """Re-run a failed extraction on the stored file."""
     if document.status is not DocStatus.FAILED:
         raise DocumentLocked("Only a failed extraction can be retried.")
-    content = await anyio.Path(document.file_path).read_bytes()
-    return await extract_document(db, document, extractor, content)
+    path = anyio.Path(document.file_path)
+    if not await path.exists():
+        document.failure_reason = (
+            "The stored file is missing. Delete this document and upload it again."
+        )
+        await db.flush()
+        return document
+    return await extract_document(db, document, extractor, await path.read_bytes())
 
 
 async def delete_document(db: AsyncSession, document: Document) -> Path:

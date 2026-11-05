@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.documents.extraction.client import FakeExtractor
 from app.documents.models import Document
+from app.documents.router import get_extractor
 from app.documents.uploads import MAX_BYTES
+from app.main import app
 
 pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("fake_extractor")]
 
@@ -124,3 +126,26 @@ async def test_unknown_document_type_is_refused(client: AsyncClient) -> None:
     response = await upload(client, make_pdf(), doc_type="passport")
 
     assert response.status_code == 422
+
+
+class ExplodingExtractor:  # pylint: disable=too-few-public-methods
+    """An extractor that fails in a way nobody planned for."""
+
+    async def extract(self, doc_type: object, content: bytes, media_type: str) -> object:
+        """Raise, as an unexpected SDK or database error would."""
+        raise RuntimeError("unexpected")
+
+
+@pytest.mark.usefixtures("user_with_profile")
+async def test_a_crash_after_saving_leaves_no_file_behind(
+    client: AsyncClient, upload_dir: Path
+) -> None:
+    """Fails if an unexpected error leaves a certificate on disk with no record of it."""
+    app.dependency_overrides[get_extractor] = ExplodingExtractor
+    try:
+        with pytest.raises(RuntimeError):
+            await upload(client, make_pdf())
+    finally:
+        app.dependency_overrides.pop(get_extractor, None)
+
+    assert not [path for path in upload_dir.rglob("*") if path.is_file()]

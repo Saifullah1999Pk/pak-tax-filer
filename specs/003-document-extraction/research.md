@@ -48,6 +48,11 @@ Each decision: what was chosen, why, and what else was considered.
 - **Alternatives:** storing files in PostgreSQL (bloats the database and backups); object
   storage such as S3 (a new stack component, unneeded locally).
 - **Note:** FastAPI needs `python-multipart` for file uploads.
+- **Accepted limit (code review, 2026-11-05):** the 10 MB check runs after the request body has
+  arrived, so an oversized upload uses bandwidth and temporary disk before its `413`. Fine at
+  demo scale; in production a reverse proxy's body-size limit stops it earlier. The upload is
+  multipart, so it can't use feature 002's JSON-only rule; the session cookie's `SameSite=Lax`
+  keeps other sites' form posts from carrying the session.
 
 ## R5. Synchronous extraction
 
