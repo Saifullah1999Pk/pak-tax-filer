@@ -38,7 +38,7 @@ feature 001 implemented.
 - [X] T006 Create `backend/app/auth/models.py` with `User`, `Session` and `LoginFailure` exactly as in [data-model.md](data-model.md): `users.email` "stored trimmed and lower-cased; unique"; `sessions.token_hash` "SHA-256 of the cookie token; unique"; `sessions.user_id` "deleted with the user"; `login_failures` indexed on `(email, attempted_at)`
 - [X] T007 Create `backend/alembic/versions/0002_auth_tables.py` creating the three tables and indexes (revises `0001_enable_vector`); point `backend/alembic/env.py` at `Base.metadata`
 - [X] T008 Create `backend/tests/conftest.py`: creates database `pak_tax_filer_test` if missing, runs `alembic upgrade head` on it once per test run, wraps each test in a rolled-back transaction, and provides an HTTPX `AsyncClient` with `get_db` overridden to that transaction
-- [ ] T009 [P] Write `backend/tests/auth/test_passwords.py`, then create `backend/app/auth/passwords.py` with `hash_password` and `verify_password` (pwdlib Argon2) plus `DUMMY_HASH` for unknown-email checks (research R5); tests assert the hash never equals or contains the password
+- [X] T009 [P] Write `backend/tests/auth/test_passwords.py`, then create `backend/app/auth/passwords.py` with `hash_password` and `verify_password` (pwdlib Argon2) plus `DUMMY_HASH` for unknown-email checks (research R5); tests assert the hash never equals or contains the password
 
 **Checkpoint**: `alembic upgrade head` creates the tables; `pytest` passes.
 
