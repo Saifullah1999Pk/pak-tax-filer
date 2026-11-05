@@ -1,4 +1,4 @@
-"""POST /api/auth/login and /logout (feature 002, task T015).
+"""POST /api/auth/login, /logout and GET /api/auth/me (feature 002, tasks T015, T021).
 
 Contract: specs/002-auth-foundation/contracts/auth-api.md. Research: R2 (cookie), R3 (JSON only),
 R4 (throttling), R5 (same answer and same work for unknown emails).
@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import sessions, throttle
+from app.auth.dependencies import current_user
+from app.auth.models import User
 from app.auth.passwords import DUMMY_HASH, verify_password
 from app.auth.users import get_user_by_email, normalize_email
 from app.db import get_db
@@ -31,7 +33,7 @@ def require_json(request: Request) -> None:
         )
 
 
-router = APIRouter(prefix="/api/auth", tags=["auth"], dependencies=[Depends(require_json)])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
 
@@ -49,7 +51,7 @@ class EmailResponse(BaseModel):
     email: str
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(require_json)])
 async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailResponse:
     """Log in with email and password; on success set the session cookie."""
     email = normalize_email(body.email)
@@ -80,7 +82,9 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailR
     return EmailResponse(email=user.email)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_json)]
+)
 async def logout(
     response: Response,
     db: DbSession,
@@ -93,3 +97,9 @@ async def logout(
     response.delete_cookie(
         COOKIE_NAME, path="/", httponly=True, samesite="lax", secure=get_settings().cookie_secure
     )
+
+
+@router.get("/me")
+async def me(user: Annotated[User, Depends(current_user)]) -> EmailResponse:
+    """The logged-in user's email and nothing else (FR-011); 401 when not logged in."""
+    return EmailResponse(email=user.email)
