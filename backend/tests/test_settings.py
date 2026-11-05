@@ -1,5 +1,7 @@
 """app.settings: configuration from the environment (feature 002, task T004, research R2)."""
 
+from pathlib import Path
+
 import pytest
 
 from app.settings import load_settings
@@ -39,3 +41,53 @@ def test_missing_database_url_is_refused() -> None:
     """Fails if the app could start without knowing where its database is."""
     with pytest.raises(ValueError, match="DATABASE_URL"):
         load_settings({})
+
+
+# Feature 003, task T002: document extraction settings (research R1, R4).
+
+
+def test_extraction_defaults() -> None:
+    """Fails if the defaults differ from research R1/R4 (model, effort, upload folder)."""
+    settings = load_settings({"DATABASE_URL": DB})
+
+    assert settings.anthropic_api_key is None
+    assert settings.extraction_model == "claude-opus-5-5"
+    assert settings.extraction_effort == "low"
+    assert settings.upload_dir == Path("/data/uploads")
+
+
+def test_extraction_settings_are_read() -> None:
+    """Fails if the environment can't change the key, model, effort or upload folder."""
+    settings = load_settings(
+        {
+            "DATABASE_URL": DB,
+            "ANTHROPIC_API_KEY": "test-key-not-real",
+            "EXTRACTION_MODEL": "claude-haiku-5-5",
+            "EXTRACTION_EFFORT": "medium",
+            "UPLOAD_DIR": "/tmp/uploads",
+        }
+    )
+
+    assert settings.anthropic_api_key == "test-key-not-real"
+    assert settings.extraction_model == "claude-haiku-5-5"
+    assert settings.extraction_effort == "medium"
+    assert settings.upload_dir == Path("/tmp/uploads")
+
+
+def test_empty_api_key_counts_as_missing() -> None:
+    """Fails if .env.example's blank `ANTHROPIC_API_KEY=` would be sent as a key."""
+    assert load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "  "}).anthropic_api_key is None
+
+
+def test_unrecognised_effort_is_refused() -> None:
+    """Fails if a typo like 'lwo' would only surface later as a failed extraction."""
+    with pytest.raises(ValueError, match="EXTRACTION_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": "lwo"})
+
+
+def test_api_key_never_appears_when_settings_are_printed() -> None:
+    """Fails if logging or printing the settings would reveal the API key (security rule)."""
+    settings = load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "test-key-not-real"})
+
+    assert "test-key-not-real" not in repr(settings)
+    assert "test-key-not-real" not in str(settings)

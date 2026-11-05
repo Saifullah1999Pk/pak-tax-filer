@@ -24,7 +24,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ## Phase 1: Setup
 
 - [X] T001 Add `anthropic`, `pypdf` and `python-multipart` to `backend/pyproject.toml`, and `reportlab` and `Pillow` as dev dependencies, with `uv add`; update `backend/uv.lock`
-- [ ] T002 [P] Add settings to `backend/app/settings.py`: `ANTHROPIC_API_KEY` (optional; extraction fails with a clear reason if missing), `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `UPLOAD_DIR` (default `/data/uploads`); the tax year comes from the user's profile (feature 002), not a setting
+- [X] T002 [P] Add settings to `backend/app/settings.py`: `ANTHROPIC_API_KEY` (optional; extraction fails with a clear reason if missing), `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `UPLOAD_DIR` (default `/data/uploads`); the tax year comes from the user's profile (feature 002), not a setting
 - [ ] T003 [P] Add a named volume `uploads` mounted at `/data/uploads` on the `backend` service in `docker-compose.yml`; add `ANTHROPIC_API_KEY=` to `.env.example`; git-ignore `backend/evals/extraction/cases/` and `report.md`
 
 ---
