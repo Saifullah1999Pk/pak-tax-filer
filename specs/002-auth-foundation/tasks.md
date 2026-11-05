@@ -63,7 +63,7 @@ feature 001 implemented.
 - [X] T015 [US1] Create `backend/app/auth/router.py` with `POST /api/auth/login` and `POST /api/auth/logout` per [contracts/auth-api.md](contracts/auth-api.md): normalize the email; check throttle first; verify against `DUMMY_HASH` when the email is unknown; record failures; set the cookie from research R2 with `Secure` from `settings.COOKIE_SECURE`; require `Content-Type: application/json`; include the router in `backend/app/main.py`; T011 and T012 pass
 - [X] T016 [US1] Create `backend/app/cli.py` (`python -m app.cli create-user --email`, `argparse` + `getpass`, hidden password prompted twice); T010 passes
 - [X] T017 [US1] Check that no password or session token is logged: add a test in `backend/tests/auth/test_login_logout.py` capturing log output during login and failed login and asserting neither value appears
-- [ ] T018 [US1] Run [quickstart.md](quickstart.md) section 1 and confirm each expected result
+- [X] T018 [US1] Run [quickstart.md](quickstart.md) section 1 and confirm each expected result
 
 **Checkpoint**: User Story 1 works on its own.
 
@@ -83,7 +83,7 @@ feature 001 implemented.
 
 - [X] T020 [US2] Create `backend/app/auth/dependencies.py` with `current_user`: reads the `session` cookie, calls `get_user_for_token`, raises `401` "Not logged in." otherwise
 - [X] T021 [US2] Add `GET /api/auth/me` to `backend/app/auth/router.py` using `current_user`, returning only the email; T019 passes
-- [ ] T022 [US2] Run [quickstart.md](quickstart.md) section 2
+- [X] T022 [US2] Run [quickstart.md](quickstart.md) section 2
 
 **Checkpoint**: User Story 2 works on its own.
 
