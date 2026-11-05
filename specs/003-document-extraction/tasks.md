@@ -73,11 +73,11 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T017 [P] [US2] Write `backend/tests/documents/test_review_confirm.py`: editing a value re-runs rules and sets `user_edited`; an invalid value → `422`; confirming the document with any unconfirmed or not-found field → `409` listing them; after confirmation edits → `409`; `confirmed_documents(user_id, tax_year)` returns only confirmed documents and returns several confirmed documents of the same type (FR-010a)
+- [X] T017 [P] [US2] Write `backend/tests/documents/test_review_confirm.py`: editing a value re-runs rules and sets `user_edited`; an invalid value → `422`; confirming the document with any unconfirmed or not-found field → `409` listing them; after confirmation edits → `409`; `confirmed_documents(user_id, tax_year)` returns only confirmed documents and returns several confirmed documents of the same type (FR-010a)
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add `edit_field()`, `confirm_document()` and `confirmed_documents()` to `backend/app/documents/service.py`, and `PATCH /api/documents/{id}/fields/{name}` and `POST /api/documents/{id}/confirm` to `backend/app/documents/router.py`; T017 passes
+- [X] T018 [US2] Add `edit_field()`, `confirm_document()` and `confirmed_documents()` to `backend/app/documents/service.py`, and `PATCH /api/documents/{id}/fields/{name}` and `POST /api/documents/{id}/confirm` to `backend/app/documents/router.py`; T017 passes
 - [ ] T019 [P] [US2] Write `frontend/src/pages/ReviewPage.test.tsx` (file shown beside fields; low-confidence fields highlighted with reason; editing and confirming a field; document confirm blocked with a list of missing fields; read-only once confirmed), then create `frontend/src/pages/ReviewPage.tsx` and its route
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 
@@ -93,11 +93,11 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T021 [P] [US3] Write `backend/tests/documents/test_access.py`: user B gets `404` for every endpoint on user A's document (read, file, edit, confirm, retry, delete); the list shows only the caller's documents, newest first; retry only works on `failed` (`409` otherwise); delete removes the row, fields and file
+- [X] T021 [P] [US3] Write `backend/tests/documents/test_access.py`: user B gets `404` for every endpoint on user A's document (read, file, edit, confirm, retry, delete); the list shows only the caller's documents, newest first; retry only works on `failed` (`409` otherwise); delete removes the row, fields and file
 
 ### Implementation for User Story 3
 
-- [ ] T022 [US3] Add `GET /api/documents`, `POST /api/documents/{id}/retry` and `DELETE /api/documents/{id}` (deleting the stored file) to `backend/app/documents/router.py` and `service.py`; T021 passes
+- [X] T022 [US3] Add `GET /api/documents`, `POST /api/documents/{id}/retry` and `DELETE /api/documents/{id}` (deleting the stored file) to `backend/app/documents/router.py` and `service.py`; T021 passes
 - [ ] T023 [US3] Add the document list (type, upload time, status, retry and delete buttons) to `frontend/src/pages/DocumentsPage.tsx` and its test file
 - [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
 

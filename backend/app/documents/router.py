@@ -9,12 +9,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import current_user
+from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
 from app.db import get_db
 from app.documents.extraction.client import ClaudeExtractor, Extractor
@@ -27,7 +27,21 @@ from app.documents.models import (
     ExtractedField,
     FieldName,
 )
-from app.documents.service import create_document, extract_document, field_value, get_document
+from app.documents.service import (
+    DocumentLocked,
+    FieldNotOnDocument,
+    IncompleteDocument,
+    confirm_document,
+    create_document,
+    delete_document,
+    edit_field,
+    extract_document,
+    field_value,
+    get_document,
+    list_documents,
+    remove_stored_file,
+    retry_extraction,
+)
 from app.documents.uploads import MAX_BYTES, UploadRefused, check_file, save_file
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
@@ -71,8 +85,8 @@ class FieldOut(BaseModel):
     confirmed: bool
 
 
-class DocumentOut(BaseModel):
-    """A document and its fields (contract "Document object")."""
+class DocumentSummary(BaseModel):
+    """A document in the list, without its figures."""
 
     id: uuid.UUID
     doc_type: DocType
@@ -82,7 +96,21 @@ class DocumentOut(BaseModel):
     page_count: int
     created_at: datetime
     confirmed_at: datetime | None
+
+
+class DocumentOut(DocumentSummary):
+    """A document and its fields (contract "Document object")."""
+
     fields: list[FieldOut]
+
+
+class FieldEdit(BaseModel):
+    """PATCH body: a new value, a confirmation, or both. Unknown keys are refused."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    value: str | None = None
+    confirmed: StrictBool | None = None
 
 
 def field_out(field: ExtractedField) -> FieldOut:
@@ -126,6 +154,17 @@ async def owned_document(document_id: uuid.UUID, user: CurrentUser, db: DbSessio
 
 
 OwnedDocument = Annotated[Document, Depends(owned_document)]
+ExtractorDep = Annotated[Extractor, Depends(get_extractor)]
+
+
+def _summary(document: Document) -> DocumentSummary:
+    return DocumentSummary.model_validate(document_out(document).model_dump(exclude={"fields"}))
+
+
+@router.get("")
+async def read_documents(user: CurrentUser, db: DbSession) -> list[DocumentSummary]:
+    """The caller's documents, newest first, without their figures."""
+    return [_summary(document) for document in await list_documents(db, user.id)]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -133,7 +172,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
     user: CurrentUser,
     profile: Annotated[TaxpayerProfile, Depends(require_profile)],
     db: DbSession,
-    extractor: Annotated[Extractor, Depends(get_extractor)],
+    extractor: ExtractorDep,
     upload_dir: Annotated[Path, Depends(get_upload_dir)],
     file: UploadFile,
     doc_type: Annotated[DocType, Form()],
@@ -168,3 +207,58 @@ async def read_document(document: OwnedDocument) -> DocumentOut:
 async def read_document_file(document: OwnedDocument) -> FileResponse:
     """The original file, for the review page."""
     return FileResponse(document.file_path, media_type=document.media_type)
+
+
+@router.patch("/{document_id}/fields/{name}", dependencies=[Depends(require_json)])
+async def update_field(
+    document: OwnedDocument, name: FieldName, body: FieldEdit, db: DbSession
+) -> FieldOut:
+    """Edit and/or confirm one field; the rules run again after an edit."""
+    try:
+        field = await edit_field(db, document, name, value=body.value, confirmed=body.confirmed)
+    except DocumentLocked as locked:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
+    except FieldNotOnDocument as missing:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Field not found.") from missing
+    except ValueError as invalid:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)) from invalid
+    await db.commit()
+    return field_out(field)
+
+
+@router.post("/{document_id}/confirm", dependencies=[Depends(require_json)])
+async def confirm(document: OwnedDocument, db: DbSession) -> DocumentOut:
+    """Confirm the document; only then can other features use its figures."""
+    try:
+        await confirm_document(db, document)
+    except DocumentLocked as locked:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
+    except IncompleteDocument as incomplete:
+        detail = "Confirm or fill in these fields first: " + ", ".join(incomplete.names) + "."
+        raise HTTPException(status.HTTP_409_CONFLICT, detail) from incomplete
+    await db.commit()
+    return document_out(document)
+
+
+@router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
+async def retry(document: OwnedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
+    """Re-run a failed extraction."""
+    try:
+        await retry_extraction(db, document, extractor)
+    except DocumentLocked as locked:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
+    await db.commit()
+    return document_out(document)
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_json)],
+)
+async def delete(document: OwnedDocument, db: DbSession) -> Response:
+    """Delete the document, its fields and its stored file."""
+    path = await delete_document(db, document)
+    await db.commit()
+    await remove_stored_file(path)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

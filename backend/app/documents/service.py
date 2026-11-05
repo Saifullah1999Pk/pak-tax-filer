@@ -1,18 +1,23 @@
 """Document logic as plain functions (feature 003, tasks T013, T018, T022; research R9).
 
-Routers only translate HTTP; everything here can be tested without it.
+Routers only translate HTTP; everything here can be tested without it. Other features read
+figures only through confirmed_documents() (Principle III).
 """
 
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+import anyio
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.documents.extraction.client import Extractor
 from app.documents.extraction.normalise import parse_amount, parse_tax_year
-from app.documents.extraction.rules import check_rules
+from app.documents.extraction.rules import check_rules, is_tax_year
 from app.documents.extraction.schemas import ExtractedValue
 from app.documents.models import (
     FIELDS_BY_TYPE,
@@ -24,6 +29,34 @@ from app.documents.models import (
     FieldName,
 )
 from app.documents.uploads import CheckedFile
+
+# Reasons starting with this come from reading the printed value, not from a rule.
+UNREADABLE = "Couldn't read"
+
+
+class DocumentLocked(Exception):
+    """The document isn't in a state that allows this change (HTTP 409)."""
+
+
+class FieldNotOnDocument(LookupError):
+    """The document's type has no field with that name (HTTP 404)."""
+
+
+class IncompleteDocument(Exception):
+    """Fields still unconfirmed or not found; the document can't be confirmed (HTTP 409)."""
+
+    def __init__(self, names: list[str]) -> None:
+        super().__init__(", ".join(names))
+        self.names = names
+
+
+@dataclass(frozen=True)
+class ConfirmedDocument:
+    """A confirmed document's figures, the only form other features see (FR-009)."""
+
+    id: uuid.UUID
+    doc_type: DocType
+    values: Mapping[FieldName, Decimal | str]
 
 
 async def create_document(  # pylint: disable=too-many-arguments  # all keyword-only
@@ -44,6 +77,8 @@ async def create_document(  # pylint: disable=too-many-arguments  # all keyword-
         media_type=checked.media_type,
         page_count=checked.page_count,
         status=DocStatus.UPLOADED,
+        # The app's clock, not the database's now(), which is fixed for a whole transaction.
+        created_at=datetime.now(UTC),
         fields=[],
     )
     db.add(document)
@@ -101,7 +136,7 @@ def _field(name: FieldName, raw: ExtractedValue | None) -> ExtractedField:
         field.amount = parse_amount(raw.value)
     except ValueError:
         field.confidence = Confidence.LOW
-        field.rule_reason = f"Couldn't read {raw.value!r} as an amount."
+        field.rule_reason = f"{UNREADABLE} {raw.value!r} as an amount."
     return field
 
 
@@ -120,6 +155,117 @@ def apply_rules(doc_type: DocType, tax_year: str, fields: list[ExtractedField]) 
             field.rule_reason = existing + reasons[field.name]
 
 
+def _recheck(document: Document) -> None:
+    """Re-run the rules after an edit: old rule reasons go, unread-value notes on untouched
+    fields stay. A field lowered earlier stays low, so the user still looks at it."""
+    for field in document.fields:
+        unread = field.rule_reason is not None and field.rule_reason.startswith(UNREADABLE)
+        if not unread or field.user_edited:
+            field.rule_reason = None
+    apply_rules(document.doc_type, document.tax_year, list(document.fields))
+
+
+def parse_user_value(name: FieldName, text: str) -> Decimal | str:
+    """A value the user typed; raises ValueError with a message for anything invalid."""
+    if name is FieldName.TAX_YEAR:
+        year = parse_tax_year(text)
+        if not is_tax_year(year):
+            raise ValueError("Enter the tax year like 2025-26.")
+        return year
+    try:
+        amount = parse_amount(text)
+    except ValueError as exc:
+        raise ValueError("Enter an amount in rupees, e.g. 1,800,000.") from exc
+    if amount < 0:
+        raise ValueError("The amount can't be negative.")
+    return amount
+
+
+async def edit_field(
+    db: AsyncSession,
+    document: Document,
+    name: FieldName,
+    *,
+    value: str | None = None,
+    confirmed: bool | None = None,
+) -> ExtractedField:
+    """Change and/or confirm one field (FR-007). An edit needs confirming again."""
+    if document.status is not DocStatus.NEEDS_REVIEW:
+        raise DocumentLocked(_locked_reason(document))
+    field = next((f for f in document.fields if f.name is name), None)
+    if field is None:
+        raise FieldNotOnDocument(name.value)
+    if value is not None:
+        parsed = parse_user_value(name, value)
+        if isinstance(parsed, Decimal):
+            field.amount = parsed
+        else:
+            field.text_value = parsed
+        field.user_edited = True
+        field.confidence = Confidence.HIGH
+        field.confirmed = False
+        _recheck(document)
+    if confirmed is not None:
+        if confirmed and field_value(field) is None:
+            raise ValueError("Enter a value before confirming this field.")
+        field.confirmed = confirmed
+    await db.flush()
+    return field
+
+
+async def confirm_document(db: AsyncSession, document: Document) -> Document:
+    """Confirm a document whose fields are all confirmed and filled in (FR-008)."""
+    if document.status is not DocStatus.NEEDS_REVIEW:
+        raise DocumentLocked(_locked_reason(document))
+    order = FIELDS_BY_TYPE[document.doc_type]
+    missing = [
+        f.name.value
+        for f in sorted(document.fields, key=lambda f: order.index(f.name))
+        if not f.confirmed or field_value(f) is None
+    ]
+    if missing:
+        raise IncompleteDocument(missing)
+    document.status = DocStatus.CONFIRMED
+    document.confirmed_at = datetime.now(UTC)
+    await db.flush()
+    return document
+
+
+def _locked_reason(document: Document) -> str:
+    if document.status is DocStatus.CONFIRMED:
+        return "This document is already confirmed."
+    return "This document has no figures to review."
+
+
+async def confirmed_documents(
+    db: AsyncSession, user_id: uuid.UUID, tax_year: str
+) -> list[ConfirmedDocument]:
+    """The user's confirmed documents for the tax year and their figures (FR-009, R9).
+
+    The only way other features read extracted figures; unconfirmed ones are never returned.
+    Several confirmed documents of one type are all returned (FR-010a).
+    """
+    documents = await db.scalars(
+        select(Document)
+        .where(
+            Document.user_id == user_id,
+            Document.tax_year == tax_year,
+            Document.status == DocStatus.CONFIRMED,
+        )
+        .order_by(Document.created_at)
+    )
+    return [
+        ConfirmedDocument(
+            id=document.id,
+            doc_type=document.doc_type,
+            values={
+                f.name: value for f in document.fields if (value := field_value(f)) is not None
+            },
+        )
+        for document in documents
+    ]
+
+
 async def get_document(
     db: AsyncSession, user_id: uuid.UUID, document_id: uuid.UUID
 ) -> Document | None:
@@ -128,3 +274,34 @@ async def get_document(
     if document is None or document.user_id != user_id:
         return None
     return document
+
+
+async def list_documents(db: AsyncSession, user_id: uuid.UUID) -> list[Document]:
+    """The user's documents, newest first."""
+    documents = await db.scalars(
+        select(Document)
+        .where(Document.user_id == user_id)
+        .order_by(Document.created_at.desc(), Document.id)
+    )
+    return list(documents)
+
+
+async def retry_extraction(db: AsyncSession, document: Document, extractor: Extractor) -> Document:
+    """Re-run a failed extraction on the stored file."""
+    if document.status is not DocStatus.FAILED:
+        raise DocumentLocked("Only a failed extraction can be retried.")
+    content = await anyio.Path(document.file_path).read_bytes()
+    return await extract_document(db, document, extractor, content)
+
+
+async def delete_document(db: AsyncSession, document: Document) -> Path:
+    """Delete the document and its fields; returns the stored file to remove after commit."""
+    path = Path(document.file_path)
+    await db.delete(document)
+    await db.flush()
+    return path
+
+
+async def remove_stored_file(path: Path) -> None:
+    """Remove a deleted document's file (after the database change is committed)."""
+    await anyio.Path(path).unlink(missing_ok=True)
