@@ -21,6 +21,8 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pak_tax_filer
+      # Local development runs over plain HTTP; everywhere else the cookie stays HTTPS-only.
+      COOKIE_SECURE: "false"
     depends_on:
       db:
         condition: service_healthy
