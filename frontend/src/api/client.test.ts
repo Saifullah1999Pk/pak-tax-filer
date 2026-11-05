@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
-import { apiFetch, apiUpload } from "./client";
+import { apiFetch, apiUpload, setSessionEndedHandler } from "./client";
 
 // The API helper (frontend review L5).
 
@@ -40,4 +40,24 @@ test("an upload is sent as multipart form data, not JSON, and refusals carry the
   expect(init?.body).toBe(form);
   // The browser must set the multipart boundary itself, so no Content-Type is given.
   expect(new Headers(init?.headers).get("Content-Type")).toBeNull();
+});
+
+test("an upload that finds the session ended sends the user to log in", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ detail: "Not logged in." }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+    ),
+  );
+  const ended = vi.fn();
+  setSessionEndedHandler(ended);
+
+  await expect(apiUpload("/api/documents", new FormData())).rejects.toThrow();
+
+  expect(ended).toHaveBeenCalled();
+  setSessionEndedHandler(() => {});
 });

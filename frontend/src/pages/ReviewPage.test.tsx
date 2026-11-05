@@ -75,13 +75,18 @@ function routes(document: unknown, extra: FakeRoutes = {}): FakeRoutes {
 
 async function openReview() {
   renderApp("/documents/d1");
-  await screen.findByRole("heading", { level: 1, name: /check the figures/i });
+  // The loaded page names the document type; the loading state is just "Check the figures".
+  await screen.findByRole("heading", {
+    level: 1,
+    name: /check the figures: /i,
+  });
 }
 
 test("a PDF is shown beside the fields", async () => {
   mockFetch(routes(DOCUMENT));
   await openReview();
 
+  // <object> has no ARIA role, so its title is the way a user's tools find it.
   const viewer = screen.getByTitle(/original document/i);
   expect(viewer.tagName).toBe("OBJECT");
   expect(viewer.getAttribute("data")).toBe("/api/documents/d1/file");
@@ -112,13 +117,25 @@ test("each field shows its value, where it was found, and low confidence with th
   within(deducted).getByText(/not found/i);
 });
 
-test("editing a field and confirming it sends the new value", async () => {
+test("editing a field and confirming it sends the new value, then shows what was saved", async () => {
   let sent: unknown = null;
+  let current = DOCUMENT;
   mockFetch(
     routes(DOCUMENT, {
+      "GET /api/documents/d1": () => ({ status: 200, body: current }),
       "PATCH /api/documents/d1/fields/gross_salary": ({ body }) => {
         sent = body;
-        return { status: 200, body: field("gross_salary", "1900000.00") };
+        const saved = field("gross_salary", "1900000.00", {
+          user_edited: true,
+          confirmed: true,
+        });
+        current = {
+          ...DOCUMENT,
+          fields: DOCUMENT.fields.map((f) =>
+            f.name === "gross_salary" ? saved : f,
+          ),
+        };
+        return { status: 200, body: saved };
       },
     }),
   );
@@ -130,9 +147,19 @@ test("editing a field and confirming it sends the new value", async () => {
   });
   fireEvent.click(within(gross).getByRole("button", { name: /confirm/i }));
 
+  // The reload re-creates the row, so look it up again once it shows the saved state.
   await vi.waitFor(() =>
-    expect(sent).toEqual({ value: "1,900,000", confirmed: true }),
+    within(screen.getByRole("group", { name: /gross salary/i })).getByText(
+      /^confirmed\.$/i,
+    ),
   );
+  const saved = screen.getByRole("group", { name: /gross salary/i });
+  within(saved).getByText(/you entered this/i);
+  expect(within(saved).getByRole("textbox") as HTMLInputElement).toHaveProperty(
+    "value",
+    "1900000.00",
+  );
+  expect(sent).toEqual({ value: "1,900,000", confirmed: true });
 });
 
 test("confirming an unchanged field sends only the confirmation", async () => {
@@ -213,10 +240,7 @@ test("a confirmed document is read-only", async () => {
 
   screen.getByText(/this document is confirmed/i);
   for (const box of screen.getAllByRole("textbox")) {
-    expect(box as HTMLButtonElement | HTMLInputElement).toHaveProperty(
-      "disabled",
-      true,
-    );
+    expect(box as HTMLInputElement).toHaveProperty("disabled", true);
   }
   expect(screen.queryByRole("button", { name: /confirm/i })).toBeNull();
 });
@@ -236,4 +260,88 @@ test("a failed document shows why and links back to the list", async () => {
   expect(
     screen.getByRole("link", { name: /documents/i }).getAttribute("href"),
   ).toBe("/documents");
+});
+
+// Frontend review findings (2026-11-05).
+
+test("every field shows its confidence, not only low ones", async () => {
+  mockFetch(
+    routes({
+      ...DOCUMENT,
+      fields: [
+        field("tax_year", "2025-26"),
+        field("gross_salary", "1800000.00", { confidence: "medium" }),
+      ],
+    }),
+  );
+  await openReview();
+
+  within(screen.getByRole("group", { name: /tax year/i })).getByText(
+    /confidence: high/i,
+  );
+  within(screen.getByRole("group", { name: /gross salary/i })).getByText(
+    /confidence: medium/i,
+  );
+});
+
+test("an unsaved change stops the document being confirmed", async () => {
+  const fetch = mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  const gross = screen.getByRole("group", { name: /gross salary/i });
+  fireEvent.change(within(gross).getByRole("textbox"), {
+    target: { value: "1,900,000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /confirm document/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /gross salary/i,
+  );
+  expect(
+    fetch.mock.calls.some(([path]) => String(path).endsWith("/confirm")),
+  ).toBe(false);
+});
+
+test("confirming the document makes it read-only", async () => {
+  const confirmedDocument = {
+    ...DOCUMENT,
+    status: "confirmed",
+    confirmed_at: "2026-11-05T11:00:00Z",
+    fields: DOCUMENT.fields.map((f) => ({
+      ...f,
+      value: f.value ?? "0.00",
+      confirmed: true,
+    })),
+  };
+  mockFetch(
+    routes(DOCUMENT, {
+      "POST /api/documents/d1/confirm": () => ({
+        status: 200,
+        body: confirmedDocument,
+      }),
+    }),
+  );
+  await openReview();
+
+  fireEvent.click(screen.getByRole("button", { name: /confirm document/i }));
+
+  await screen.findByText(/this document is confirmed/i);
+  for (const box of screen.getAllByRole("textbox")) {
+    expect(box as HTMLInputElement).toHaveProperty("disabled", true);
+  }
+});
+
+test("each input is described by where it was found and its confidence", async () => {
+  mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  const input = within(
+    screen.getByRole("group", { name: /gross salary/i }),
+  ).getByRole("textbox");
+  const described = (input.getAttribute("aria-describedby") ?? "")
+    .split(" ")
+    .map((id) => document.getElementById(id)?.textContent ?? "")
+    .join(" ");
+  expect(described).toMatch(/page 1/i);
+  expect(described).toMatch(/tax deducted is more than gross salary/i);
 });

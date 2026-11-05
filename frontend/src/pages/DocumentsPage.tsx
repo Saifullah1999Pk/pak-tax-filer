@@ -26,23 +26,32 @@ function message(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.message : fallback;
 }
 
+/** "salary certificate uploaded 05/11/2026, 10:00:00": tells one row's buttons from another's. */
+function describe(doc: DocumentSummary): string {
+  const uploaded = new Date(doc.created_at).toLocaleString();
+  return `${DOC_TYPE_LABELS[doc.doc_type].toLowerCase()} uploaded ${uploaded}`;
+}
+
 export function DocumentsPage() {
   const navigate = useNavigate();
-  const [documents, setDocuments] = useState<DocumentSummary[] | null>(null);
-  const [listError, setListError] = useState<string | null>(null);
+  const [docs, setDocs] = useState<DocumentSummary[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Kept apart from loadError, so refreshing the list never hides why an action failed.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [docType, setDocType] = useState<DocType | "">("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     listDocuments()
       .then((list) => {
-        setDocuments(list);
-        setListError(null);
+        setDocs(list);
+        setLoadError(null);
       })
       .catch((caught: unknown) =>
-        setListError(message(caught, "Couldn't load your documents.")),
+        setLoadError(message(caught, "Couldn't load your documents.")),
       );
   }, []);
 
@@ -50,31 +59,34 @@ export function DocumentsPage() {
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    setUploadError(null);
     if (docType === "") {
-      setError("Choose the document type.");
+      setUploadError("Choose the document type.");
       return;
     }
     if (file === null) {
-      setError("Choose a file to upload.");
+      setUploadError("Choose a file to upload.");
       return;
     }
     setUploading(true);
     try {
-      const document = await uploadDocument(file, docType);
-      navigate(`/documents/${document.id}`);
+      const doc = await uploadDocument(file, docType);
+      navigate(`/documents/${doc.id}`);
     } catch (caught) {
-      setError(message(caught, "The upload failed. Try again."));
+      setUploadError(message(caught, "The upload failed. Try again."));
       setUploading(false);
     }
   }
 
   async function handleRetry(id: string) {
+    setActionError(null);
+    setRetrying(id);
     try {
       await retryDocument(id);
     } catch (caught) {
-      setListError(message(caught, "The retry failed. Try again."));
+      setActionError(message(caught, "The retry failed. Try again."));
     }
+    setRetrying(null);
     refresh();
   }
 
@@ -82,10 +94,11 @@ export function DocumentsPage() {
     if (!window.confirm("Delete this document and its figures?")) {
       return;
     }
+    setActionError(null);
     try {
       await deleteDocument(id);
     } catch (caught) {
-      setListError(message(caught, "Couldn't delete the document."));
+      setActionError(message(caught, "Couldn't delete the document."));
     }
     refresh();
   }
@@ -121,7 +134,7 @@ export function DocumentsPage() {
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
         </label>
-        {error && <p role="alert">{error}</p>}
+        {uploadError && <p role="alert">{uploadError}</p>}
         <button type="submit" disabled={uploading}>
           Upload
         </button>
@@ -133,10 +146,16 @@ export function DocumentsPage() {
       </form>
 
       <h2>Your documents</h2>
-      {listError && <p role="alert">{listError}</p>}
-      {documents === null ? (
-        !listError && <p>Loading…</p>
-      ) : documents.length === 0 ? (
+      {loadError && <p role="alert">{loadError}</p>}
+      {actionError && <p role="alert">{actionError}</p>}
+      {retrying && (
+        <p role="status">
+          Reading the document again… this can take up to a minute.
+        </p>
+      )}
+      {docs === null ? (
+        !loadError && <p>Loading…</p>
+      ) : docs.length === 0 ? (
         <p>No documents yet.</p>
       ) : (
         <table>
@@ -149,32 +168,39 @@ export function DocumentsPage() {
             </tr>
           </thead>
           <tbody>
-            {documents.map((document) => (
-              <tr key={document.id}>
-                <td>{DOC_TYPE_LABELS[document.doc_type]}</td>
-                <td>{new Date(document.created_at).toLocaleString()}</td>
+            {docs.map((doc) => (
+              <tr key={doc.id}>
+                <td>{DOC_TYPE_LABELS[doc.doc_type]}</td>
+                <td>{new Date(doc.created_at).toLocaleString()}</td>
                 <td>
-                  {STATUS_LABELS[document.status]}
-                  {document.failure_reason && `: ${document.failure_reason}`}
+                  {STATUS_LABELS[doc.status]}
+                  {doc.failure_reason && `: ${doc.failure_reason}`}
                 </td>
                 <td>
-                  {(document.status === "needs_review" ||
-                    document.status === "confirmed") && (
-                    <Link to={`/documents/${document.id}`}>
-                      {document.status === "confirmed" ? "View" : "Review"}
+                  {(doc.status === "needs_review" ||
+                    doc.status === "confirmed") && (
+                    <Link
+                      to={`/documents/${doc.id}`}
+                      aria-label={`${doc.status === "confirmed" ? "View" : "Review"} ${describe(doc)}`}
+                    >
+                      {doc.status === "confirmed" ? "View" : "Review"}
                     </Link>
                   )}{" "}
-                  {document.status === "failed" && (
+                  {doc.status === "failed" && (
                     <button
                       type="button"
-                      onClick={() => handleRetry(document.id)}
+                      onClick={() => handleRetry(doc.id)}
+                      disabled={retrying !== null}
+                      aria-label={`Retry ${describe(doc)}`}
                     >
                       Retry
                     </button>
                   )}{" "}
                   <button
                     type="button"
-                    onClick={() => handleDelete(document.id)}
+                    onClick={() => handleDelete(doc.id)}
+                    disabled={retrying === doc.id}
+                    aria-label={`Delete ${describe(doc)}`}
                   >
                     Delete
                   </button>

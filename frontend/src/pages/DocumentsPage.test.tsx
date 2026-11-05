@@ -237,3 +237,143 @@ test("cancelling the delete question keeps the document", async () => {
     false,
   );
 });
+
+// Frontend review findings (2026-11-05).
+
+test("a file must be chosen before uploading", async () => {
+  const fetch = mockFetch(routes());
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /choose a file/i,
+  );
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+    false,
+  );
+});
+
+test("the list shows when each document was uploaded, and View for confirmed ones", async () => {
+  const confirmed: DocumentSummary = {
+    ...SUMMARY,
+    id: "d3",
+    doc_type: "bank_profit_certificate",
+    status: "confirmed",
+    confirmed_at: "2026-11-05T11:00:00Z",
+  };
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [SUMMARY, confirmed] }),
+    }),
+  );
+  renderApp("/documents");
+
+  const salary = await screen.findByRole("row", {
+    name: /salary certificate/i,
+  });
+  within(salary).getByText(new Date(SUMMARY.created_at).toLocaleString());
+  const bank = screen.getByRole("row", { name: /bank profit certificate/i });
+  expect(
+    within(bank).getByRole("link", { name: /view/i }).getAttribute("href"),
+  ).toBe("/documents/d3");
+});
+
+test("a list that can't be loaded says so", async () => {
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({
+        status: 500,
+        body: { detail: "Database down." },
+      }),
+    }),
+  );
+  renderApp("/documents");
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Database down.",
+  );
+});
+
+test("a failed retry keeps its message after the list refreshes", async () => {
+  const fetch = mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [FAILED] }),
+      "POST /api/documents/d2/retry": () => ({
+        status: 409,
+        body: { detail: "Only a failed extraction can be retried." },
+      }),
+    }),
+  );
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /bank profit/i });
+  fireEvent.click(within(row).getByRole("button", { name: /retry/i }));
+
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.filter(([path]) => path === "/api/documents").length,
+    ).toBeGreaterThanOrEqual(2),
+  );
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Only a failed extraction can be retried.",
+  );
+});
+
+test("a failed delete keeps its message after the list refreshes", async () => {
+  const fetch = mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [SUMMARY] }),
+      "DELETE /api/documents/d1": () => ({
+        status: 404,
+        body: { detail: "Document not found." },
+      }),
+    }),
+  );
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /salary certificate/i });
+  fireEvent.click(within(row).getByRole("button", { name: /delete/i }));
+
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.filter(([path]) => path === "/api/documents").length,
+    ).toBeGreaterThanOrEqual(2),
+  );
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Document not found.",
+  );
+});
+
+test("a retry shows progress and can't be started twice", async () => {
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [FAILED] }),
+      "POST /api/documents/d2/retry": () => new Promise(() => {}),
+    }),
+  );
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /bank profit/i });
+  const retry = within(row).getByRole("button", { name: /retry/i });
+  fireEvent.click(retry);
+
+  expect((await screen.findByRole("status")).textContent).toMatch(
+    /reading the document/i,
+  );
+  expect(retry).toHaveProperty("disabled", true);
+});
+
+test("each row's buttons say which document they are for", async () => {
+  mockFetch(
+    routes({ "GET /api/documents": () => ({ status: 200, body: [SUMMARY] }) }),
+  );
+  renderApp("/documents");
+
+  await screen.findByRole("button", {
+    name: /delete salary certificate uploaded/i,
+  });
+});
