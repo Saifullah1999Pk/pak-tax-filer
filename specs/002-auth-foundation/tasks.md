@@ -23,7 +23,7 @@ feature 001 implemented.
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `pwdlib[argon2]` to `backend/pyproject.toml` with `uv add` and update `backend/uv.lock`
+- [X] T001 Add `pwdlib[argon2]` to `backend/pyproject.toml` with `uv add` and update `backend/uv.lock`
 - [ ] T002 [P] Add `react-router` to `frontend/package.json` with `npm install`
 - [ ] T003 [P] Add a proxy in `frontend/vite.config.ts` sending `/api` to `http://backend:8000`
 - [ ] T004 [P] Create `backend/app/settings.py`: reads `DATABASE_URL` and `COOKIE_SECURE` from the environment, with `COOKIE_SECURE` defaulting to `true` (safe by default); set `COOKIE_SECURE=false` only in the `backend` service of `docker-compose.yml` for local development
