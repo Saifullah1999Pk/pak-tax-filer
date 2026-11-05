@@ -97,8 +97,8 @@ feature 001 implemented.
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T023 [P] [US3] Write `frontend/src/pages/LoginPage.test.tsx` (with `fetch` mocked): the demo-data notice and the "no password reset yet" note render; a successful login navigates to `next` or `/`; a `401` shows the server's message; a `429` shows "Too many attempts. Try again later."; opening `/login` while logged in goes to `/`
-- [ ] T024 [P] [US3] Write `frontend/src/pages/HomePage.test.tsx`: logged out → redirected to `/login?next=/`; logged in → shows "Logged in as <email>" and a logout button; logout → on `/login`; an API `401` → on `/login` with "Your session has ended, please log in again."
+- [X] T023 [P] [US3] Write `frontend/src/pages/LoginPage.test.tsx` (with `fetch` mocked): the demo-data notice and the "no password reset yet" note render; a successful login navigates to `next` or `/`; a `401` shows the server's message; a `429` shows "Too many attempts. Try again later."; opening `/login` while logged in goes to `/`
+- [X] T024 [P] [US3] Write `frontend/src/pages/HomePage.test.tsx`: logged out → redirected to `/login?next=/`; logged in → shows "Logged in as <email>" and a logout button; logout → on `/login`; an API `401` → on `/login` with "Your session has ended, please log in again."
 
 ### Implementation for User Story 3
 
