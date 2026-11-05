@@ -3,13 +3,9 @@ import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { safeNext } from "../navigation";
 
 // Login page, per specs/002-auth-foundation/contracts/cli-and-ui.md (task T027).
-
-/** Only follow `next` within this app (never to another site). */
-function safeNext(next: string | null): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
 
 export function LoginPage() {
   const { user, loading, notice, login } = useAuth();

@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { mockFetch } from "../test/mockFetch";
+import { hasProfile, mockFetch } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
 // Login page, per specs/002-auth-foundation/contracts/cli-and-ui.md (task T023, FR-012, FR-014).
@@ -42,6 +42,7 @@ test("a successful login goes to the page named in next", async () => {
       loggedIn
         ? { status: 200, body: { email: "demo@example.com" } }
         : { status: 401, body: { detail: "Not logged in." } },
+    "GET /api/profile": hasProfile,
     "POST /api/auth/login": () => {
       loggedIn = true;
       return { status: 200, body: { email: "demo@example.com" } };
@@ -99,6 +100,7 @@ test("opening the login page while logged in goes to the home page", async () =>
       status: 200,
       body: { email: "demo@example.com" },
     }),
+    "GET /api/profile": hasProfile,
   });
   renderApp("/login");
 

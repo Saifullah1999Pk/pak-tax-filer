@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, test, vi } from "vitest";
-import { mockFetch } from "../test/mockFetch";
+import { hasProfile, mockFetch } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
 // Protected home page and logout (task T024, FR-012, FR-013).
@@ -20,7 +20,7 @@ test("a logged-out visitor is sent to the login page", async () => {
 });
 
 test("a logged-in user sees their email and a logout button", async () => {
-  mockFetch({ "GET /api/auth/me": () => ME });
+  mockFetch({ "GET /api/auth/me": () => ME, "GET /api/profile": hasProfile });
   renderApp("/");
 
   await screen.findByText(/logged in as demo@example\.com/i);
@@ -31,6 +31,7 @@ test("logging out returns to the login page", async () => {
   let loggedIn = true;
   mockFetch({
     "GET /api/auth/me": () => (loggedIn ? ME : NOT_LOGGED_IN),
+    "GET /api/profile": hasProfile,
     "POST /api/auth/logout": () => {
       loggedIn = false;
       return { status: 204 };
@@ -46,7 +47,10 @@ test("logging out returns to the login page", async () => {
 test("a session that ended elsewhere sends the user to login with a message", async () => {
   // The app's first check finds a session; it has ended by the time the page asks again.
   let calls = 0;
-  mockFetch({ "GET /api/auth/me": () => (++calls === 1 ? ME : NOT_LOGGED_IN) });
+  mockFetch({
+    "GET /api/auth/me": () => (++calls === 1 ? ME : NOT_LOGGED_IN),
+    "GET /api/profile": hasProfile,
+  });
   renderApp("/");
 
   await screen.findByText(/your session has ended, please log in again\./i);
