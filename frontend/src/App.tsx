@@ -1,11 +1,21 @@
-// Placeholder page for feature 001; real pages arrive with feature 002 onwards.
-function App() {
+import { Route, Routes } from "react-router";
+import { RequireAuth } from "./auth/RequireAuth";
+import { HomePage } from "./pages/HomePage";
+import { LoginPage } from "./pages/LoginPage";
+
+/** The app's pages (task T029). main.tsx provides the router and AuthProvider around these. */
+export function AppRoutes() {
   return (
-    <main>
-      <h1>pak-tax-filer</h1>
-      <p>This app is under construction.</p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/"
+        element={
+          <RequireAuth>
+            <HomePage />
+          </RequireAuth>
+        }
+      />
+    </Routes>
   );
 }
-
-export default App;

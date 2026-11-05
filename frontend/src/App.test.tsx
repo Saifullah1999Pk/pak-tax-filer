@@ -1,21 +1,33 @@
-import { render, screen } from "@testing-library/react";
-import { test } from "vitest";
-import App from "./App";
+import { screen } from "@testing-library/react";
+import { afterEach, test, vi } from "vitest";
+import { mockFetch } from "./test/mockFetch";
+import { renderApp } from "./test/renderApp";
 
-// Fails if the placeholder page has no top-level heading naming the app, or no
-// "under construction" line (spec FR-004, tasks T011/T013). getBy* queries throw when
-// nothing matches, so they are the assertions.
-test("the placeholder page names the app and says it is under construction", () => {
-  render(<App />);
+// Routing (task T029): 001's placeholder page is replaced by the login and home pages.
 
-  screen.getByRole("heading", { level: 1, name: /pak-tax-filer/i });
-  screen.getByText(/under construction/i);
+const LOGGED_OUT = {
+  "GET /api/auth/me": () => ({
+    status: 401,
+    body: { detail: "Not logged in." },
+  }),
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
-// Checks the cleanup in test-setup.ts: without it, the first test's page would still be
-// mounted and this query would find two headings and throw.
-test("each test starts with an empty page", () => {
-  render(<App />);
+test("/login shows the login page", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/login");
 
-  screen.getByRole("heading", { level: 1, name: /pak-tax-filer/i });
+  await screen.findByRole("heading", { level: 1, name: /log in/i });
+});
+
+// Checks the cleanup in test-setup.ts: without it, the previous test's page would still be
+// mounted and this query would find two "Log in" headings and throw.
+test("each test starts with an empty page", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/login");
+
+  await screen.findByRole("heading", { level: 1, name: /log in/i });
 });

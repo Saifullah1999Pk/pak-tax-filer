@@ -106,7 +106,7 @@ feature 001 implemented.
 - [X] T026 [US3] Create `frontend/src/auth/AuthContext.tsx` (loads the user from `GET /api/auth/me`, exposes `user`, `login`, `logout`) and `frontend/src/auth/RequireAuth.tsx` (redirects to `/login?next=<path>`)
 - [X] T027 [P] [US3] Create `frontend/src/pages/LoginPage.tsx` per [contracts/cli-and-ui.md](contracts/cli-and-ui.md), including the demo notice and redirect-if-logged-in; T023 passes
 - [X] T028 [P] [US3] Create `frontend/src/components/LogoutButton.tsx` and `frontend/src/pages/HomePage.tsx` ("Logged in as <email>")
-- [ ] T029 [US3] Set up routes in `frontend/src/App.tsx` with React Router: `/login` and `/` wrapped in `RequireAuth`, inside `AuthContext`; replace 001's placeholder page; update `frontend/src/App.test.tsx` to match; T024 passes
+- [X] T029 [US3] Set up routes in `frontend/src/App.tsx` with React Router: `/login` and `/` wrapped in `RequireAuth`, inside `AuthContext`; replace 001's placeholder page; update `frontend/src/App.test.tsx` to match; T024 passes
 - [ ] T030 [US3] Run [quickstart.md](quickstart.md) section 3 in the browser
 
 **Checkpoint**: all three stories work.
