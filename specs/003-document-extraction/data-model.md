@@ -1,6 +1,6 @@
 # Data Model: Document Upload + AI Extraction (003)
 
-Created by Alembic migration `0003_documents`. Timestamps are UTC.
+Created by Alembic migration `0004_documents`. Timestamps are UTC.
 
 ## documents
 

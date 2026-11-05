@@ -92,7 +92,7 @@ backend/
 │   │   └── rules.py                    # consistency checks
 │   ├── service.py                      # extract, edit, confirm, delete, confirmed_documents
 │   └── router.py                       # /api/documents
-├── alembic/versions/0003_documents.py
+├── alembic/versions/0004_documents.py
 ├── evals/extraction/
 │   ├── generate.py                     # synthetic cases + ground truth
 │   └── run.py                          # batch eval + report

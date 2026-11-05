@@ -32,7 +32,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 ## Phase 2: Foundational
 
 - [ ] T004 Create `backend/app/documents/models.py` with `Document` and `ExtractedField` exactly as in [data-model.md](data-model.md): `amount` "numeric(14,2) … never a float"; unique on (`document_id`, `name`); both deleted with their parent
-- [ ] T005 Create `backend/alembic/versions/0003_documents.py` (revises `0002_auth_tables`) creating both tables and enums
+- [ ] T005 Create `backend/alembic/versions/0004_documents.py` (revises `0003_taxpayer_profiles`, feature 002) creating both tables and enums
 - [ ] T006 [P] Write `backend/tests/documents/test_normalise_rules.py`, then create `backend/app/documents/extraction/normalise.py` (amounts with commas, `Rs.`/`PKR`, spaces or brackets → `Decimal`; tax year → `2025-26` form) and `backend/app/documents/extraction/rules.py` (the rules in spec User Story 1 scenario 5; each failure returns the field names and a reason)
 - [ ] T007 [P] Create `backend/app/documents/extraction/schemas.py`: Pydantic output models per document type per research R2 (`value`, `confidence`, `page`, `label` per field; no identity fields)
 - [ ] T008 Create `backend/app/documents/extraction/client.py`: an `Extractor` interface; `ClaudeExtractor` per research R1 (official SDK; PDF as `document` block, image as `image` block; structured output from T007; model and effort from settings; server-side refusal fallback; 60 s timeout; typed exception handling most-specific first; returns parsed result or a failure reason); and `FakeExtractor` returning recorded results for tests
