@@ -37,6 +37,11 @@ max-line-length = 100
 [tool.pylint.main]
 py-version = "3.13"
 
+# SQLAlchemy 2's relationship() makes pylint misread every Mapped[...] annotation as
+# "unsubscriptable" (a known astroid false positive). Strict mypy checks subscripts properly.
+[tool.pylint."messages control"]
+disable = ["unsubscriptable-object"]
+
 # SQLAlchemy models and settings dataclasses are data holders with no methods by design.
 [tool.pylint.design]
 min-public-methods = 0
