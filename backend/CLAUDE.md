@@ -40,3 +40,15 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
 `uv sync` here creates `backend/.venv` for editors and the lead's pylint hook. That hook only
 looks for pylint in the repo-root `.venv` for now (proposed change: task T043); until then,
 `uv tool install pylint` makes it available on the PATH.
+
+## Documents and extraction (feature 003)
+
+- Other features read extracted figures **only** through
+  `app.documents.service.confirmed_documents(db, user_id, tax_year)`: confirmed documents only
+  (constitution, Principle III). Never query `extracted_fields` directly.
+- Tests use `FakeExtractor` (fixture `fake_extractor`); no API key is needed. The real
+  `ClaudeExtractor` is tested through the SDK with httpx2's `MockTransport`.
+- Change the prompt (`extraction/prompt.py`), the schemas (`extraction/schemas.py`) or the
+  normalisation and rules only together with an eval run, and paste its report in the PR:
+  `python -m evals.extraction.generate`, then `python -m evals.extraction.run --model <model>`
+  (needs `ANTHROPIC_API_KEY`; contract: `specs/003-document-extraction/contracts/eval.md`).

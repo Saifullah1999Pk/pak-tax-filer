@@ -128,8 +128,8 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ## Phase 7: Polish
 
-- [ ] T030 [P] Add a "Documents and extraction" section to `backend/CLAUDE.md`: read figures only through `confirmed_documents`; change prompt, schema or rules only together with an eval run
-- [ ] T031 [P] Create `.github/pull_request_template.md` with a note: PRs touching extraction must paste the local eval report (research R7)
+- [X] T030 [P] Add a "Documents and extraction" section to `backend/CLAUDE.md`: read figures only through `confirmed_documents`; change prompt, schema or rules only together with an eval run
+- [X] T031 [P] Create `.github/pull_request_template.md` with a note: PRs touching extraction must paste the local eval report (research R7)
 - [ ] T032 Run Ruff, mypy, Prettier and `tsc` checks, both test suites, and [quickstart.md](quickstart.md) section 5; confirm no API key or document content appears in logs
 
 ---
