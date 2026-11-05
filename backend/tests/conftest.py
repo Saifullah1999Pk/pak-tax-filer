@@ -21,6 +21,8 @@ from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.auth.models import User
+from app.auth.passwords import hash_password
 from app.db import get_db
 from app.main import app
 
@@ -104,3 +106,25 @@ async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
             yield http
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+TEST_PASSWORD = "s3cret-pass"
+
+
+async def make_user(db: AsyncSession, email: str) -> User:
+    """A synthetic user whose password is TEST_PASSWORD."""
+    user = User(email=email, password_hash=hash_password(TEST_PASSWORD))
+    db.add(user)
+    await db.flush()
+    return user
+
+
+@pytest.fixture
+async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
+    """A demo user, logged in on `client` (the client keeps the session cookie)."""
+    user = await make_user(db, "demo@example.com")
+    response = await client.post(
+        "/api/auth/login", json={"email": user.email, "password": TEST_PASSWORD}
+    )
+    assert response.status_code == 200
+    return user
