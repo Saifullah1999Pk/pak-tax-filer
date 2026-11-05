@@ -12,10 +12,12 @@ Tests that don't ask for these fixtures (e.g. /health, settings) need no databas
 import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from document_helpers import PROFILE_YEAR, SALARY_RESULT
 from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -24,7 +26,10 @@ from sqlalchemy.pool import NullPool
 from app.auth.models import User
 from app.auth.passwords import hash_password
 from app.db import get_db
+from app.documents.extraction.client import FakeExtractor
+from app.documents.router import get_extractor, get_upload_dir
 from app.main import app
+from app.profile.service import save_profile
 
 TEST_DATABASE = "pak_tax_filer_test"
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -128,3 +133,31 @@ async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
     )
     assert response.status_code == 200
     return user
+
+
+# Feature 003: documents.
+
+
+@pytest.fixture
+def upload_dir(tmp_path: Path) -> Iterator[Path]:
+    """A temporary UPLOAD_DIR for the app."""
+    app.dependency_overrides[get_upload_dir] = lambda: tmp_path
+    yield tmp_path
+    app.dependency_overrides.pop(get_upload_dir, None)
+
+
+@pytest.fixture
+def fake_extractor(upload_dir: Path) -> Iterator[FakeExtractor]:
+    """The app's extractor, replaced by a fake returning SALARY_RESULT (change .result to vary)."""
+    del upload_dir  # Requested so uploads never touch a real folder.
+    fake = FakeExtractor(SALARY_RESULT)
+    app.dependency_overrides[get_extractor] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_extractor, None)
+
+
+@pytest.fixture
+async def user_with_profile(logged_in_user: User, db: AsyncSession) -> User:
+    """The logged-in demo user, with a 2025-26 profile."""
+    await save_profile(db, logged_in_user, PROFILE_YEAR, on_atl=True)
+    return logged_in_user

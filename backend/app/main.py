@@ -6,11 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.auth.router import router as auth_router
+from app.documents.router import router as documents_router
 from app.profile.router import router as profile_router
 
 app = FastAPI(title="pak-tax-filer")
 app.include_router(auth_router)
 app.include_router(profile_router)
+app.include_router(documents_router)
 
 
 @app.exception_handler(RequestValidationError)
