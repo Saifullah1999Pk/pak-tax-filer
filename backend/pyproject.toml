@@ -40,6 +40,10 @@ min-public-methods = 0
 [tool.pylint.imports]
 known-third-party = ["alembic"]
 
+# Generated Alembic migrations repeat standard column definitions; report only longer copies.
+[tool.pylint.similarities]
+min-similarity-lines = 10
+
 [tool.mypy]
 python_version = "3.13"
 strict = true
