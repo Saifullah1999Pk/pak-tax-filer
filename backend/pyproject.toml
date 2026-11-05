@@ -36,6 +36,10 @@ py-version = "3.13"
 [tool.pylint.design]
 min-public-methods = 0
 
+# Our migrations folder is also named alembic/; the library is third-party.
+[tool.pylint.imports]
+known-third-party = ["alembic"]
+
 [tool.mypy]
 python_version = "3.13"
 strict = true

@@ -31,7 +31,9 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
   from the host with `uv run alembic ...` and a host `DATABASE_URL`. Windows and macOS are not
   affected.
 - `DATABASE_URL` comes from the environment (docker-compose sets it); never put it in a file.
-- Tests that need the database use a separate test database (set up in feature 002).
+- Tests that need the database ask for the `db` (rolled-back session) or `client` (HTTP client
+  using that session) fixtures from `tests/conftest.py`; they run against `pak_tax_filer_test`,
+  never development data, so run them in Docker: `docker compose exec backend pytest`.
 
 ## Running tools on the host
 
