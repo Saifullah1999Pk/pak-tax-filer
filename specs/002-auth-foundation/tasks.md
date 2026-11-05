@@ -157,7 +157,7 @@ backend enforces it (FR-016 to FR-020, FR-022, FR-023).
 ## Phase 8: Polish
 
 - [X] T031 [P] Add an "Authentication" section to `CLAUDE.md`: protect new endpoints with `current_user`; never log passwords or tokens; how to create a demo user; read the profile with `get_profile`, refuse with `require_profile`, never add identity fields to it
-- [ ] T032 [P] Add "Create a demo user" to the README's development setup section
+- [X] T032 [P] Add "Create a demo user" to the README's development setup section
 - [ ] T033 Run Ruff and Prettier checks, both test suites, and all of [quickstart.md](quickstart.md); record results in the PR description
 
 ---
