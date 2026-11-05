@@ -17,8 +17,8 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
    `docs/api-conventions.md`.
 2. Write the failing test in `tests/` with FastAPI's `TestClient`; run it and see it fail.
 3. Add the route in `app/<area>/router.py`, keeping logic in `service.py`; money is `Decimal`.
-4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint --recursive=y app alembic tests`,
-   `uv run mypy app alembic tests` (the same checks as CI).
+4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint --recursive=y app alembic evals tests`,
+   `uv run mypy app alembic evals tests` (the same checks as CI).
 
 ## Database and migrations
 

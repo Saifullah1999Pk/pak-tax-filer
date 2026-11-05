@@ -113,13 +113,13 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 
 ### Tests for User Story 4 (write first, confirm they fail)
 
-- [ ] T025 [P] [US4] Write `backend/tests/documents/test_eval_scoring.py`: scoring treats normalised exact matches as correct, "not found" as correct only when the truth is absent, and computes per-field, per-variant accuracy and the wrong-but-high share; the pass/fail check uses the bars in [contracts/eval.md](contracts/eval.md)
+- [X] T025 [P] [US4] Write `backend/tests/documents/test_eval_scoring.py`: scoring treats normalised exact matches as correct, "not found" as correct only when the truth is absent, and computes per-field, per-variant accuracy and the wrong-but-high share; the pass/fail check uses the bars in [contracts/eval.md](contracts/eval.md)
 
 ### Implementation for User Story 4
 
-- [ ] T026 [US4] Create `backend/evals/extraction/generate.py` per research R6: fixed seed; 20 cases per type; at least 4 layouts per type (varying label wording, table vs free text, amount formats); a clean PDF and a photo-like JPG of each; `ground_truth.json`; include a few rule-breaking and missing-field cases
-- [ ] T027 [US4] Create `backend/evals/extraction/run.py` per [contracts/eval.md](contracts/eval.md): uses the same prompt, schema, normalisation and rules as the app; Message Batches API matched by `custom_id`; `--model`; writes `report.md` with accuracy, wrong-but-high share and token cost; exit code from the bar; T025 passes
-- [ ] T028 [US4] Add job `extraction-eval` to `.github/workflows/ci.yml` per research R7: runs on push to `main` and `workflow_dispatch` when `backend/app/documents/extraction/**` or `backend/evals/**` change; uses the `ANTHROPIC_API_KEY` secret; never on `pull_request_target`
+- [X] T026 [US4] Create `backend/evals/extraction/generate.py` per research R6: fixed seed; 20 cases per type; at least 4 layouts per type (varying label wording, table vs free text, amount formats); a clean PDF and a photo-like JPG of each; `ground_truth.json`; include a few rule-breaking and missing-field cases
+- [X] T027 [US4] Create `backend/evals/extraction/run.py` per [contracts/eval.md](contracts/eval.md): uses the same prompt, schema, normalisation and rules as the app; Message Batches API matched by `custom_id`; `--model`; writes `report.md` with accuracy, wrong-but-high share and token cost; exit code from the bar; T025 passes
+- [X] T028 [US4] Add job `extraction-eval` in its own workflow, `.github/workflows/extraction-eval.yml` (its triggers differ from ci.yml's, which apply to every job), per research R7: runs on push to `main` and `workflow_dispatch` when `backend/app/documents/extraction/**` or `backend/evals/**` change; uses the `ANTHROPIC_API_KEY` secret; never on `pull_request_target`
 - [ ] T029 [US4] Run the eval for `claude-opus-5-5`, `claude-sonnet-5-5` and `claude-haiku-5-5`; set `EXTRACTION_MODEL` to the cheapest that passes; record all three reports in the PR description
 
 **Checkpoint**: all four user stories work.

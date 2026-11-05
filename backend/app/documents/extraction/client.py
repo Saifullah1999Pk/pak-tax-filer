@@ -52,7 +52,7 @@ class Extractor(Protocol):
         """Read the figures for `doc_type` from the file's bytes."""
 
 
-def _file_block(content: bytes, media_type: str) -> BetaContentBlockParam:
+def file_block(content: bytes, media_type: str) -> BetaContentBlockParam:
     """The PDF as a document block, or the photo as an image block."""
     data = base64.standard_b64encode(content).decode()
     if media_type == "application/pdf":
@@ -99,7 +99,7 @@ class ClaudeExtractor:
                     {
                         "role": "user",
                         "content": [
-                            _file_block(content, media_type),
+                            file_block(content, media_type),
                             {"type": "text", "text": user_instruction(doc_type)},
                         ],
                     }

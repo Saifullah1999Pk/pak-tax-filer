@@ -100,14 +100,14 @@ async def extract_document(
         document.status = DocStatus.FAILED
         document.failure_reason = result.failure_reason
     else:
-        document.fields = _build_fields(document.doc_type, document.tax_year, result.fields)
+        document.fields = build_fields(document.doc_type, document.tax_year, result.fields)
         document.status = DocStatus.NEEDS_REVIEW
         document.failure_reason = None
     await db.flush()
     return document
 
 
-def _build_fields(
+def build_fields(
     doc_type: DocType, tax_year: str, found: Mapping[str, ExtractedValue]
 ) -> list[ExtractedField]:
     """One field per name the type has (extra keys ignored, FR-003), checked by the rules."""

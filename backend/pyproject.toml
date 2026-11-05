@@ -58,6 +58,11 @@ min-similarity-lines = 10
 python_version = "3.13"
 strict = true
 
+# reportlab (dev-only, used by the eval's generator) ships no type information.
+[[tool.mypy.overrides]]
+module = ["reportlab.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Tests import the `app` package from backend/ without installing it.
