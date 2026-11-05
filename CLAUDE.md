@@ -72,3 +72,15 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
 | Skill `code-review` | Reviewing a diff or PR; it uses the subagents below |
 | Subagents `backend-reviewer`, `frontend-reviewer` | Read-only review of `backend/` / `frontend/` changes |
 | Spec Kit (`/speckit-*`) and `superpowers:brainstorming` | Planning a feature or non-trivial change (README "Planning process") |
+
+## Authentication and the taxpayer profile
+
+- Protect every endpoint that touches a user's data with `current_user`
+  (`app/auth/dependencies.py`): `user: Annotated[User, Depends(current_user)]`.
+- Endpoints that need the tax year or ATL status use `require_profile`
+  (`app/profile/dependencies.py`), which refuses users without a profile with `409`; to read it
+  without refusing, use `get_profile`. Never add identity fields (name, CNIC, NTN) to the profile.
+- State-changing endpoints depend on `require_json` (JSON only, research R3 of feature 002).
+- Never log, return or store a password or session token; only their hashes are stored.
+- Demo user: `docker compose exec backend python -m app.cli create-user --email demo@example.com`
+  (prompts for the password twice).
