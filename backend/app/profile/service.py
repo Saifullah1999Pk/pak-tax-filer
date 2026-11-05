@@ -32,13 +32,14 @@ async def save_profile(
     if tax_year not in SUPPORTED_TAX_YEARS:
         raise ValueError(f"Tax year {tax_year} is not supported.")
 
+    saved_at = datetime.now(UTC)  # one clock for both create and update (review L5)
     upsert = (
         insert(TaxpayerProfile)
-        .values(user_id=user.id, tax_year=tax_year, on_atl=on_atl)
+        .values(user_id=user.id, tax_year=tax_year, on_atl=on_atl, updated_at=saved_at)
         .on_conflict_do_update(
             index_elements=[TaxpayerProfile.user_id],
             # The save time itself, not PostgreSQL now() (which is the transaction start).
-            set_={"tax_year": tax_year, "on_atl": on_atl, "updated_at": datetime.now(UTC)},
+            set_={"tax_year": tax_year, "on_atl": on_atl, "updated_at": saved_at},
         )
         .returning(TaxpayerProfile)
     )

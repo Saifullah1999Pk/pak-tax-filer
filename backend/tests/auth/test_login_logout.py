@@ -14,7 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Session, User
 from app.auth.passwords import hash_password
+from app.auth import passwords
+from app.auth import router as router_module
 from app.auth.sessions import get_user_for_token
+from app.settings import Settings
 
 pytestmark = pytest.mark.anyio
 
@@ -136,3 +139,75 @@ async def test_passwords_and_tokens_never_reach_the_logs(
     logged = "\n".join(record.getMessage() for record in caplog.records)
     for secret in (PASSWORD, "wrong-password-typed", token):
         assert secret not in logged
+
+
+@pytest.mark.usefixtures("user")
+async def test_unknown_email_pays_for_the_same_password_check(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails if an unknown email skips the Argon2 check, which would make it faster and so
+    reveal which emails exist (research R5)."""
+    checked: list[str] = []
+    real_verify = passwords.verify_password
+
+    def spy(password: str, password_hash: str) -> bool:
+        checked.append(password_hash)
+        return real_verify(password, password_hash)
+
+    monkeypatch.setattr(passwords, "verify_password", spy)
+
+    await login(client, "nobody@example.com", PASSWORD)
+
+    assert checked == [passwords.DUMMY_HASH]
+
+
+@pytest.mark.usefixtures("user")
+async def test_cookie_is_secure_with_a_seven_day_lifetime_when_configured(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails if the session cookie drops Secure, Max-Age or Path (research R2)."""
+    monkeypatch.setattr(
+        router_module, "get_settings", lambda: Settings(database_url="unused", cookie_secure=True)
+    )
+
+    login_cookie = (await login(client, EMAIL, PASSWORD)).headers["set-cookie"].lower()
+    logout_cookie = (await client.post("/api/auth/logout", json={})).headers["set-cookie"].lower()
+
+    for part in ("secure", "max-age=604800", "path=/", "httponly", "samesite=lax"):
+        assert part in login_cookie
+    for part in ("secure", "path=/"):
+        assert part in logout_cookie
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"email": "x" * 250 + "@example.com", "password": PASSWORD},
+        {"email": EMAIL, "password": "p" * 1025},
+        {"email": "", "password": PASSWORD},
+        {"email": EMAIL, "password": ""},
+    ],
+    ids=["email-too-long", "password-too-long", "email-empty", "password-empty"],
+)
+async def test_unreasonable_login_fields_are_refused(
+    client: AsyncClient, body: dict[str, str]
+) -> None:
+    """Fails if huge or empty values are accepted (and, for huge ones, hashed and stored)."""
+    response = await client.post("/api/auth/login", json=body)
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("user")
+async def test_non_json_logout_is_refused_and_the_session_survives(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Fails if a cross-site form could log a user out (research R3)."""
+    await login(client, EMAIL, PASSWORD)
+
+    response = await client.post(
+        "/api/auth/logout", content="", headers={"Content-Type": "text/plain"}
+    )
+
+    assert response.status_code == 415
+    assert await session_count(db) == 1

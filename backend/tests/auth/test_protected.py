@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx2 import AsyncClient
-from sqlalchemy import update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Session, User
@@ -85,3 +85,16 @@ async def test_me_with_a_valid_session_returns_only_the_email(client: AsyncClien
 
     assert response.status_code == 200
     assert response.json() == {"email": EMAIL}
+
+
+@pytest.mark.usefixtures("user")
+async def test_expired_session_row_is_deleted_when_used(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Fails if expired sessions pile up instead of being removed when next used (research R6)."""
+    await log_in(client)
+    await db.execute(update(Session).values(expires_at=datetime.now(UTC) - timedelta(seconds=1)))
+
+    await client.get("/api/auth/me")
+
+    assert (await db.execute(select(func.count()).select_from(Session))).scalar_one() == 0

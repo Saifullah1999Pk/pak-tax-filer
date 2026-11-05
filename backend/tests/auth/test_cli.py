@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.auth.passwords import verify_password
+from app.auth import users
 from app.cli import create_user_command
 
 pytestmark = pytest.mark.anyio
@@ -70,3 +71,25 @@ async def test_refuses_bad_passwords_and_creates_nothing(
 
     assert code == 1
     assert await user_count(db) == 0
+
+
+async def test_a_race_on_the_same_email_is_refused_cleanly(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails if two create-user runs racing on one email crash instead of refusing: the
+    existence check passes for both, and the database's unique email is the real guard."""
+    await create_user_command(
+        db, "demo@example.com", prompts("s3cret-pass", "s3cret-pass"), io.StringIO()
+    )
+
+    async def never_found(_db: AsyncSession, _email: str) -> None:
+        return None
+
+    monkeypatch.setattr(users, "get_user_by_email", never_found)
+
+    code = await create_user_command(
+        db, "demo@example.com", prompts("other-pass1", "other-pass1"), io.StringIO()
+    )
+
+    assert code == 1
+    assert await user_count(db) == 1

@@ -5,6 +5,8 @@ Passwords are never stored or logged; only their Argon2 hashes are.
 
 import secrets
 
+import anyio
+
 from pwdlib import PasswordHash
 
 _hasher = PasswordHash.recommended()  # Argon2 with pwdlib's recommended settings
@@ -22,3 +24,15 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, password_hash: str) -> bool:
     """True only if the password matches the stored hash."""
     return _hasher.verify(password, password_hash)
+
+
+# Argon2 deliberately takes tens of milliseconds and ~64 MiB per check, so it runs in a worker
+# thread (keeping the server responsive) and at most 4 at a time (bounding memory).
+_ARGON2_SLOTS = anyio.CapacityLimiter(4)
+
+
+async def check_password(password: str, password_hash: str) -> bool:
+    """verify_password off the event loop, for request handlers."""
+    return await anyio.to_thread.run_sync(
+        verify_password, password, password_hash, limiter=_ARGON2_SLOTS
+    )

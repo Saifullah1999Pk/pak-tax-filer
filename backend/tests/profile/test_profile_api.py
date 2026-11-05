@@ -118,3 +118,15 @@ async def test_changing_the_profile_updates_it_and_nothing_else(
     assert after is not None and after.created_at == created_before
     sessions_after = (await db.execute(select(func.count()).select_from(Session))).scalar_one()
     assert sessions_after == sessions_before
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_non_json_profile_save_is_refused(client: AsyncClient) -> None:
+    """Fails if a cross-site form could change the profile (research R3)."""
+    response = await client.put(
+        "/api/profile",
+        content="tax_year=2025-26&on_atl=true",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    assert response.status_code == 415

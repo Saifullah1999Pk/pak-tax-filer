@@ -11,8 +11,8 @@ Published as `docs/api-conventions.md`. Every feature's API contract follows the
   ISO 8601.
 - **Errors:** `{"detail": "<human-readable message>"}`. Status codes: `400` bad input that passed
   validation, `401` not logged in, `403` logged in but not allowed, `404` not found or not
-  yours (never reveal that another user's item exists), `409` conflict, `422` validation
-  error, `429` throttled.
+  yours (never reveal that another user's item exists), `409` conflict, `415` not JSON on a
+  state-changing request, `422` validation error, `429` throttled.
 - **Authentication:** the `session` cookie; protected endpoints use `current_user`
   (feature 002).
 - **Keeping in step:** a change to an endpoint updates, in the same pull request, the feature's

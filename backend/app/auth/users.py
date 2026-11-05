@@ -1,6 +1,7 @@
 """User lookup and creation, shared by the login endpoint and the create-user command."""
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -28,6 +29,12 @@ async def create_user(db: AsyncSession, email: str, password: str) -> User:
     if await get_user_by_email(db, email) is not None:
         raise ValueError("A user with that email already exists.")
     user = User(email=normalize_email(email), password_hash=hash_password(password))
-    db.add(user)
-    await db.flush()
+    try:
+        # A savepoint, so losing a race keeps the rest of the transaction usable.
+        async with db.begin_nested():
+            db.add(user)
+    except IntegrityError as error:
+        # Another run created the same email between the check above and this insert; the
+        # database's unique constraint is the real guard (review L6).
+        raise ValueError("A user with that email already exists.") from error
     return user
