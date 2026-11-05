@@ -6,7 +6,7 @@ logged-out and expired sessions all get the same 401 "Not logged in.".
 
 from typing import Annotated
 
-from fastapi import Cookie, Depends, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -27,3 +27,13 @@ async def current_user(
         await db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, NOT_LOGGED_IN)
     return user
+
+
+def require_json(request: Request) -> None:
+    """Refuse state-changing requests that aren't JSON: a cross-site form can't send JSON
+    without a CORS preflight, which this API never approves (research R3)."""
+    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if content_type != "application/json":
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Content-Type must be application/json."
+        )

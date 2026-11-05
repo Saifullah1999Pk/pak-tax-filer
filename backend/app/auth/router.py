@@ -6,12 +6,12 @@ R4 (throttling), R5 (same answer and same work for unknown emails).
 
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import sessions, throttle
-from app.auth.dependencies import current_user
+from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
 from app.auth.passwords import DUMMY_HASH, verify_password
 from app.auth.users import get_user_by_email, normalize_email
@@ -21,16 +21,6 @@ from app.settings import get_settings
 COOKIE_NAME = "session"
 INVALID_LOGIN = "Invalid email or password."
 TOO_MANY_ATTEMPTS = "Too many attempts. Try again later."
-
-
-def require_json(request: Request) -> None:
-    """Refuse state-changing requests that aren't JSON: a cross-site form can't send JSON
-    without a CORS preflight, which this API never approves (research R3)."""
-    content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
-    if content_type != "application/json":
-        raise HTTPException(
-            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Content-Type must be application/json."
-        )
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
