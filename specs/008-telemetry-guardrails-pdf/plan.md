@@ -69,7 +69,8 @@ specs/008-telemetry-guardrails-pdf/
 ├── data-model.md        # telemetry attributes, PDF content (nothing stored)
 ├── quickstart.md
 ├── contracts/
-│   └── pdf-and-telemetry.md
+│   ├── pdf-and-telemetry.md
+│   └── api.yaml         # machine-checked once feature 001 US5 (PR #17) builds the checker
 └── tasks.md             # /speckit-tasks
 ```
 

@@ -116,7 +116,8 @@ in `plan.md`; everything else proceeds without it.
 ## Parallel Opportunities
 
 - T002 alongside T001; US1 tests T004, T005 together.
-- US2 T010–T013 together; US3 tests T017, T018 together; US3 can run alongside US1.
+- US2 T010–T012 together (T013 follows US1, which builds the PDFs it checks); US3 tests T017,
+  T018 together; US3 can run alongside US1.
 
 ## Implementation Strategy
 
