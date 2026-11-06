@@ -61,3 +61,33 @@ test("an upload that finds the session ended sends the user to log in", async ()
   expect(ended).toHaveBeenCalled();
   setSessionEndedHandler(() => {});
 });
+
+test("a 422 shows which field failed and why, not just the status (PR #27 review, item 2)", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            detail: [
+              {
+                type: "extra_forbidden",
+                loc: ["body", "cnic"],
+                msg: "Extra inputs are not permitted",
+              },
+              {
+                type: "bool_type",
+                loc: ["body", "on_atl"],
+                msg: "Input should be a valid boolean",
+              },
+            ],
+          }),
+          { status: 422, headers: { "Content-Type": "application/json" } },
+        ),
+    ),
+  );
+
+  await expect(apiFetch("/api/profile", { method: "PUT" })).rejects.toThrow(
+    "cnic: Extra inputs are not permitted; on_atl: Input should be a valid boolean",
+  );
+});

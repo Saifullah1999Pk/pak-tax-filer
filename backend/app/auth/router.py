@@ -4,11 +4,10 @@ Contract: specs/002-auth-foundation/contracts/auth-api.md. Research: R2 (cookie)
 R4 (throttling), R5 (same answer and same work for unknown emails).
 """
 
-from typing import Annotated
+from typing import Annotated, Literal, TypedDict
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import sessions, throttle
@@ -44,16 +43,30 @@ class EmailResponse(BaseModel):
     email: str
 
 
+class _CookieSettings(TypedDict):
+    path: str
+    httponly: bool
+    samesite: Literal["lax"]
+    secure: bool
+
+
+def _cookie_settings() -> _CookieSettings:
+    """The session cookie's settings, shared by login and logout: a browser only clears a cookie
+    whose path and flags match the one it holds (review of PR #27, item 10)."""
+    return {
+        "path": "/",
+        "httponly": True,
+        "samesite": "lax",
+        "secure": get_settings().cookie_secure,
+    }
+
+
 @router.post("/login", dependencies=[Depends(require_json)])
 async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailResponse:
     """Log in with email and password; on success set the session cookie."""
     email = normalize_email(body.email)
 
-    # One login at a time per email, until this transaction ends: otherwise attempts sent at the
-    # same moment all read the failure count before any records a failure (review M2).
-    await db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:email, 0))"), {"email": email}
-    )
+    await throttle.one_attempt_at_a_time(db, email)
 
     # Throttled attempts don't check the password at all (contract).
     if await throttle.is_throttled(db, email):
@@ -75,10 +88,7 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailR
         COOKIE_NAME,
         token,
         max_age=int(sessions.SESSION_LIFETIME.total_seconds()),
-        path="/",
-        httponly=True,
-        samesite="lax",
-        secure=get_settings().cookie_secure,
+        **_cookie_settings(),
     )
     return EmailResponse(email=user.email)
 
@@ -95,9 +105,7 @@ async def logout(
     if session:
         await sessions.delete_session(db, session)
         await db.commit()
-    response.delete_cookie(
-        COOKIE_NAME, path="/", httponly=True, samesite="lax", secure=get_settings().cookie_secure
-    )
+    response.delete_cookie(COOKIE_NAME, **_cookie_settings())
 
 
 @router.get("/me")

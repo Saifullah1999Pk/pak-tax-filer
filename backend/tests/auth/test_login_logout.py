@@ -211,3 +211,22 @@ async def test_non_json_logout_is_refused_and_the_session_survives(
 
     assert response.status_code == 415
     assert await session_count(db) == 1
+
+
+def cookie_settings(set_cookie: str) -> set[str]:
+    """A Set-Cookie header's settings (path, flags, SameSite), without its value or lifetime."""
+    parts = [part.strip().lower() for part in set_cookie.split(";")[1:]]
+    return {part for part in parts if not part.startswith(("max-age", "expires"))}
+
+
+@pytest.mark.usefixtures("user")
+async def test_logout_clears_the_cookie_with_the_same_settings_it_was_set_with(
+    client: AsyncClient,
+) -> None:
+    """Fails if login and logout drift apart: a browser only clears a cookie whose path and
+    flags match the one it holds (review of PR #27, item 10)."""
+    set_on_login = (await login(client, EMAIL, PASSWORD)).headers["set-cookie"]
+
+    cleared_on_logout = (await client.post("/api/auth/logout", json={})).headers["set-cookie"]
+
+    assert cookie_settings(cleared_on_logout) == cookie_settings(set_on_login)

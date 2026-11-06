@@ -10,7 +10,10 @@ export function safeNext(next: string | null): string {
   }
   const origin = window.location.origin;
   const url = new URL(next, origin);
-  if (url.origin !== origin || url.pathname === "/login") {
+  // The router matches paths case-insensitively and ignores a trailing slash, so this must too
+  // (PR #27 review, item 3).
+  const path = url.pathname.toLowerCase().replace(/\/+$/, "");
+  if (url.origin !== origin || path === "/login") {
     return "/";
   }
   return url.pathname + url.search + url.hash;

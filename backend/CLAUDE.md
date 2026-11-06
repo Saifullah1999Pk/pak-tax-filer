@@ -15,7 +15,10 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
 
 1. Write or update the feature's contract in `specs/NNN-*/contracts/` and follow
    `docs/api-conventions.md`.
-2. Write the failing test in `tests/` with FastAPI's `TestClient`; run it and see it fail.
+2. Write the failing test in `tests/`; run it and see it fail. Endpoint tests use the `client`
+   fixture (`httpx2.AsyncClient` over `ASGITransport`), which shares the test's rolled-back
+   async database session (feature 002, research R10). FastAPI's `TestClient` can't share that
+   session, so it is only for endpoints that need no database, like `/health`.
 3. Add the route in `app/<area>/router.py`, keeping logic in `service.py`; money is `Decimal`.
 4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint --recursive=y app alembic evals tests`,
    `uv run mypy app alembic evals tests` (the same checks as CI).

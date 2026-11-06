@@ -39,16 +39,22 @@ async def get_user_for_token(db: AsyncSession, token: str) -> User | None:
 
     An expired session is deleted when it is next used (no background cleanup, research R6).
     """
-    session = (
-        await db.execute(select(Session).where(Session.token_hash == _hash_token(token)))
-    ).scalar_one_or_none()
-    if session is None:
+    # One query for both: every protected request runs this (review of PR #27, item 8).
+    row = (
+        await db.execute(
+            select(Session, User)
+            .join(User, User.id == Session.user_id)
+            .where(Session.token_hash == _hash_token(token))
+        )
+    ).one_or_none()
+    if row is None:
         return None
+    session, user = row
     if session.expires_at <= datetime.now(UTC):
         await db.delete(session)
         await db.flush()
         return None
-    return await db.get(User, session.user_id)
+    return user
 
 
 async def delete_session(db: AsyncSession, token: str) -> None:
