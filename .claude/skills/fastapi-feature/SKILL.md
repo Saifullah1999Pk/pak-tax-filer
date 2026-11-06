@@ -10,7 +10,8 @@ constitution. Work on the feature's task in `specs/NNN-*/tasks.md`.
 
 1. **Contract first.** Read (or update, in the same PR) the endpoint in
    `specs/NNN-*/contracts/`; it must follow `docs/api-conventions.md`.
-2. **Failing test.** Write the test in `backend/tests/` with FastAPI's `TestClient`, asserting
+2. **Failing test.** Write the test in `backend/tests/` with the `client` fixture (`httpx2.AsyncClient`
+   over `ASGITransport`; `TestClient` only for endpoints without a database), asserting
    the contract's status, body and errors. Run `uv run pytest` and confirm it fails for the
    right reason (the behaviour is missing, not a typo or import path).
 3. **Code.** Route in `app/<area>/router.py` (HTTP only), logic in `app/<area>/service.py` as

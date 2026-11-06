@@ -3,6 +3,7 @@ import { RequireAuth } from "./auth/RequireAuth";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { RequireProfile } from "./profile/RequireProfile";
@@ -53,6 +54,7 @@ export function AppRoutes() {
           </RequireAuth>
         }
       />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

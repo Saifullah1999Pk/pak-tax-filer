@@ -28,3 +28,9 @@ test("never sends the user back to the login page itself", () => {
   expect(safeNext("/login")).toBe("/");
   expect(safeNext("/login?next=/profile")).toBe("/");
 });
+
+test("the login page is caught however it's written (PR #27 review, item 3)", () => {
+  expect(safeNext("/Login")).toBe("/");
+  expect(safeNext("/LOGIN?next=/profile")).toBe("/");
+  expect(safeNext("/login/")).toBe("/");
+});

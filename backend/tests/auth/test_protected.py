@@ -4,11 +4,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx2 import AsyncClient
-from sqlalchemy import func, select, update
+from sqlalchemy import event, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import Session, User
 from app.auth.passwords import hash_password
+from app.auth.sessions import get_user_for_token
 
 pytestmark = pytest.mark.anyio
 
@@ -98,3 +99,29 @@ async def test_expired_session_row_is_deleted_when_used(
     await client.get("/api/auth/me")
 
     assert (await db.execute(select(func.count()).select_from(Session))).scalar_one() == 0
+
+
+@pytest.mark.usefixtures("user")
+async def test_a_protected_request_reads_the_session_and_user_in_one_query(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Fails if checking a session takes more than one query (review of PR #27, item 8)."""
+    token = await log_in(client)
+    statements: list[str] = []
+
+    def record(*args: object) -> None:
+        statement = str(args[2])
+        if not statement.startswith(("SAVEPOINT", "RELEASE SAVEPOINT")):  # the test harness's
+            statements.append(statement)
+
+    db.expunge_all()  # A real request starts with nothing cached.
+    engine = db.get_bind()
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        found = await get_user_for_token(db, token)
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+    assert found is not None
+    assert found.email == EMAIL
+    assert len(statements) == 1, statements
