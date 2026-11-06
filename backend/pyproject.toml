@@ -59,9 +59,10 @@ min-similarity-lines = 10
 python_version = "3.13"
 strict = true
 
-# reportlab (dev-only, used by the eval's generator) ships no type information.
+# reportlab (the eval's generator) and PyYAML (the tax worked examples), both dev-only, ship no
+# type information.
 [[tool.mypy.overrides]]
-module = ["reportlab.*"]
+module = ["reportlab.*", "yaml"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
