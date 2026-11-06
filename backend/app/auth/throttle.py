@@ -7,13 +7,27 @@ reveals which emails are registered. Stored in the database, so it survives rest
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import LoginFailure
 
 MAX_FAILURES = 10
 WINDOW = timedelta(minutes=15)
+
+
+async def one_attempt_at_a_time(db: AsyncSession, email: str) -> None:
+    """Hold a per-email lock until this transaction ends (PostgreSQL advisory lock).
+
+    Throttling reads the failure count, checks the password, then records a failure. Without
+    the lock, attempts sent at the same moment all read the count before any records a failure,
+    and all get checked. A unique constraint can't express "10 failures in 15 minutes", so the
+    usual insert-and-catch-IntegrityError pattern doesn't fit; the lock must last until the
+    failure is recorded, so it is transaction-scoped (review M2; PR #27 review, item 6).
+    """
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:email, 0))"), {"email": email}
+    )
 
 
 async def is_throttled(db: AsyncSession, email: str) -> bool:
