@@ -91,3 +91,30 @@ def test_api_key_never_appears_when_settings_are_printed() -> None:
 
     assert "test-key-not-real" not in repr(settings)
     assert "test-key-not-real" not in str(settings)
+
+
+# Feature 004, task T001: the tax summary's model and effort (research R8).
+
+
+def test_summary_defaults() -> None:
+    """Fails if the summary's defaults differ from feature 004's plan."""
+    settings = load_settings({"DATABASE_URL": DB})
+
+    assert settings.summary_model == "claude-opus-5-5"
+    assert settings.summary_effort == "low"
+
+
+def test_summary_settings_are_read() -> None:
+    """Fails if the environment can't change the summary's model or effort."""
+    settings = load_settings(
+        {"DATABASE_URL": DB, "SUMMARY_MODEL": "claude-haiku-5-5", "SUMMARY_EFFORT": "medium"}
+    )
+
+    assert settings.summary_model == "claude-haiku-5-5"
+    assert settings.summary_effort == "medium"
+
+
+def test_unrecognised_summary_effort_is_refused() -> None:
+    """Fails if a typo in SUMMARY_EFFORT is only found when a summary is requested."""
+    with pytest.raises(ValueError, match="SUMMARY_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "SUMMARY_EFFORT": "lwo"})

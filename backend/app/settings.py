@@ -17,7 +17,7 @@ _EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
 @dataclass(frozen=True)
-class Settings:
+class Settings:  # pylint: disable=too-many-instance-attributes  # one field per setting
     """The app's settings; read once per process with get_settings()."""
 
     database_url: str
@@ -34,6 +34,9 @@ class Settings:
     extraction_effort: str = "low"
     # Research R4: uploaded files live in a Docker volume, never under the app's own folder.
     upload_dir: Path = Path("/data/uploads")
+    # Feature 004, research R8: the model that writes the tax summary (never the figures).
+    summary_model: str = "claude-opus-5-5"
+    summary_effort: str = "low"
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -50,9 +53,8 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
     else:
         raise ValueError(f"COOKIE_SECURE must be true or false, not {raw!r}.")
 
-    effort = environ.get("EXTRACTION_EFFORT", "low").strip().lower()
-    if effort not in _EFFORTS:
-        raise ValueError(f"EXTRACTION_EFFORT must be one of {', '.join(_EFFORTS)}, not {effort!r}.")
+    effort = _effort(environ, "EXTRACTION_EFFORT")
+    summary_effort = _effort(environ, "SUMMARY_EFFORT")
 
     return Settings(
         database_url=database_url,
@@ -61,7 +63,17 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "claude-opus-5-5",
         extraction_effort=effort,
         upload_dir=Path(environ.get("UPLOAD_DIR", "").strip() or "/data/uploads"),
+        summary_model=environ.get("SUMMARY_MODEL", "").strip() or "claude-opus-5-5",
+        summary_effort=summary_effort,
     )
+
+
+def _effort(environ: Mapping[str, str], name: str) -> str:
+    """An effort setting, defaulting to low; anything the API wouldn't accept is refused."""
+    effort = environ.get(name, "low").strip().lower()
+    if effort not in _EFFORTS:
+        raise ValueError(f"{name} must be one of {', '.join(_EFFORTS)}, not {effort!r}.")
+    return effort
 
 
 @lru_cache(maxsize=1)

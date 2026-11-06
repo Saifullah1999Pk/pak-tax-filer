@@ -24,7 +24,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `claude-opus-5-5`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
+- [X] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `claude-opus-5-5`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
 
 ---
 
