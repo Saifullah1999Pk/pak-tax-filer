@@ -61,14 +61,38 @@ export async function apiFetch<T>(
     if (response.status === 401 && !allowUnauthenticated) {
       onSessionEnded();
     }
-    const detail =
-      typeof data === "object" &&
-      data !== null &&
-      "detail" in data &&
-      typeof data.detail === "string"
-        ? data.detail
-        : `Request failed (${response.status}).`;
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, detailMessage(data, response.status));
   }
   return data as T;
+}
+
+/**
+ * The server's message: `detail` as text, or FastAPI's list of field errors (a 422) as
+ * "field: reason; field: reason" (PR #27 review, item 2). Rejected values are never sent back
+ * by the server, so nothing typed is echoed here.
+ */
+function detailMessage(data: unknown, status: number): string {
+  const detail =
+    typeof data === "object" && data !== null && "detail" in data
+      ? data.detail
+      : undefined;
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    const reasons = detail.flatMap((error: unknown) => {
+      if (typeof error !== "object" || error === null || !("msg" in error)) {
+        return [];
+      }
+      const field =
+        "loc" in error && Array.isArray(error.loc)
+          ? error.loc.filter((part: unknown) => part !== "body").join(".")
+          : "";
+      return [field ? `${field}: ${String(error.msg)}` : String(error.msg)];
+    });
+    if (reasons.length > 0) {
+      return reasons.join("; ");
+    }
+  }
+  return `Request failed (${status}).`;
 }

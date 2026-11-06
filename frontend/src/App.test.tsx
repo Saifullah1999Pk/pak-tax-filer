@@ -31,3 +31,11 @@ test("each test starts with an empty page", async () => {
 
   await screen.findByRole("heading", { level: 1, name: /log in/i });
 });
+
+test("an unknown address shows a not-found page with a way home (PR #27 review, item 5)", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/no-such-page");
+
+  await screen.findByRole("heading", { level: 1, name: /page not found/i });
+  screen.getByRole("link", { name: /home/i });
+});
