@@ -64,6 +64,8 @@ vision), DeepSeek (no free tier), a local model (can't run on the 1 GB server).
   through. `SUMMARY_MODEL` (004) defaults to a Gemini model too.
 - **Model choice:** the eval runs on `gemini-3.8-flash` and `gemini-3.5-flash-lite`. Flash-Lite
   is chosen if it meets the bars, since its free limit is reported to be higher; otherwise Flash.
+  **Outcome (2026-11-09):** Flash-Lite passed with 280 of 280 fields and is the default; Flash hit
+  Google's 60-second deadline on a PDF on the free tier.
 - **Eval runner:** one request per case instead of a batch, paced to stay under the per-minute
   limit, retrying a `429` after a pause; it stops with a clear message if the day's limit is
   reached, so a run may need two days. Scoring, bars and the report are unchanged.

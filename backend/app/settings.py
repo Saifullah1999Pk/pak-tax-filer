@@ -28,8 +28,8 @@ class Settings:  # pylint: disable=too-many-instance-attributes  # one field per
     # (fake extractor) run without one; extraction then fails with a clear reason. Kept out of
     # repr so printing or logging the settings never reveals it.
     gemini_api_key: str | None = field(default=None, repr=False)
-    # Research R1: the eval chooses between Flash and Flash-Lite; reading needs little thinking.
-    extraction_model: str = "gemini-3.8-flash"
+    # Research R1: Flash-Lite passed the eval (T029); Flash timed out on the free tier.
+    extraction_model: str = "gemini-3.5-flash-lite"
     extraction_effort: str = "low"
     # Research R4: uploaded files live in a Docker volume, never under the app's own folder.
     upload_dir: Path = Path("/data/uploads")
@@ -59,7 +59,7 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         database_url=database_url,
         cookie_secure=cookie_secure,
         gemini_api_key=environ.get("GEMINI_API_KEY", "").strip() or None,
-        extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "gemini-3.8-flash",
+        extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "gemini-3.5-flash-lite",
         extraction_effort=effort,
         upload_dir=Path(environ.get("UPLOAD_DIR", "").strip() or "/data/uploads"),
         summary_model=environ.get("SUMMARY_MODEL", "").strip() or "gemini-3.8-flash",

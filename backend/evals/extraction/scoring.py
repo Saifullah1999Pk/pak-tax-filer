@@ -131,7 +131,6 @@ def render(summary: Summary, model: str, tokens: Mapping[str, int]) -> str:
         "|---|---|",
         *(f"| {layout} | {_percent(value)} |" for layout, value in summary.per_layout.items()),
         "",
-        f"Tokens (Batches API, half price): {tokens.get('input', 0):,} input, "
-        f"{tokens.get('output', 0):,} output.",
+        f"Tokens: {tokens.get('input', 0):,} input, {tokens.get('output', 0):,} output.",
     ]
     return "\n".join(lines) + "\n"

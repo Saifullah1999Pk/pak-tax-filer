@@ -121,7 +121,7 @@ Gemini's free tier on 2026-11-08 (tasks T033-T040).
 - [X] T026 [US4] Create `backend/evals/extraction/generate.py` per research R6: fixed seed; 20 cases per type; at least 4 layouts per type (varying label wording, table vs free text, amount formats); a clean PDF and a photo-like JPG of each; `ground_truth.json`; include a few rule-breaking and missing-field cases
 - [X] T027 [US4] Create `backend/evals/extraction/run.py` per [contracts/eval.md](contracts/eval.md): uses the same prompt, schema, normalisation and rules as the app; Message Batches API matched by `custom_id`; `--model`; writes `report.md` with accuracy, wrong-but-high share and token cost; exit code from the bar; T025 passes
 - [X] T028 [US4] Add job `extraction-eval` in its own workflow, `.github/workflows/extraction-eval.yml` (its triggers differ from ci.yml's, which apply to every job), per research R7: runs on push to `main` and `workflow_dispatch` when `backend/app/documents/extraction/**` or `backend/evals/**` change; uses the `ANTHROPIC_API_KEY` secret; never on `pull_request_target`
-- [ ] T029 [US4] Run the eval for `gemini-3.8-flash` and `gemini-3.5-flash-lite`; set `EXTRACTION_MODEL` to Flash-Lite if it meets the bars (its free limit is higher), otherwise Flash; record both reports in the PR description
+- [X] T029 [US4] Run the eval for `gemini-3.8-flash` and `gemini-3.5-flash-lite`; set `EXTRACTION_MODEL` to Flash-Lite if it meets the bars (its free limit is higher), otherwise Flash; record both reports in the PR description *(Done 2026-11-09: Flash-Lite passed with 280/280 fields, so it is the default; Flash timed out at Google's 60 s deadline on a PDF (504, twice) and wasn't run in full. See research R1.)*
 
 **Checkpoint**: all four user stories work.
 
