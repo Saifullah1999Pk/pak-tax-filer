@@ -42,6 +42,10 @@ DECLINED = {
     types.FinishReason.IMAGE_PROHIBITED_CONTENT,
 }
 INCOMPLETE = "The AI's answer was incomplete. Try again."
+DOC_LABELS = {
+    "salary_certificate": "a salary certificate",
+    "bank_profit_certificate": "a bank profit certificate",
+}
 DECLINED_REASON = "The AI declined to read this document."
 
 
@@ -165,7 +169,21 @@ def _result_from(
         parsed = OUTPUT_SCHEMAS[doc_type].model_validate_json(text)
     except ValidationError:
         return result(reason=INCOMPLETE)
+    seen = getattr(parsed, "document_type", doc_type.value)
+    if seen != doc_type.value:
+        return result(reason=_wrong_type_reason(doc_type, seen))
     return result(fields={name: v for name, v in parsed if isinstance(v, ExtractedValue)})
+
+
+def _wrong_type_reason(chosen: DocType, seen: str) -> str:
+    """Why a document of another type is refused (FR-005a), naming what it looks like."""
+    expected = DOC_LABELS[chosen.value]
+    if seen in DOC_LABELS:
+        return (
+            f"This looks like {DOC_LABELS[seen]}, not {expected}. "
+            "Choose the right type and upload it again."
+        )
+    return f"This doesn't look like {expected}. Check the file and upload it again."
 
 
 def _api_reason(exc: errors.APIError) -> str:

@@ -25,6 +25,7 @@ PNG = b"\x89PNG\r\n\x1a\n synthetic"
 FAKE_KEY = "test-key-not-real"
 
 BANK_REPLY = {
+    "document_type": "bank_profit_certificate",
     "tax_year": {"value": "2025-26", "confidence": "high", "page": 1, "label": "Tax Year"},
     "profit_amount": {"value": "Rs. 120,000", "confidence": "high", "page": 1, "label": "Profit"},
     "tax_withheld": {"value": None, "confidence": "low", "page": None, "label": None},
@@ -101,7 +102,8 @@ async def test_pdf_request_has_the_file_instructions_schema_and_thinking_level()
 async def test_image_is_sent_with_its_own_media_type() -> None:
     """Fails if a photo is sent as a PDF (the model must know what it is reading)."""
     sent: list[httpx2.Request] = []
-    salary = {name.value: BANK_REPLY["tax_year"] for name in list(FieldName)[:4]}
+    salary: dict[str, object] = {name.value: BANK_REPLY["tax_year"] for name in list(FieldName)[:4]}
+    salary["document_type"] = "salary_certificate"
     gemini = extractor(replying(reply(json.dumps(salary)), sent=sent))
 
     await gemini.extract(DocType.SALARY_CERTIFICATE, PNG, "image/png")
@@ -202,3 +204,24 @@ async def test_network_failures_become_short_reasons(
 
     assert result.failure_reason is not None
     assert expected in result.failure_reason
+
+
+@pytest.mark.parametrize(
+    ("seen", "expected"),
+    [
+        ("salary_certificate", "looks like a salary certificate, not a bank profit certificate"),
+        ("other", "doesn't look like a bank profit certificate"),
+    ],
+)
+async def test_a_document_of_another_type_fails_with_a_clear_reason(
+    seen: str, expected: str
+) -> None:
+    """Fails if a document of the wrong type is reviewed as empty fields (FR-005a)."""
+    gemini = extractor(replying(reply(json.dumps({**BANK_REPLY, "document_type": seen}))))
+
+    result = await gemini.extract(DocType.BANK_PROFIT_CERTIFICATE, PDF, "application/pdf")
+
+    assert result.failure_reason is not None
+    assert expected in result.failure_reason
+    assert "upload it again" in result.failure_reason
+    assert not result.fields
