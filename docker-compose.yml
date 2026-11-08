@@ -1,6 +1,6 @@
 # Local development: `docker compose up -d` starts db, backend and frontend (README, feature 001).
 # The database credentials below are local-development-only values, not secrets. The one real
-# secret, ANTHROPIC_API_KEY, comes from an uncommitted .env (see .env.example); without it the app
+# secret, GEMINI_API_KEY, comes from an uncommitted .env (see .env.example); without it the app
 # still runs and only document extraction fails, with a clear reason (feature 003).
 services:
   db:
@@ -26,7 +26,7 @@ services:
       # Local development runs over plain HTTP; everywhere else the cookie stays HTTPS-only.
       COOKIE_SECURE: "false"
       # Compose reads .env next to this file; empty if there is none.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

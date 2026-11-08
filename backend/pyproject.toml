@@ -5,9 +5,9 @@ description = "FastAPI backend for pak-tax-filer"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.20.1",
-    "anthropic>=2.5.0",
     "asyncpg>=0.32.0",
     "fastapi>=0.162.0",
+    "google-genai>=3.0.0",
     "pwdlib[argon2]>=0.3.1",
     "pypdf>=6.21.4",
     "python-multipart>=0.0.33",

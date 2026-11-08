@@ -141,14 +141,14 @@ Gemini's free tier on 2026-11-08 (tasks T033-T040).
 [2026-11-08-gemini-provider-design.md](../../docs/superpowers/specs/2026-11-08-gemini-provider-design.md)).
 Nothing outside the AI call changes.
 
-- [ ] T033 Replace `anthropic` with `google-genai` in `backend/pyproject.toml` (`uv remove`, `uv add`); update `backend/uv.lock`
-- [ ] T034 Write tests first, then change `backend/app/settings.py`: `GEMINI_API_KEY` replaces `ANTHROPIC_API_KEY` (optional, blank = missing, kept out of repr); `EXTRACTION_MODEL` default `gemini-3.8-flash`; `EXTRACTION_EFFORT` one of `minimal`, `low`, `medium`, `high` (default `low`)
-- [ ] T035 Pass `GEMINI_API_KEY` instead of `ANTHROPIC_API_KEY` to the backend in `docker-compose.yml`; Saifullah renames the line in `.env.example` by hand (Claude may not read `.env*` files)
-- [ ] T036 Rewrite `backend/tests/documents/test_claude_extractor.py` as `test_gemini_extractor.py` (the SDK with an injected `httpx2.AsyncClient` on a mock transport: request shape, reply parsing, blocked, cut-off and empty replies, 429, 401/403, 5xx, timeout, connection error, no key), watch it fail, then replace `ClaudeExtractor` with `GeminiExtractor` in `backend/app/documents/extraction/client.py` per research R1
-- [ ] T037 Update `backend/tests/documents/test_eval_run.py` first, then rewrite `backend/evals/extraction/run.py` per research R6 (one request per case through the app's extractor, paced, stops cleanly at the daily limit)
-- [ ] T038 `.github/workflows/extraction-eval.yml` uses the `GEMINI_API_KEY` secret; `.github/pull_request_template.md` and `backend/CLAUDE.md` name `GEMINI_API_KEY`
+- [X] T033 Replace `anthropic` with `google-genai` in `backend/pyproject.toml` (`uv remove`, `uv add`); update `backend/uv.lock`
+- [X] T034 Write tests first, then change `backend/app/settings.py`: `GEMINI_API_KEY` replaces `ANTHROPIC_API_KEY` (optional, blank = missing, kept out of repr); `EXTRACTION_MODEL` default `gemini-3.8-flash`; `EXTRACTION_EFFORT` one of `minimal`, `low`, `medium`, `high` (default `low`)
+- [X] T035 Pass `GEMINI_API_KEY` instead of `ANTHROPIC_API_KEY` to the backend in `docker-compose.yml`; Saifullah renames the line in `.env.example` by hand (Claude may not read `.env*` files)
+- [X] T036 Rewrite `backend/tests/documents/test_claude_extractor.py` as `test_gemini_extractor.py` (the SDK with an injected `httpx2.AsyncClient` on a mock transport: request shape, reply parsing, blocked, cut-off and empty replies, 429, 401/403, 5xx, timeout, connection error, no key), watch it fail, then replace `ClaudeExtractor` with `GeminiExtractor` in `backend/app/documents/extraction/client.py` per research R1
+- [X] T037 Update `backend/tests/documents/test_eval_run.py` first, then rewrite `backend/evals/extraction/run.py` per research R6 (one request per case through the app's extractor, paced, stops cleanly at the daily limit)
+- [X] T038 `.github/workflows/extraction-eval.yml` uses the `GEMINI_API_KEY` secret; `.github/pull_request_template.md` and `backend/CLAUDE.md` name `GEMINI_API_KEY`
 - [X] T039 One line in each of 004-007's `plan.md`: the AI model is Gemini (free tier) per this switch; details settled when each is built
-- [ ] T040 All checks (both test suites, Ruff, pylint, mypy, Prettier, oxlint, tsc, build); a live upload without a key fails cleanly; no key or document content in logs
+- [X] T040 All checks (both test suites, Ruff, pylint, mypy, Prettier, oxlint, tsc, build); a live upload without a key fails cleanly; no key or document content in logs
 
 ---
 

@@ -1,5 +1,5 @@
 # The document extraction eval (feature 003, research R7, contracts/eval.md). It calls the real
-# Claude API, so it needs the ANTHROPIC_API_KEY repository secret and costs a little each run.
+# Gemini API (free tier), so it needs the GEMINI_API_KEY repository secret.
 #
 # GitHub doesn't give secrets to workflows run for pull requests from forks, so it runs on
 # pushes to main that change extraction, and by hand ("Run workflow"). It never uses
@@ -33,7 +33,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       # The eval needs no database, but the app's settings require a URL; this one is unused.
       DATABASE_URL: postgresql+asyncpg://unused:unused@localhost:5432/unused
       # Passed through the environment, never pasted into the script (script injection).

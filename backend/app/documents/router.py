@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
 from app.db import get_db
-from app.documents.extraction.client import ClaudeExtractor, Extractor
+from app.documents.extraction.client import Extractor, GeminiExtractor
 from app.documents.models import (
     FIELDS_BY_TYPE,
     Confidence,
@@ -55,8 +55,8 @@ NOT_FOUND = "Document not found."
 def get_extractor() -> Extractor:
     """The extractor the app uses (tests replace it with a FakeExtractor)."""
     settings = get_settings()
-    return ClaudeExtractor(
-        api_key=settings.anthropic_api_key,
+    return GeminiExtractor(
+        api_key=settings.gemini_api_key,
         model=settings.extraction_model,
         effort=settings.extraction_effort,
     )

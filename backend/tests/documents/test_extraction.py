@@ -72,7 +72,7 @@ async def test_rule_breaking_fields_are_lowered_with_the_reason(
     """Fails if tax deducted above gross salary isn't shown as low with why (FR-005)."""
     fields = dict(SALARY_RESULT.fields)
     fields["tax_deducted"] = value("2,000,000")
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
 
     document = (await upload(client, make_pdf())).json()
 
@@ -88,7 +88,7 @@ async def test_unreadable_amount_is_low_and_empty(
     """Fails if an amount that isn't a number is stored as a number or passes quietly."""
     fields = dict(SALARY_RESULT.fields)
     fields["gross_salary"] = value("about 18 lakh")
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
 
     gross = by_name((await upload(client, make_pdf())).json())["gross_salary"]
 
@@ -103,7 +103,7 @@ async def test_wrong_tax_year_is_flagged(
     """Fails if a certificate for a year other than the profile's passes unflagged."""
     fields = dict(SALARY_RESULT.fields)
     fields["tax_year"] = value("Tax Year 2025")
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
 
     year = by_name((await upload(client, make_pdf())).json())["tax_year"]
 
@@ -132,7 +132,7 @@ async def test_only_the_listed_fields_are_stored(
 ) -> None:
     """Fails if an extra key (e.g. a name) from the extractor is kept (FR-003)."""
     fields = {**SALARY_RESULT.fields, "employee_name": value("Synthetic Person")}
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
 
     document = (await upload(client, make_pdf())).json()
 
@@ -145,7 +145,7 @@ async def test_field_missing_from_the_result_is_not_found(
 ) -> None:
     """Fails if a field the extractor left out disappears instead of showing "not found"."""
     fields = {k: v for k, v in SALARY_RESULT.fields.items() if k != "tax_deducted"}
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
 
     deducted = by_name((await upload(client, make_pdf())).json())["tax_deducted"]
 
@@ -157,13 +157,15 @@ async def test_model_is_recorded(
     client: AsyncClient, fake_extractor: FakeExtractor, db: AsyncSession
 ) -> None:
     """Fails if the model that answered isn't recorded on the document."""
-    fake_extractor.result = ExtractionResult(fields=SALARY_RESULT.fields, model="claude-opus-4-8")
+    fake_extractor.result = ExtractionResult(
+        fields=SALARY_RESULT.fields, model="gemini-3.5-flash-lite"
+    )
 
     response = await upload(client, make_pdf())
 
     document = await db.get(Document, response.json()["id"])
     assert document is not None
-    assert document.model == "claude-opus-4-8"
+    assert document.model == "gemini-3.5-flash-lite"
 
 
 async def test_document_and_file_can_be_read_back(client: AsyncClient) -> None:

@@ -12,8 +12,8 @@ from pathlib import Path
 
 _TRUE = {"true", "1", "yes"}
 _FALSE = {"false", "0", "no"}
-# The effort levels the Claude API accepts (anthropic SDK, OutputConfig.effort).
-_EFFORTS = ("low", "medium", "high", "xhigh", "max")
+# The thinking levels Gemini accepts (google-genai ThinkingLevel), lower-cased.
+_EFFORTS = ("minimal", "low", "medium", "high")
 
 
 @dataclass(frozen=True)
@@ -24,13 +24,12 @@ class Settings:
     # Send the session cookie over HTTPS only. On unless explicitly turned off, so a missing
     # setting fails safe; only local development over plain HTTP sets COOKIE_SECURE=false.
     cookie_secure: bool
-    # Claude API key for document extraction. Optional, so tests and CI (fake extractor) run
-    # without one; extraction then fails with a clear reason. Kept out of repr so printing or
-    # logging the settings never reveals it.
-    anthropic_api_key: str | None = field(default=None, repr=False)
-    # Research R1: the eval picks the cheapest model that meets the bar; reading needs little
-    # effort.
-    extraction_model: str = "claude-opus-5-5"
+    # Gemini API key (free, from AI Studio) for document extraction. Optional, so tests and CI
+    # (fake extractor) run without one; extraction then fails with a clear reason. Kept out of
+    # repr so printing or logging the settings never reveals it.
+    gemini_api_key: str | None = field(default=None, repr=False)
+    # Research R1: the eval chooses between Flash and Flash-Lite; reading needs little thinking.
+    extraction_model: str = "gemini-3.8-flash"
     extraction_effort: str = "low"
     # Research R4: uploaded files live in a Docker volume, never under the app's own folder.
     upload_dir: Path = Path("/data/uploads")
@@ -57,8 +56,8 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
     return Settings(
         database_url=database_url,
         cookie_secure=cookie_secure,
-        anthropic_api_key=environ.get("ANTHROPIC_API_KEY", "").strip() or None,
-        extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "claude-opus-5-5",
+        gemini_api_key=environ.get("GEMINI_API_KEY", "").strip() or None,
+        extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "gemini-3.8-flash",
         extraction_effort=effort,
         upload_dir=Path(environ.get("UPLOAD_DIR", "").strip() or "/data/uploads"),
     )
