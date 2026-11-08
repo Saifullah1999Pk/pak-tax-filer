@@ -12,6 +12,14 @@ _CURRENCY = re.compile(r"^(rs\.?|pkr)\s*", re.IGNORECASE)
 _DIGITS = re.compile(r"\d+(\.\d{1,2})?")
 # "2025-26", "2025-2026", "2025/26", "2025–26" (en dash).
 _YEAR_RANGE = re.compile(r"(\d{4})\s*[-/–—]\s*(\d{4}|\d{2})")
+# "1 July 2025 to 30 June 2026", "Jul 2025 - Jun 2026", "01-07-2025 to 30-06-2026": the period
+# salary certificates often print instead of the tax year (task T042).
+_DAY = r"(?:\d{1,2}(?:st|nd|rd|th)?[\s./-]+)?"
+_PERIOD = re.compile(
+    rf"(?:from\s+)?{_DAY}(?:july|jul|0?7)[\s.,/-]+(\d{{4}})\s*(?:to|until|till|-|–|—)\s*"
+    rf"{_DAY}(?:june|jun|0?6)[\s.,/-]+(\d{{4}})",
+    re.IGNORECASE,
+)
 # "2026", "TY 2026", "Tax Year 2026": the tax year that ends on 30 June of that year.
 _YEAR_ENDING = re.compile(r"(?:(?:tax\s*year|ty)\s*)?(\d{4})", re.IGNORECASE)
 
@@ -49,6 +57,9 @@ def parse_tax_year(printed: str) -> str:
     if match := _YEAR_RANGE.fullmatch(text):
         start, end = int(match[1]), match[2]
         end_year = int(end) if len(end) == 4 else start // 100 * 100 + int(end)
+        return f"{start}-{end_year % 100:02d}" if end_year == start + 1 else text
+    if match := _PERIOD.fullmatch(text):
+        start, end_year = int(match[1]), int(match[2])
         return f"{start}-{end_year % 100:02d}" if end_year == start + 1 else text
     if match := _YEAR_ENDING.fullmatch(text):
         end_year = int(match[1])
