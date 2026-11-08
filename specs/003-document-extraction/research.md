@@ -35,6 +35,15 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R2. What the model returns
 
+- **Document type (2026-11-09, FR-005a):** the answer also says which kind of document it is
+  (`salary_certificate`, `bank_profit_certificate` or `other`); a mismatch with the user's
+  choice fails the extraction with a clear reason. Found in manual testing: a profit
+  certificate uploaded as a salary certificate gave a review of empty fields.
+- **Tax-year periods (2026-11-09):** certificates often print the period, e.g. "1 July 2025
+  to 30 June 2026"; the normaliser turns July-to-June periods into the "2025-26" form.
+- **"Not found" fields** show no confidence on the review page: a confidence there means
+  only that the model is sure the figure is absent, which reads as noise.
+
 - **Decision:** per field: `value` (string as printed, or null for "not found"), `confidence`
   (`high` | `medium` | `low`), `page` (1-based) and `label` (the printed label next to it). No
   names, CNICs, account numbers or addresses are requested or returned (FR-003, Principle V).
