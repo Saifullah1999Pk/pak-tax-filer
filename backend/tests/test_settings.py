@@ -51,7 +51,7 @@ def test_extraction_defaults() -> None:
     settings = load_settings({"DATABASE_URL": DB})
 
     assert settings.gemini_api_key is None
-    assert settings.extraction_model == "gemini-3.8-flash"
+    assert settings.extraction_model == "gemini-3.5-flash-lite"
     assert settings.extraction_effort == "low"
     assert settings.upload_dir == Path("/data/uploads")
 

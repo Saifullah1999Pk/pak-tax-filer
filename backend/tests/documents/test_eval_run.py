@@ -118,7 +118,7 @@ def test_perfect_answers_pass_one_request_per_case(
     assert set(extractor.media_types) == {"application/pdf", "image/jpeg"}
     text = report.read_text(encoding="utf-8")
     assert "Result: PASS" in text
-    assert "80,000 input" in text
+    assert "Tokens: 80,000 input" in text
 
 
 def test_requests_are_paced_under_the_per_minute_limit(

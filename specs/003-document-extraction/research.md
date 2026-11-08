@@ -10,8 +10,11 @@ Each decision: what was chosen, why, and what else was considered.
   Output is constrained to JSON with the schema from the Pydantic model for the document type
   (`response_mime_type="application/json"`, `response_json_schema`), and the reply text is
   validated with `model_validate_json`.
-- **Model:** a setting, `EXTRACTION_MODEL`, default `gemini-3.8-flash`; the eval compares it with
-  `gemini-3.5-flash-lite` (R6). Thinking is a setting, `EXTRACTION_EFFORT` (`minimal`, `low`,
+- **Model:** a setting, `EXTRACTION_MODEL`, default **`gemini-3.5-flash-lite`**, chosen by the eval
+  on 2026-11-09 (R6, task T029): 280 of 280 fields correct (100% on PDFs and photos, 0% of wrong
+  values marked high), about 2 s per document. `gemini-3.8-flash` was dropped: on the free tier a
+  salary PDF hit Google's 60-second deadline twice (`504`), and it refuses the `minimal` thinking
+  level (`400`). A synthetic set is cleaner than real documents, so real accuracy may be lower. Thinking is a setting, `EXTRACTION_EFFORT` (`minimal`, `low`,
   `medium`, `high`; default `low`): this is reading, not reasoning.
 - **Blocked replies and errors:** a reply blocked for safety, cut off, empty or not matching the
   schema, or a call that errors or times out (60 s), marks the document failed with a short

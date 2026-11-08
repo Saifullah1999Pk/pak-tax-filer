@@ -18,4 +18,4 @@ dist/
 
 # Extraction eval (feature 003): generated synthetic cases and the local report
 backend/evals/extraction/cases/
-backend/evals/extraction/report.md
+backend/evals/extraction/report*.md
