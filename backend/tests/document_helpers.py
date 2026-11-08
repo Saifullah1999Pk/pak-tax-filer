@@ -54,7 +54,7 @@ SALARY_RESULT = ExtractionResult(
         "taxable_salary": value("1,700,000", "medium", label="Taxable Salary"),
         "tax_deducted": value("95,000/-", label="Income Tax Deducted"),
     },
-    model="claude-opus-5-5",
+    model="gemini-3.8-flash",
 )
 BANK_RESULT = ExtractionResult(
     fields={
@@ -62,7 +62,7 @@ BANK_RESULT = ExtractionResult(
         "profit_amount": value("120,000.00", label="Profit Paid"),
         "tax_withheld": value("24,000.00", label="Tax Withheld u/s 151"),
     },
-    model="claude-opus-5-5",
+    model="gemini-3.8-flash",
 )
 
 

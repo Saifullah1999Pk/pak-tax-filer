@@ -2,26 +2,35 @@
 
 Each decision: what was chosen, why, and what else was considered.
 
-## R1. Calling Claude
+## R1. Calling Gemini (replaced Claude on 2026-11-08; see plan.md "Stack change")
 
-- **Decision:** the official Anthropic Python SDK (`anthropic`), one Messages API call per
-  document. The PDF is sent as a base64 `document` block, a JPG/PNG as an `image` block, followed
-  by the instructions. Output is constrained with **structured outputs** (a JSON schema built
-  from a Pydantic model per document type), so the response is always valid JSON in our shape.
-- **Model:** a setting, `EXTRACTION_MODEL`, default `claude-opus-5-5`; candidates for the eval
-  are `claude-opus-5-5`, `claude-sonnet-5-5` and `claude-haiku-5-5` (R6). Effort is a setting
-  too, starting at `low`: this is reading, not reasoning.
-- **Refusals and errors:** the request opts into the API's server-side refusal fallback; if the
-  final `stop_reason` is still `refusal`, or the call errors or times out (60 s), the document
-  is marked failed with a short reason and can be retried. Typed SDK exceptions are caught
-  most-specific first (rate limit, server error, connection), never by matching message text.
-- **Rationale:** structured outputs remove JSON-parsing failures; the SDK handles retries on
-  429/5xx; native PDF and image input means no OCR step.
+- **Decision:** Google's official SDK (`google-genai`), one `client.aio.models.generate_content`
+  call per document. The PDF or JPG/PNG is sent as an inline part (`Part.from_bytes` with its
+  media type), followed by the instructions; the system prompt is the `system_instruction`.
+  Output is constrained to JSON with the schema from the Pydantic model for the document type
+  (`response_mime_type="application/json"`, `response_json_schema`), and the reply text is
+  validated with `model_validate_json`.
+- **Model:** a setting, `EXTRACTION_MODEL`, default `gemini-3.8-flash`; the eval compares it with
+  `gemini-3.5-flash-lite` (R6). Thinking is a setting, `EXTRACTION_EFFORT` (`minimal`, `low`,
+  `medium`, `high`; default `low`): this is reading, not reasoning.
+- **Blocked replies and errors:** a reply blocked for safety, cut off, empty or not matching the
+  schema, or a call that errors or times out (60 s), marks the document failed with a short
+  reason; it can be retried. Gemini has no server-side refusal fallback. SDK errors are told
+  apart by type and status code (`ClientError` 429 = free limit reached, 401/403 = key refused;
+  `ServerError` = Google's side; httpx2 timeouts and connection errors), never by matching message
+  text, and never shown or logged with their details.
+- **Free tier:** limits are per project and shown in AI Studio; a `429 RESOURCE_EXHAUSTED` is
+  shown as "the free limit may be used up; try later". Free-tier content is used to improve
+  Google's products, so only synthetic documents are uploaded (Principle V).
+- **Rationale:** JSON-schema output removes parsing failures; native PDF and image input means no
+  OCR step; free.
+- **Earlier decision (Claude, superseded):** the Anthropic SDK with structured outputs, an effort
+  setting and the server-side refusal fallback; dropped because no key was available.
 - **Alternatives:** asking for JSON in the prompt only (can still produce invalid JSON); tool
   calls to get JSON (structured outputs is the direct feature for this); OCR first (rejected in
   the design).
 
-## R2. What Claude returns
+## R2. What the model returns
 
 - **Decision:** per field: `value` (string as printed, or null for "not found"), `confidence`
   (`high` | `medium` | `low`), `page` (1-based) and `label` (the printed label next to it). No
@@ -70,12 +79,13 @@ Each decision: what was chosen, why, and what else was considered.
     table vs free text, and amount formats) and `Pillow` (photo-like versions: slight rotation,
     blur, uneven lighting, JPEG compression). Ground truth is written alongside as JSON.
     Generated files are not committed; the generator is.
-  - `backend/evals/extraction/run.py` sends all cases through the same extraction code using
-    the **Message Batches API** (half price; results matched by `custom_id`), scores exact match
+  - `backend/evals/extraction/run.py` sends every case through the app's own extractor, **one
+    request at a time** (the free tier has no Batch API), pacing itself under the per-minute
+    limit and stopping with a clear message if the day's limit is reached; it scores exact match
     per field after normalisation, and reports accuracy per field and per variant (PDF / photo)
     plus the share of wrong values marked `high`. Exit code non-zero if the bar (SC-003, SC-004)
     is missed. `--model` runs it for each candidate model.
-- **Cost:** roughly $1 per run on Opus 5.5 with batching; pennies on Haiku 5.5.
+- **Cost:** free; a run is 80 requests, so a low daily limit may spread it over two days.
 - **Alternatives:** hand-made certificates (slow, few layouts); committing the files (large
   binaries in git).
 
@@ -83,7 +93,7 @@ Each decision: what was chosen, why, and what else was considered.
 
 - **Decision:** a CI job `extraction-eval` runs on pushes to `main` and on manual dispatch when
   files under `backend/app/documents/extraction/` or `backend/evals/` change, using an
-  `ANTHROPIC_API_KEY` repository secret.
+  `GEMINI_API_KEY` repository secret.
 - **Limitation found:** GitHub does not give repository secrets to workflows triggered by pull
   requests from forks, and this project's PRs come from a fork. So the eval can't run
   automatically on those PRs. Until that changes, every PR touching extraction includes the

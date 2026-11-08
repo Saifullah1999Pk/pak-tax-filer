@@ -50,8 +50,8 @@ def test_extraction_defaults() -> None:
     """Fails if the defaults differ from research R1/R4 (model, effort, upload folder)."""
     settings = load_settings({"DATABASE_URL": DB})
 
-    assert settings.anthropic_api_key is None
-    assert settings.extraction_model == "claude-opus-5-5"
+    assert settings.gemini_api_key is None
+    assert settings.extraction_model == "gemini-3.8-flash"
     assert settings.extraction_effort == "low"
     assert settings.upload_dir == Path("/data/uploads")
 
@@ -61,22 +61,22 @@ def test_extraction_settings_are_read() -> None:
     settings = load_settings(
         {
             "DATABASE_URL": DB,
-            "ANTHROPIC_API_KEY": "test-key-not-real",
-            "EXTRACTION_MODEL": "claude-haiku-5-5",
+            "GEMINI_API_KEY": "test-key-not-real",
+            "EXTRACTION_MODEL": "gemini-3.5-flash-lite",
             "EXTRACTION_EFFORT": "medium",
             "UPLOAD_DIR": "/tmp/uploads",
         }
     )
 
-    assert settings.anthropic_api_key == "test-key-not-real"
-    assert settings.extraction_model == "claude-haiku-5-5"
+    assert settings.gemini_api_key == "test-key-not-real"
+    assert settings.extraction_model == "gemini-3.5-flash-lite"
     assert settings.extraction_effort == "medium"
     assert settings.upload_dir == Path("/tmp/uploads")
 
 
 def test_empty_api_key_counts_as_missing() -> None:
-    """Fails if .env.example's blank `ANTHROPIC_API_KEY=` would be sent as a key."""
-    assert load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "  "}).anthropic_api_key is None
+    """Fails if .env.example's blank `GEMINI_API_KEY=` would be sent as a key."""
+    assert load_settings({"DATABASE_URL": DB, "GEMINI_API_KEY": "  "}).gemini_api_key is None
 
 
 def test_unrecognised_effort_is_refused() -> None:
@@ -87,10 +87,32 @@ def test_unrecognised_effort_is_refused() -> None:
 
 def test_api_key_never_appears_when_settings_are_printed() -> None:
     """Fails if logging or printing the settings would reveal the API key (security rule)."""
-    settings = load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "test-key-not-real"})
+    settings = load_settings({"DATABASE_URL": DB, "GEMINI_API_KEY": "test-key-not-real"})
 
     assert "test-key-not-real" not in repr(settings)
     assert "test-key-not-real" not in str(settings)
+
+
+@pytest.mark.parametrize("level", ["minimal", "low", "medium", "high"])
+def test_every_gemini_thinking_level_is_accepted(level: str) -> None:
+    """Fails if a thinking level Gemini accepts is refused (switch to Gemini, task T034)."""
+    assert (
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": level}).extraction_effort == level
+    )
+
+
+@pytest.mark.parametrize("level", ["xhigh", "max"])
+def test_claude_only_effort_levels_are_refused(level: str) -> None:
+    """Fails if a Claude-only effort level slips through and fails every extraction later."""
+    with pytest.raises(ValueError, match="EXTRACTION_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": level})
+
+
+def test_the_old_anthropic_key_is_ignored() -> None:
+    """Fails if a leftover ANTHROPIC_API_KEY were mistaken for the Gemini key."""
+    settings = load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "old-key-not-real"})
+
+    assert settings.gemini_api_key is None
 
 
 # Feature 004, task T001: the tax summary's model and effort (research R8).
@@ -100,17 +122,17 @@ def test_summary_defaults() -> None:
     """Fails if the summary's defaults differ from feature 004's plan."""
     settings = load_settings({"DATABASE_URL": DB})
 
-    assert settings.summary_model == "claude-opus-5-5"
+    assert settings.summary_model == "gemini-3.8-flash"
     assert settings.summary_effort == "low"
 
 
 def test_summary_settings_are_read() -> None:
     """Fails if the environment can't change the summary's model or effort."""
     settings = load_settings(
-        {"DATABASE_URL": DB, "SUMMARY_MODEL": "claude-haiku-5-5", "SUMMARY_EFFORT": "medium"}
+        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-3.5-flash-lite", "SUMMARY_EFFORT": "medium"}
     )
 
-    assert settings.summary_model == "claude-haiku-5-5"
+    assert settings.summary_model == "gemini-3.5-flash-lite"
     assert settings.summary_effort == "medium"
 
 

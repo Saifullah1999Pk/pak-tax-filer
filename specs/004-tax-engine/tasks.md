@@ -24,7 +24,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ## Phase 1: Setup
 
-- [X] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `claude-opus-5-5`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
+- [X] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `gemini-3.8-flash` since the switch to Gemini on 2026-11-08; first `claude-opus-5-5`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
 
 ---
 
@@ -78,7 +78,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 ### Implementation for User Story 2
 
 - [ ] T017 [US2] Create `backend/app/tax/breakdown.py`: step templates per research R7, used by `engine.py`; T015 passes
-- [ ] T018 [US2] Create `backend/app/tax/summary.py`: Claude call (official SDK, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
+- [ ] T018 [US2] Create `backend/app/tax/summary.py`: Gemini call (official `google-genai` SDK, free tier, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
 - [ ] T019 [US2] Show the breakdown (with rule locations) and the summary (when present) on `frontend/src/pages/TaxPage.tsx`; extend its test
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 

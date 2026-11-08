@@ -50,8 +50,8 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   `app.documents.service.confirmed_documents(db, user_id, tax_year)`: confirmed documents only
   (constitution, Principle III). Never query `extracted_fields` directly.
 - Tests use `FakeExtractor` (fixture `fake_extractor`); no API key is needed. The real
-  `ClaudeExtractor` is tested through the SDK with httpx2's `MockTransport`.
+  `GeminiExtractor` is tested through the SDK with an injected httpx2 `MockTransport`.
 - Change the prompt (`extraction/prompt.py`), the schemas (`extraction/schemas.py`) or the
   normalisation and rules only together with an eval run, and paste its report in the PR:
   `python -m evals.extraction.generate`, then `python -m evals.extraction.run --model <model>`
-  (needs `ANTHROPIC_API_KEY`; contract: `specs/003-document-extraction/contracts/eval.md`).
+  (needs `GEMINI_API_KEY`, free from AI Studio; contract: `specs/003-document-extraction/contracts/eval.md`).

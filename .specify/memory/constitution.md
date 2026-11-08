@@ -7,8 +7,8 @@
 - Every tax liability, slab lookup, withholding credit, and wealth-statement reconciliation
   MUST be computed by plain, deterministic code. The same inputs MUST always give the same
   output.
-- An LLM MUST NOT produce, adjust, round, or "sanity-check" any of these numbers. Claude is
-  allowed in exactly three places: extracting fields from documents, the RAG assistant, and
+- An LLM MUST NOT produce, adjust, round, or "sanity-check" any of these numbers. The AI model
+  is allowed in exactly three places: extracting fields from documents, the RAG assistant, and
   explaining a number that has already been computed.
 - Monetary values MUST use exact decimal arithmetic (e.g. Python `Decimal`), never binary
   floating point. Rounding rules MUST be explicit and match FBR's.
@@ -98,7 +98,8 @@ worth more than a wide scope done approximately.
 ## Technology & Security Constraints
 
 - **Stack:** FastAPI (backend), React + TypeScript (frontend), PostgreSQL + pgvector (data and
-  embeddings), Claude API (extraction, RAG, explanation), Python MCP SDK (MCP server), Docker
+  embeddings), Google Gemini API, free tier (extraction, RAG, explanation; replaced the Claude
+  API on 2026-11-08 with the lead's approval, recorded in 003's plan), Python MCP SDK (MCP server), Docker
   Compose (local environment). Adding,
   replacing, or removing a stack component requires the project lead's approval, recorded with
   its reason in the feature's `plan.md`; it does not require a constitution amendment.
@@ -137,4 +138,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.2.1 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-03
+**Version**: 1.2.2 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-08

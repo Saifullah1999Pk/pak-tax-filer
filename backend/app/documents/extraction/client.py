@@ -1,19 +1,20 @@
-"""Calling Claude to read a certificate (feature 003, task T008, research R1 and R8).
+"""Calling Gemini to read a certificate (feature 003, tasks T008 and T036; research R1 and R8).
 
-`Extractor` is the interface the service depends on: `ClaudeExtractor` calls the real API,
-`FakeExtractor` returns a recorded result so tests and CI need no API key. Every failure becomes
-a short reason for the user; nothing from the document or the API's error text is logged.
+`Extractor` is the interface the service depends on: `GeminiExtractor` calls Google's Gemini API
+(free tier; it replaced Claude on 2026-11-08), `FakeExtractor` returns a recorded result so tests
+and CI need no API key. Every failure becomes a short reason for the user; nothing from the
+document or the API's error text is logged.
 """
 
-import base64
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Literal, Protocol, cast
+from typing import Protocol
 
-import anthropic
-from anthropic import AsyncAnthropic
-from anthropic.types.beta import BetaContentBlockParam
+import httpx2
+from google import genai
+from google.genai import errors, types
+from pydantic import ValidationError
 
 from app.documents.extraction.prompt import SYSTEM_PROMPT, user_instruction
 from app.documents.extraction.schemas import OUTPUT_SCHEMAS, ExtractedValue
@@ -21,13 +22,27 @@ from app.documents.models import DocType
 
 logger = logging.getLogger(__name__)
 
-# Server-side refusal fallback (research R1): a declined request is re-run on Anthropic's
-# recommended fallback model inside the same call.
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
-TIMEOUT_SECONDS = 60.0
-MAX_TOKENS = 2048
-
-Effort = Literal["low", "medium", "high", "xhigh", "max"]
+TIMEOUT_MS = 60_000
+# Room for the JSON answer plus a little thinking; the answer itself is a few hundred tokens.
+MAX_OUTPUT_TOKENS = 4096
+THINKING_LEVELS = {
+    "minimal": types.ThinkingLevel.MINIMAL,
+    "low": types.ThinkingLevel.LOW,
+    "medium": types.ThinkingLevel.MEDIUM,
+    "high": types.ThinkingLevel.HIGH,
+}
+# Finish reasons meaning Gemini declined to answer.
+DECLINED = {
+    types.FinishReason.SAFETY,
+    types.FinishReason.RECITATION,
+    types.FinishReason.BLOCKLIST,
+    types.FinishReason.PROHIBITED_CONTENT,
+    types.FinishReason.SPII,
+    types.FinishReason.IMAGE_SAFETY,
+    types.FinishReason.IMAGE_PROHIBITED_CONTENT,
+}
+INCOMPLETE = "The AI's answer was incomplete. Try again."
+DECLINED_REASON = "The AI declined to read this document."
 
 
 @dataclass(frozen=True)
@@ -35,14 +50,20 @@ class ExtractionResult:
     """What an extractor found: fields by name, or the reason it failed."""
 
     fields: Mapping[str, ExtractedValue] = field(default_factory=dict)
-    # The model that actually answered (a fallback model if the first one declined).
+    # The model version that answered.
     model: str | None = None
     failure_reason: str | None = None
+    # True when the free tier's limit was hit (HTTP 429): the eval waits or stops on it.
+    limit_reached: bool = False
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
-def failed(reason: str, model: str | None = None) -> ExtractionResult:
+def failed(
+    reason: str, model: str | None = None, *, limit_reached: bool = False
+) -> ExtractionResult:
     """A failed extraction with a short reason for the user."""
-    return ExtractionResult(model=model, failure_reason=reason)
+    return ExtractionResult(model=model, failure_reason=reason, limit_reached=limit_reached)
 
 
 class Extractor(Protocol):
@@ -52,20 +73,20 @@ class Extractor(Protocol):
         """Read the figures for `doc_type` from the file's bytes."""
 
 
-def file_block(content: bytes, media_type: str) -> BetaContentBlockParam:
-    """The PDF as a document block, or the photo as an image block."""
-    data = base64.standard_b64encode(content).decode()
-    if media_type == "application/pdf":
-        return {
-            "type": "document",
-            "source": {"type": "base64", "media_type": "application/pdf", "data": data},
-        }
-    image_type = cast(Literal["image/jpeg", "image/png"], media_type)
-    return {"type": "image", "source": {"type": "base64", "media_type": image_type, "data": data}}
+def extraction_config(doc_type: DocType, effort: str) -> types.GenerateContentConfig:
+    """The request settings: system prompt, JSON output in the type's schema, thinking level."""
+    return types.GenerateContentConfig(
+        system_instruction=SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_json_schema=OUTPUT_SCHEMAS[doc_type].model_json_schema(),
+        thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVELS[effort]),
+        max_output_tokens=MAX_OUTPUT_TOKENS,
+        http_options=types.HttpOptions(timeout=TIMEOUT_MS),
+    )
 
 
-class ClaudeExtractor:
-    """Reads certificates with the Claude API (structured output, one call per document)."""
+class GeminiExtractor:
+    """Reads certificates with the Gemini API (JSON-schema output, one call per document)."""
 
     def __init__(
         self,
@@ -73,71 +94,87 @@ class ClaudeExtractor:
         api_key: str | None,
         model: str,
         effort: str,
-        client: AsyncAnthropic | None = None,
+        client: genai.Client | None = None,
     ) -> None:
         self._api_key = api_key
         self._model = model
-        # Checked against the API's values when the settings are loaded.
-        self._effort = cast(Effort, effort)
+        # Checked against Gemini's thinking levels when the settings are loaded.
+        self._effort = effort
         self._client = client
 
-    def _get_client(self) -> AsyncAnthropic:
+    def _get_client(self) -> genai.Client:
         if self._client is None:
-            self._client = AsyncAnthropic(api_key=self._api_key, timeout=TIMEOUT_SECONDS)
+            self._client = genai.Client(api_key=self._api_key)
         return self._client
 
     async def extract(self, doc_type: DocType, content: bytes, media_type: str) -> ExtractionResult:
-        """Send the file and instructions to Claude and return the parsed fields."""
+        """Send the file and instructions to Gemini and return the parsed fields."""
         if not self._api_key:
             return failed("Extraction isn't available: no AI service key is set up.")
         try:
-            message = await self._get_client().beta.messages.parse(
+            response = await self._get_client().aio.models.generate_content(
                 model=self._model,
-                max_tokens=MAX_TOKENS,
-                system=SYSTEM_PROMPT,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            file_block(content, media_type),
-                            {"type": "text", "text": user_instruction(doc_type)},
-                        ],
-                    }
-                ],
-                output_format=OUTPUT_SCHEMAS[doc_type],
-                output_config={"effort": self._effort},
-                fallbacks="default",
-                betas=[FALLBACK_BETA],
-                timeout=TIMEOUT_SECONDS,
+                contents=types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(data=content, mime_type=media_type),
+                        types.Part.from_text(text=user_instruction(doc_type)),
+                    ],
+                ),
+                config=extraction_config(doc_type, self._effort),
             )
-        except anthropic.APIError as exc:
-            # Only the exception type is logged: never the document or the API's message.
+        except errors.APIError as exc:
+            # Only the type and status code are logged: never the document or the API's message.
+            logger.warning("Extraction failed: %s %s", type(exc).__name__, exc.code)
+            return failed(_api_reason(exc), limit_reached=exc.code == 429)
+        except httpx2.TimeoutException:
+            logger.warning("Extraction failed: timeout")
+            return failed("Reading the document took too long. Try again.")
+        except httpx2.TransportError as exc:
             logger.warning("Extraction failed: %s", type(exc).__name__)
-            return failed(_reason_for(exc))
-        except ValueError:
-            # The reply couldn't be parsed into the schema (e.g. a refusal with no JSON).
-            return failed("The AI's answer was incomplete. Try again.")
-
-        if message.stop_reason == "refusal":
-            return failed("The AI declined to read this document.", message.model)
-        parsed = message.parsed_output
-        if message.stop_reason == "max_tokens" or parsed is None:
-            return failed("The AI's answer was incomplete. Try again.", message.model)
-        fields = {name: value for name, value in parsed if isinstance(value, ExtractedValue)}
-        return ExtractionResult(fields=fields, model=message.model)
+            return failed("Couldn't reach the AI service. Try again.")
+        return _result_from(doc_type, response, self._model)
 
 
-def _reason_for(exc: anthropic.APIError) -> str:
-    """A short, safe reason for an API failure (typed exceptions, most specific first)."""
-    if isinstance(exc, anthropic.RateLimitError):
-        return "The AI service is busy. Try again in a minute."
-    if isinstance(exc, anthropic.APITimeoutError):
-        return "Reading the document took too long. Try again."
-    if isinstance(exc, anthropic.APIConnectionError):
-        return "Couldn't reach the AI service. Try again."
-    if isinstance(exc, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)):
+def _result_from(
+    doc_type: DocType, response: types.GenerateContentResponse, requested_model: str
+) -> ExtractionResult:
+    """The fields from a reply, or why it can't be used."""
+    usage = response.usage_metadata
+
+    def result(
+        fields: Mapping[str, ExtractedValue] | None = None, reason: str | None = None
+    ) -> ExtractionResult:
+        return ExtractionResult(
+            fields=fields or {},
+            model=response.model_version or requested_model,
+            failure_reason=reason,
+            input_tokens=(usage.prompt_token_count or 0) if usage else 0,
+            output_tokens=(usage.candidates_token_count or 0) if usage else 0,
+        )
+
+    if response.prompt_feedback is not None and response.prompt_feedback.block_reason:
+        return result(reason=DECLINED_REASON)
+    candidate = response.candidates[0] if response.candidates else None
+    if candidate is not None and candidate.finish_reason in DECLINED:
+        return result(reason=DECLINED_REASON)
+    text = response.text
+    if candidate is None or candidate.finish_reason == types.FinishReason.MAX_TOKENS or not text:
+        return result(reason=INCOMPLETE)
+    try:
+        parsed = OUTPUT_SCHEMAS[doc_type].model_validate_json(text)
+    except ValidationError:
+        return result(reason=INCOMPLETE)
+    return result(fields={name: v for name, v in parsed if isinstance(v, ExtractedValue)})
+
+
+def _api_reason(exc: errors.APIError) -> str:
+    """A short, safe reason for an API failure, told apart by status code, not message text."""
+    if exc.code == 429:
+        return "The free AI limit may be used up for now. Try again later."
+    if exc.code in (401, 403):
         return "The AI service didn't accept the app's key."
-    if isinstance(exc, anthropic.APIStatusError) and exc.status_code >= 500:
+    if isinstance(exc, errors.ServerError):
         return "The AI service had a problem. Try again."
     return "The AI service couldn't read this file."
 

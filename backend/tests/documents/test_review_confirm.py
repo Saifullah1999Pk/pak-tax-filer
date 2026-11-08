@@ -69,7 +69,7 @@ async def test_fixing_a_value_clears_the_rule_reason(
     """Fails if a broken rule's reason stays after the user corrects the figure."""
     bad = dict(SALARY_RESULT.fields)
     bad["tax_deducted"] = value("2,000,000")
-    fake_extractor.result = ExtractionResult(fields=bad, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=bad, model="gemini-3.8-flash")
     document_id = await new_document(client)
 
     await patch(client, document_id, "tax_deducted", {"value": "95,000"})
@@ -123,7 +123,7 @@ async def test_not_found_field_cannot_be_confirmed_until_filled_in(
     """Fails if a "not found" field can be confirmed without a value."""
     missing = dict(SALARY_RESULT.fields)
     missing["tax_deducted"] = value(None)
-    fake_extractor.result = ExtractionResult(fields=missing, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=missing, model="gemini-3.8-flash")
     document_id = await new_document(client)
 
     refused = await patch(client, document_id, "tax_deducted", {"confirmed": True})
@@ -196,7 +196,7 @@ async def test_negative_extracted_amount_cannot_be_confirmed(
     """Fails if a negative amount read by the AI can be confirmed (typed ones already can't)."""
     fields = dict(SALARY_RESULT.fields)
     fields["tax_deducted"] = value("(5,000)")
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
     document_id = await new_document(client)
 
     response = await patch(client, document_id, "tax_deducted", {"confirmed": True})
@@ -211,7 +211,7 @@ async def test_wrong_tax_year_document_cannot_be_confirmed(
     """Fails if a certificate for another year can be confirmed into the profile's year."""
     fields = dict(SALARY_RESULT.fields)
     fields["tax_year"] = value("Tax Year 2025")
-    fake_extractor.result = ExtractionResult(fields=fields, model="claude-opus-5-5")
+    fake_extractor.result = ExtractionResult(fields=fields, model="gemini-3.8-flash")
     document_id = await new_document(client)
     await confirm_all_fields(client, document_id)
 
