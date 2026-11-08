@@ -12,10 +12,11 @@ Writes 80 files plus `ground_truth.json` to `backend/evals/extraction/cases/` (g
 ## Run it
 
 ```bash
-docker compose exec backend python -m evals.extraction.run --model claude-opus-5-5
+docker compose exec backend python -m evals.extraction.run --model gemini-3.8-flash
 ```
 
-Needs `ANTHROPIC_API_KEY`. Uses the Message Batches API. Prints and writes
+Needs `GEMINI_API_KEY` (free, from AI Studio). Sends one request per case, paced under the free
+per-minute limit; if the day's limit is reached it stops and says so. Prints and writes
 `backend/evals/extraction/report.md`:
 
 | Measure | Bar |

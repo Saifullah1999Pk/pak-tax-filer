@@ -114,3 +114,9 @@ be tested with a fake Claude client and the eval can run with retrieval alone.
 |---|---|---|
 | New stack component (`fastembed` + model), pending lead approval | Claude has no embeddings API and the README requires pgvector | Voyage API: a vendor, key and cost, and no CI eval on fork PRs; keyword search: README specifies pgvector |
 | Personal access tokens | MCP clients aren't browsers; `calculate_income_tax` must act as a specific user (spec FR-013) | Shared key: breaks own-data rules; no auth: anyone with shell access could read any user's data |
+
+## AI provider (2026-11-08)
+
+The AI model is Google's **Gemini API, free tier**, replacing Claude (the lead asked for "anything
+free"; see 003's plan, "Stack change"). Where this plan names Claude or the Anthropic SDK, read
+Gemini and `google-genai`; the details are settled when this feature is built.

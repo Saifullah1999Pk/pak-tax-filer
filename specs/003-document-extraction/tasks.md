@@ -12,7 +12,8 @@ description: "Task list for feature 003: Document Upload + AI Extraction"
 features 001 and 002 implemented.
 
 **Tests**: included and written first (constitution, Principle VI). Unit and API tests use the
-fake Claude client (R8); only the eval (US4) calls the real API.
+fake extractor (R8); only the eval (US4) calls the real API. Built first on Claude; switched to
+Gemini's free tier on 2026-11-08 (tasks T033-T040).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -120,7 +121,7 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 - [X] T026 [US4] Create `backend/evals/extraction/generate.py` per research R6: fixed seed; 20 cases per type; at least 4 layouts per type (varying label wording, table vs free text, amount formats); a clean PDF and a photo-like JPG of each; `ground_truth.json`; include a few rule-breaking and missing-field cases
 - [X] T027 [US4] Create `backend/evals/extraction/run.py` per [contracts/eval.md](contracts/eval.md): uses the same prompt, schema, normalisation and rules as the app; Message Batches API matched by `custom_id`; `--model`; writes `report.md` with accuracy, wrong-but-high share and token cost; exit code from the bar; T025 passes
 - [X] T028 [US4] Add job `extraction-eval` in its own workflow, `.github/workflows/extraction-eval.yml` (its triggers differ from ci.yml's, which apply to every job), per research R7: runs on push to `main` and `workflow_dispatch` when `backend/app/documents/extraction/**` or `backend/evals/**` change; uses the `ANTHROPIC_API_KEY` secret; never on `pull_request_target`
-- [ ] T029 [US4] Run the eval for `claude-opus-5-5`, `claude-sonnet-5-5` and `claude-haiku-5-5`; set `EXTRACTION_MODEL` to the cheapest that passes; record all three reports in the PR description
+- [ ] T029 [US4] Run the eval for `gemini-3.8-flash` and `gemini-3.5-flash-lite`; set `EXTRACTION_MODEL` to Flash-Lite if it meets the bars (its free limit is higher), otherwise Flash; record both reports in the PR description
 
 **Checkpoint**: all four user stories work.
 
@@ -131,6 +132,23 @@ fake Claude client (R8); only the eval (US4) calls the real API.
 - [X] T030 [P] Add a "Documents and extraction" section to `backend/CLAUDE.md`: read figures only through `confirmed_documents`; change prompt, schema or rules only together with an eval run
 - [X] T031 [P] Create `.github/pull_request_template.md` with a note: PRs touching extraction must paste the local eval report (research R7)
 - [X] T032 Run Ruff, mypy, Prettier and `tsc` checks, both test suites, and [quickstart.md](quickstart.md) section 5; confirm no API key or document content appears in logs
+
+---
+
+## Phase 8: Switch to Gemini's free tier (2026-11-08)
+
+**Why**: no Claude key; the lead asked for "anything free" (plan.md "Stack change"; design
+[2026-11-08-gemini-provider-design.md](../../docs/superpowers/specs/2026-11-08-gemini-provider-design.md)).
+Nothing outside the AI call changes.
+
+- [ ] T033 Replace `anthropic` with `google-genai` in `backend/pyproject.toml` (`uv remove`, `uv add`); update `backend/uv.lock`
+- [ ] T034 Write tests first, then change `backend/app/settings.py`: `GEMINI_API_KEY` replaces `ANTHROPIC_API_KEY` (optional, blank = missing, kept out of repr); `EXTRACTION_MODEL` default `gemini-3.8-flash`; `EXTRACTION_EFFORT` one of `minimal`, `low`, `medium`, `high` (default `low`)
+- [ ] T035 Pass `GEMINI_API_KEY` instead of `ANTHROPIC_API_KEY` to the backend in `docker-compose.yml`; Saifullah renames the line in `.env.example` by hand (Claude may not read `.env*` files)
+- [ ] T036 Rewrite `backend/tests/documents/test_claude_extractor.py` as `test_gemini_extractor.py` (the SDK with an injected `httpx2.AsyncClient` on a mock transport: request shape, reply parsing, blocked, cut-off and empty replies, 429, 401/403, 5xx, timeout, connection error, no key), watch it fail, then replace `ClaudeExtractor` with `GeminiExtractor` in `backend/app/documents/extraction/client.py` per research R1
+- [ ] T037 Update `backend/tests/documents/test_eval_run.py` first, then rewrite `backend/evals/extraction/run.py` per research R6 (one request per case through the app's extractor, paced, stops cleanly at the daily limit)
+- [ ] T038 `.github/workflows/extraction-eval.yml` uses the `GEMINI_API_KEY` secret; `.github/pull_request_template.md` and `backend/CLAUDE.md` name `GEMINI_API_KEY`
+- [X] T039 One line in each of 004-007's `plan.md`: the AI model is Gemini (free tier) per this switch; details settled when each is built
+- [ ] T040 All checks (both test suites, Ruff, pylint, mypy, Prettier, oxlint, tsc, build); a live upload without a key fails cleanly; no key or document content in logs
 
 ---
 

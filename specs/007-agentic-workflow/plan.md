@@ -101,3 +101,9 @@ transitions are tested without any AI, and the agents with a fake client.
 ## Complexity Tracking
 
 No constitution violations; nothing to justify.
+
+## AI provider (2026-11-08)
+
+The AI model is Google's **Gemini API, free tier**, replacing Claude (the lead asked for "anything
+free"; see 003's plan, "Stack change"). Where this plan names Claude or the Anthropic SDK, read
+Gemini and `google-genai`; the details are settled when this feature is built.
