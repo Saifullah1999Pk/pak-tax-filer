@@ -32,7 +32,7 @@ show the original as a PDF or an image.
 
 | Method and path | Purpose | Success | Errors |
 |---|---|---|---|
-| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable; `409` "Set up your profile first." (feature 002's `require_profile`) |
+| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable, or not the chosen type (FR-005a: nothing is saved); `409` "Set up your profile first." (feature 002's `require_profile`) |
 | `GET /api/documents` | List own documents, newest first | `200` array (without `fields`) | |
 | `GET /api/documents/{id}` | One document with fields | `200` | `404` |
 | `GET /api/documents/{id}/file` | Original file for the review page | `200` with its media type | `404` |
