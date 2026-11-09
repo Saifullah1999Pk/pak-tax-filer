@@ -20,7 +20,7 @@
 
 ### Session 2026-11-09
 
-- Q: With open sign-up (feature 002, User Story 6) on a public site, how is the free AI quota protected? → A: Each user may start at most 10 extractions in any 24 hours (FR-017); uploads and retries both count, including files refused as the wrong type, since each one calls the AI.
+- Q: With open sign-up (feature 002, User Story 6) on a public site, how is the free AI quota protected? → A: Each user may start at most 10 extractions in any 24 hours (FR-017); uploads and retries both count, including files refused as the wrong type, since each one calls the AI. Because anyone can make more accounts, the whole app is also limited to 100 extractions in any 24 hours (added after code review).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -198,10 +198,11 @@ each model tried.
   before merge on proposals from a fork, because the API key can't be shared with them; if the
   developer is given branch access to the main repository, it MUST also run before merge.)
 - **FR-016**: The AI model used MUST be a setting, chosen as the cheapest that meets the bar.
-- **FR-017**: Each user MUST be limited to 10 extraction attempts (uploads and retries) in any
-  24 hours. Over the limit, the request MUST be refused before the AI is called or any file is
-  stored, with "Daily limit reached: 10 extractions per 24 hours. Try again later." (added
-  2026-11-09).
+- **FR-017**: Each user MUST be limited to 10 extraction attempts (uploads and retries that
+  call the AI) in any 24 hours, and the whole app to 100. Over a limit, the request MUST be
+  refused before the AI is called or any file is stored, with "Daily limit reached: 10
+  extractions per 24 hours. Try again later." or "The app's daily extraction limit has been
+  reached. Try again later." (added 2026-11-09).
 
 ### Key Entities
 

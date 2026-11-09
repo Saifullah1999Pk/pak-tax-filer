@@ -28,12 +28,13 @@ from app.documents.models import (
     FieldName,
 )
 from app.documents.service import (
+    DailyLimitReached,
     DocumentLocked,
     FieldNotOnDocument,
     IncompleteDocument,
+    WrongDocumentType,
     confirm_document,
     create_document,
-    DailyLimitReached,
     delete_document,
     edit_field,
     extract_document,
@@ -41,9 +42,8 @@ from app.documents.service import (
     get_document,
     list_documents,
     remove_stored_file,
-    use_extraction,
     retry_extraction,
-    WrongDocumentType,
+    use_extraction,
 )
 from app.documents.uploads import MAX_BYTES, UploadRefused, check_file, save_file
 from app.profile.dependencies import require_profile
@@ -287,10 +287,11 @@ async def confirm(document: LockedDocument, db: DbSession) -> DocumentOut:
 
 @router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
 async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
-    """Re-run a failed extraction (counted towards the daily limit, FR-017)."""
-    await _use_extraction(db, document.user_id)
+    """Re-run a failed extraction (counted towards the daily limits, FR-017)."""
     try:
         await retry_extraction(db, document, extractor)
+    except DailyLimitReached as limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
     except DocumentLocked as locked:
         raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
     except WrongDocumentType:

@@ -48,40 +48,40 @@ class FieldNotOnDocument(LookupError):
     """The document's type has no field with that name (HTTP 404)."""
 
 
-# FR-017 (added 2026-11-09): with open sign-up, one user mustn't use up the free AI quota.
+# FR-017 (added 2026-11-09): with open sign-up, no one user, and no number of new accounts,
+# may use up the free AI quota.
 DAILY_EXTRACTIONS = 10
+APP_DAILY_EXTRACTIONS = 100
 DAILY_WINDOW = timedelta(hours=24)
+USER_LIMIT_REACHED = (
+    f"Daily limit reached: {DAILY_EXTRACTIONS} extractions per 24 hours. Try again later."
+)
+APP_LIMIT_REACHED = "The app's daily extraction limit has been reached. Try again later."
 
 
 class DailyLimitReached(Exception):
-    """The user has started DAILY_EXTRACTIONS extractions in the last 24 hours (HTTP 429)."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            f"Daily limit reached: {DAILY_EXTRACTIONS} extractions per 24 hours. Try again later."
-        )
+    """The user's or the whole app's extractions for the last 24 hours are used (HTTP 429)."""
 
 
 async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
-    """Count one AI call for the user, or raise DailyLimitReached if they've used the day's.
+    """Count one AI call for the user, or raise DailyLimitReached if a daily limit is used.
 
-    A per-user lock (held until the transaction ends) stops requests sent together from all
-    reading the count before any records an attempt, as with login throttling (002 R4).
+    One app-wide lock (held until the transaction ends) stops requests sent together from all
+    reading the counts before any records an attempt, as with login throttling (002 R4). Callers
+    commit soon after, before calling the AI, so the lock is held only for these two counts.
     """
     await db.execute(
         sql_text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"extractions:{user_id}"},
+        {"key": "extraction-attempts"},
     )
     since = datetime.now(UTC) - DAILY_WINDOW
-    used = (
-        await db.execute(
-            select(func.count())
-            .select_from(ExtractionAttempt)
-            .where(ExtractionAttempt.user_id == user_id, ExtractionAttempt.attempted_at > since)
-        )
-    ).scalar_one()
-    if used >= DAILY_EXTRACTIONS:
-        raise DailyLimitReached()
+    recent = select(func.count()).select_from(ExtractionAttempt)
+    recent = recent.where(ExtractionAttempt.attempted_at > since)
+    if (await db.execute(recent)).scalar_one() >= APP_DAILY_EXTRACTIONS:
+        raise DailyLimitReached(APP_LIMIT_REACHED)
+    mine = recent.where(ExtractionAttempt.user_id == user_id)
+    if (await db.execute(mine)).scalar_one() >= DAILY_EXTRACTIONS:
+        raise DailyLimitReached(USER_LIMIT_REACHED)
     db.add(ExtractionAttempt(user_id=user_id, attempted_at=datetime.now(UTC)))
     await db.flush()
 
@@ -369,6 +369,14 @@ async def retry_extraction(db: AsyncSession, document: Document, extractor: Extr
         )
         await db.flush()
         return document
+    # Counted only now that the AI will be called, and committed first so neither the limit's
+    # lock nor this row's is held during the call (002 review M2, M3); then the row is locked
+    # again and rechecked, since an edit or delete could have come in between.
+    await use_extraction(db, document.user_id)
+    await db.commit()
+    await db.refresh(document, with_for_update=True)
+    if document.status is not DocStatus.FAILED:
+        raise DocumentLocked("Only a failed extraction can be retried.")
     return await extract_document(db, document, extractor, await path.read_bytes())
 
 

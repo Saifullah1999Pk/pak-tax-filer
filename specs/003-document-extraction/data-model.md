@@ -51,6 +51,7 @@ confirmed and none is still "not found" (the user enters a value or zero).
 | `attempted_at` | timestamptz | defaults to now |
 
 Indexed on (`user_id`, `attempted_at`). One row per AI call for a user's document (upload or
-retry), kept even if the document is later deleted, so deleting can't reset the limit. A user
-with 10 rows in the last 24 hours is refused (FR-017). Written and counted under a per-user
-lock, so requests sent together can't pass the limit.
+retry that reaches the AI), kept even if the document is later deleted, so deleting can't
+reset the limit. A user with 10 rows in the last 24 hours, or an app with 100, is refused
+(FR-017). Counted and written under one app-wide lock, committed before the AI call, so
+requests sent together can't pass a limit and no lock is held while the AI answers.

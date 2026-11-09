@@ -146,9 +146,12 @@ Each decision: what was chosen, why, and what else was considered.
   sign-up can't hide whether an email is registered: hiding it would also hide "your account
   exists" from the real owner. Accepted for a demo with synthetic data and no identity fields
   (Principle V); verification can close this later.
-- **Abuse:** the real cost of open sign-up is the free AI quota, so extraction is limited per
-  user per day (feature 003, FR-017). Sign-up itself isn't rate-limited yet: an account costs
-  only a database row, and login stays throttled per email (R4). Revisit with email
-  verification.
+- **Abuse:** the real cost of open sign-up is the free AI quota. Extraction is limited per user
+  (10 a day) and, because anyone can make more accounts, for the whole app (100 a day; feature
+  003, FR-017). Each sign-up also costs an Argon2 hash (tens of ms, ~64 MiB), so it runs in a
+  worker thread within the same 4 slots as login's checks, and a burst can't stall the server
+  (corrected after code review). Sign-up isn't rate-limited per visitor yet; revisit with email
+  verification. Signing up or logging in while already logged in leaves the earlier session
+  valid until it ends, as before.
 - **Alternatives:** invite-only sign-up (needs invite codes; the lead asked for plain sign-up);
   always answering "check your email" (needs an email service).

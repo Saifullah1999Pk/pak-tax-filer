@@ -105,7 +105,13 @@ async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
     """An HTTP client for the app whose requests use the test's rolled-back session."""
 
     async def _test_db() -> AsyncIterator[AsyncSession]:
-        yield db
+        # As in production, a request that fails loses what it didn't commit (here: back to its
+        # last savepoint), so tests can't pass on flushed-but-uncommitted rows (002 review M1).
+        try:
+            yield db
+        except Exception:
+            await db.rollback()
+            raise
 
     app.dependency_overrides[get_db] = _test_db
     try:

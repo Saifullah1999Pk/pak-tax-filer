@@ -4,13 +4,17 @@ Sign-up reuses create_user (the create-user command's rules) and logs the new us
 as login does.
 """
 
+import threading
+
 import pytest
 from httpx2 import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import passwords
 from app.auth.models import Session, User
 from app.auth.passwords import hash_password
+from app.auth.users import create_user
 
 pytestmark = pytest.mark.anyio
 
@@ -66,7 +70,7 @@ async def test_an_existing_email_is_refused_and_nothing_changes(
     visitor isn't told to log in (FR-026)."""
     original = hash_password("original-pass")
     db.add(User(email="demo@example.com", password_hash=original))
-    await db.flush()
+    await db.commit()  # to a savepoint the test still rolls back; survives the refused request
 
     response = await signup(client, email, "another-pass")
 
@@ -111,3 +115,39 @@ async def test_a_validation_error_never_echoes_the_password(client: AsyncClient)
 
     assert response.status_code == 422
     assert "do-not-echo" not in response.text
+
+
+async def test_signup_hashes_the_password_off_the_event_loop(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails if Argon2 (tens of ms, ~64 MiB) runs on the server's event loop, where a burst of
+    anonymous sign-ups would stall every request (002 review H1)."""
+    threads: list[int] = []
+    real_hash = passwords.hash_password
+
+    def recording_hash(password: str) -> str:
+        threads.append(threading.get_ident())
+        return real_hash(password)
+
+    monkeypatch.setattr(passwords, "hash_password", recording_hash)
+
+    await create_user(db, "new@example.com", PASSWORD)
+
+    assert threads and threads[0] != threading.get_ident()
+
+
+async def test_signup_sets_exactly_the_cookie_login_sets(client: AsyncClient) -> None:
+    """Fails if sign-up's session cookie drifts from login's (path, lifetime, flags)."""
+
+    def attributes(response: Response) -> set[str]:
+        parts = [part.strip() for part in response.headers["set-cookie"].split(";")]
+        return {part for part in parts if not part.startswith("session=")}
+
+    signed_up = await signup(client, "new@example.com")
+    await client.post("/api/auth/logout", json={})
+    logged_in = await client.post(
+        "/api/auth/login", json={"email": "new@example.com", "password": PASSWORD}
+    )
+
+    assert attributes(signed_up) == attributes(logged_in)
+    assert "Path=/" in attributes(signed_up)

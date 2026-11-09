@@ -85,5 +85,6 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
 - Accounts: visitors sign up at `/signup` (`POST /api/auth/signup`, reusing `create_user`). For
   scripts: `docker compose exec backend python -m app.cli create-user --email demo@example.com`
   (prompts for the password twice).
-- Each user gets at most 10 extractions per 24 hours (feature 003 FR-017, `use_extraction` in
-  `app/documents/service.py`); call it before any new path that calls the AI for a document.
+- Extraction is limited to 10 per user and 100 for the app per 24 hours (feature 003 FR-017,
+  `use_extraction` in `app/documents/service.py`); call it, then commit, before any new path
+  that calls the AI for a document.
