@@ -21,6 +21,7 @@
 ### Session 2026-11-09
 
 - Q: With open sign-up (feature 002, User Story 6) on a public site, how is the free AI quota protected? → A: Each user may start at most 10 extractions in any 24 hours (FR-017); uploads and retries both count, including files refused as the wrong type, since each one calls the AI. Because anyone can make more accounts, the whole app is also limited to 100 extractions in any 24 hours (added after code review).
+- Q: The lead asked to keep uploaded files in Google Cloud Storage, privately ("buckets ... store them privately"); what changes? → A: In the deployed app, files go to a private bucket (public access prevented, reachable only with the server's own Google identity, no public links); users still get their files only through the owner-checked endpoint. Development and tests keep the local disk (FR-018, research R4).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -203,6 +204,11 @@ each model tried.
   refused before the AI is called or any file is stored, with "Daily limit reached: 10
   extractions per 24 hours. Try again later." or "The app's daily extraction limit has been
   reached. Try again later." (added 2026-11-09).
+- **FR-018**: Where a storage bucket is configured, uploaded files MUST be stored in it and
+  nowhere else; the bucket MUST be private (no public access, no public links), and files MUST
+  reach users only through the owner-checked file endpoint. Without a bucket (development,
+  tests), files are stored on the local disk. Files stored before a bucket was configured MUST
+  stay readable and deletable (added 2026-11-09).
 
 ### Key Entities
 

@@ -164,6 +164,15 @@ Nothing outside the AI call changes.
 
 ---
 
+## Phase 10: Private bucket storage (2026-11-09, lead's request; FR-018)
+
+- [ ] T047 Add `google-cloud-storage` with `uv add`, and `UPLOAD_BUCKET` (optional; empty means the disk) to `backend/app/settings.py`, test first in `backend/tests/test_settings.py`
+- [ ] T048 Write `backend/tests/documents/test_storage.py` (an in-memory fake of the bucket client; no Google): with a bucket, a save goes only to the bucket as `gs://<bucket>/<user_id>/<uuid>.<ext>` with the file's media type, and is read back and deleted; without one, the disk as before; a `gs://` location from before still reads and deletes, and a disk location still reads and deletes with a bucket configured; a missing file reads as `None` and deletes quietly; then create `backend/app/documents/storage.py` (the client's calls in a worker thread)
+- [ ] T049 Use the storage from upload, the original-file endpoint, retry and delete in `backend/app/documents/router.py` and `service.py` (the endpoint returns the bytes with the document's media type, still owner-checked); existing tests keep passing on the disk; `conftest.py` overrides the storage instead of the upload folder
+- [ ] T050 Add `UPLOAD_BUCKET` to `docker-compose.prod.yml` and the bucket steps to `docs/deployment.md` (us-central1, Standard, public access prevention enforced, uniform access; the VM's identity needs Storage read/write); run all checks
+
+---
+
 ## Dependencies & Execution Order
 
 - **Setup (T001–T003)** → **Foundational (T004–T009)** → stories in order.

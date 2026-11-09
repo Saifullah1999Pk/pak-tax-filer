@@ -69,6 +69,18 @@ Each decision: what was chosen, why, and what else was considered.
 - **Alternatives:** storing files in PostgreSQL (bloats the database and backups); object
   storage such as S3 (a new stack component, unneeded locally).
 - **Note:** FastAPI needs `python-multipart` for file uploads.
+- **Amended 2026-11-09 (lead's request, FR-018):** in the deployed app files go to a private
+  Google Cloud Storage bucket (`UPLOAD_BUCKET`), as `gs://<bucket>/<user_id>/<random
+  uuid>.<ext>`; without it, the disk as above. `app/documents/storage.py` saves to whichever is
+  configured and reads or deletes by the stored location's form, so files from before the switch
+  still work. The bucket has public access prevention enforced and uniform bucket-level access;
+  the server reaches it with the VM's own Google identity (Application Default Credentials), so
+  there is no key in the code or `.env`. The official `google-cloud-storage` client runs in a
+  worker thread. Free tier: 5 GB in us-central1, the VM's region. Tests never reach Google: they
+  use the disk, and the bucket code is tested with an in-memory fake client.
+  - **Alternatives:** keeping the VM disk (files tied to one VM; the lead asked for buckets); a
+    service-account key file on the VM (a long-lived secret; Google advises against it); signed
+    public URLs for viewing (a link anyone holding it could open).
 - **Accepted limit (code review, 2026-11-05):** the 10 MB check runs after the request body has
   arrived, so an oversized upload uses bandwidth and temporary disk before its `413`. Fine at
   demo scale; in production a reverse proxy's body-size limit stops it earlier. The upload is

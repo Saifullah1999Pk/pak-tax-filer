@@ -10,7 +10,7 @@ Created by Alembic migration `0004_documents`. Timestamps are UTC.
 | `user_id` | UUID | required; references `users.id`, deleted with the user |
 | `doc_type` | enum | `salary_certificate` or `bank_profit_certificate` |
 | `tax_year` | text | the uploader's profile tax year at upload (`2025-26`; feature 002) |
-| `file_path` | text | required; random name under `/data/uploads/<user_id>/` |
+| `file_path` | text | required; where the file is stored: a random name under `/data/uploads/<user_id>/`, or `gs://<bucket>/<user_id>/<random uuid>.<ext>` in the deployed app (FR-018) |
 | `media_type` | text | `application/pdf`, `image/jpeg` or `image/png` |
 | `page_count` | int | 1–5 |
 | `status` | enum | `uploaded`, `extracting`, `needs_review`, `confirmed`, `failed` |
