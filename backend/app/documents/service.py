@@ -62,7 +62,7 @@ class DailyLimitReached(Exception):
     """The user's or the whole app's extractions for the last 24 hours are used (HTTP 429)."""
 
 
-async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
+async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> ExtractionAttempt:
     """Count one AI call for the user, or raise DailyLimitReached if a daily limit is used.
 
     One app-wide lock (held until the transaction ends) stops requests sent together from all
@@ -81,8 +81,10 @@ async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
     mine = recent.where(ExtractionAttempt.user_id == user_id)
     if (await db.execute(mine)).scalar_one() >= DAILY_EXTRACTIONS:
         raise DailyLimitReached(USER_LIMIT_REACHED)
-    db.add(ExtractionAttempt(user_id=user_id, attempted_at=datetime.now(UTC)))
+    attempt = ExtractionAttempt(user_id=user_id, attempted_at=datetime.now(UTC))
+    db.add(attempt)
     await db.flush()
+    return attempt
 
 
 class IncompleteDocument(Exception):

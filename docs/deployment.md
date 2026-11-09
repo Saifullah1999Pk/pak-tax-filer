@@ -38,7 +38,7 @@ Close the SSH window and open it again (so `docker` works without `sudo`), then:
 ```bash
 # The code.
 git clone https://github.com/Saifullah1999Pk/pak-tax-filer.git && cd pak-tax-filer
-git switch 001-deployment
+git switch 002-signup   # until it's merged; then main
 ```
 
 ## 3. The server's secrets (once)
@@ -74,11 +74,17 @@ the VM's own Google identity, so there is no key to create or store.
 2. **Create the bucket:** Cloud Storage → Buckets → Create. A globally unique name (e.g.
    `pak-tax-filer-uploads-<something>`); location type **Region**, **us-central1** (free tier);
    storage class **Standard**; **Enforce public access prevention** ticked; access control
-   **Uniform**. No other changes.
-3. **Let the VM write to it:** Compute Engine → VM instances → `pak-tax-filer` → **Stop**. Then
-   **Edit** → API and identity management → Access scopes → **Set access for each API** →
-   Storage: **Read Write** → Save → **Start**.
-4. On the VM, add `UPLOAD_BUCKET=<the bucket's name>` to `.env`, then start the app as in step 4.
+   **Uniform**; under data protection, turn **soft delete off** (otherwise deleted certificates
+   stay recoverable, and billed, for 7 days).
+3. **Give the VM's identity this bucket only:** on the VM's page, note its **service account**
+   (e.g. `<number>-compute@developer.gserviceaccount.com`; it must not be "No service
+   account"). Then the bucket → Permissions → **Grant access** → that account → role **Storage
+   Object User**. Newer projects give that account no roles at all, so without this every upload
+   fails with "Couldn't reach file storage".
+4. **Let the VM use Cloud Storage:** Compute Engine → VM instances → `pak-tax-filer` →
+   **Stop**. Then **Edit** → API and identity management → Access scopes → **Set access for each
+   API** → Storage: **Read Write** → Save → **Start**. (Scopes only limit; step 3 grants.)
+5. On the VM, add `UPLOAD_BUCKET=<the bucket's name>` to `.env`, then start the app as in step 4.
 
 Files uploaded before this stay on the disk volume and keep working.
 

@@ -32,14 +32,14 @@ show the original as a PDF or an image.
 
 | Method and path | Purpose | Success | Errors |
 |---|---|---|---|
-| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable, or not the chosen type (FR-005a: nothing is saved); `409` "Set up your profile first." (feature 002's `require_profile`); `429` "Daily limit reached: 10 extractions per 24 hours. Try again later." or "The app's daily extraction limit has been reached. Try again later." (FR-017, checked after the file checks, before storing or the AI) |
+| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable, or not the chosen type (FR-005a: nothing is saved); `409` "Set up your profile first." (feature 002's `require_profile`); `429` "Daily limit reached: 10 extractions per 24 hours. Try again later." or "The app's daily extraction limit has been reached. Try again later." (FR-017, checked after the file checks, before storing or the AI); `503` "Couldn't reach file storage. Try again later." (FR-018: the bucket refused or failed; nothing is kept and no extraction is counted) |
 | `GET /api/documents` | List own documents, newest first | `200` array (without `fields`) | |
 | `GET /api/documents/{id}` | One document with fields | `200` | `404` |
-| `GET /api/documents/{id}/file` | Original file for the review page | `200` with its media type | `404` |
+| `GET /api/documents/{id}/file` | Original file for the review page | `200` with its media type | `404`; `503` file storage unavailable (FR-018) |
 | `PATCH /api/documents/{id}/fields/{name}` body `{"value": "…"?, "confirmed": true?}` | Edit and/or confirm a field | `200` field (rule checks re-run) | `404` (also for a field name the type doesn't have); `409` document confirmed; `422` invalid value, or confirming a field that is empty or negative |
 | `POST /api/documents/{id}/confirm` | Confirm the document | `200` document | `409` with the names of unconfirmed or not-found fields; `409` if its tax year isn't the profile's (FR-008) |
-| `POST /api/documents/{id}/retry` | Re-run a failed extraction | `200` document | `409` not failed (checked first); `429` a daily limit reached (FR-017); a missing stored file isn't counted |
-| `DELETE /api/documents/{id}` | Delete document, fields and file | `204` | `404` |
+| `POST /api/documents/{id}/retry` | Re-run a failed extraction | `200` document | `409` not failed (checked first); `429` a daily limit reached (FR-017); `503` file storage unavailable; a missing stored file isn't counted |
+| `DELETE /api/documents/{id}` | Delete document, fields and file | `204` (also when the file can't be removed right now: the document is gone either way) | `404` |
 
 ## Internal service for later features
 

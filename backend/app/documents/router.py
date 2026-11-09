@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
+import anyio
 from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ from app.documents.models import (
     DocType,
     Document,
     ExtractedField,
+    ExtractionAttempt,
     FieldName,
 )
 from app.documents.service import (
@@ -42,7 +44,7 @@ from app.documents.service import (
     retry_extraction,
     use_extraction,
 )
-from app.documents.storage import Storage
+from app.documents.storage import Storage, StorageUnavailable
 from app.documents.uploads import MAX_BYTES, UploadRefused, check_file
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
@@ -179,12 +181,27 @@ def _summary(document: Document) -> DocumentSummary:
     return DocumentSummary.model_validate(document_out(document).model_dump(exclude={"fields"}))
 
 
-async def _use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
+async def _use_extraction(db: AsyncSession, user_id: uuid.UUID) -> ExtractionAttempt:
     """Count one AI call for the user, or answer 429 once the day's are used (FR-017)."""
     try:
-        await use_extraction(db, user_id)
+        return await use_extraction(db, user_id)
     except DailyLimitReached as limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
+
+
+def _unavailable(error: StorageUnavailable) -> HTTPException:
+    """Google Cloud Storage refused or failed: 503, saying only "try again later" (FR-018)."""
+    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error))
+
+
+async def _remove_quietly(storage: Storage, location: str) -> None:
+    """Remove a file that nothing records any more. Shielded, so a cancelled request still
+    removes it, and never raising, so the original error is the one reported (storage review)."""
+    with anyio.CancelScope(shield=True):
+        try:
+            await storage.delete(location)
+        except StorageUnavailable:
+            pass  # already logged by type; the file stays, unrecorded, in the private bucket
 
 
 @router.get("")
@@ -209,10 +226,16 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         checked = check_file(file.filename or "", content)
     except UploadRefused as refused:
         raise HTTPException(refused.status_code, refused.detail) from refused
-    await _use_extraction(db, user.id)
+    attempt = await _use_extraction(db, user.id)
     # Committed now, so the attempt counts even if extraction is refused below (FR-017).
     await db.commit()
-    location = await storage.save(user.id, content, checked.extension, checked.media_type)
+    try:
+        location = await storage.save(user.id, content, checked.extension, checked.media_type)
+    except StorageUnavailable as unavailable:
+        # The AI was never called, so this mustn't cost one of the day's extractions.
+        await db.delete(attempt)
+        await db.commit()
+        raise _unavailable(unavailable) from unavailable
     try:
         document = await create_document(
             db,
@@ -232,7 +255,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         await db.commit()
     except BaseException:
         # Nothing records the file now, so delete could never remove it: remove it here.
-        await storage.delete(location)
+        await _remove_quietly(storage, location)
         raise
     return document_out(document)
 
@@ -247,7 +270,10 @@ async def read_document(document: OwnedDocument) -> DocumentOut:
 async def read_document_file(document: OwnedDocument, storage: StorageDep) -> Response:
     """The original file, for the review page: only through this owner check, never a public
     link to the bucket (FR-018)."""
-    content = await storage.read(document.file_path)
+    try:
+        content = await storage.read(document.file_path)
+    except StorageUnavailable as unavailable:
+        raise _unavailable(unavailable) from unavailable
     if content is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "The stored file is missing.")
     return Response(content, media_type=document.media_type)
@@ -299,6 +325,8 @@ async def retry(
         await retry_extraction(db, document, extractor, storage)
     except DailyLimitReached as limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
+    except StorageUnavailable as unavailable:
+        raise _unavailable(unavailable) from unavailable
     except DocumentLocked as locked:
         raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
     except WrongDocumentType:
@@ -316,5 +344,6 @@ async def delete(document: LockedDocument, db: DbSession, storage: StorageDep) -
     """Delete the document, its fields and its stored file."""
     location = await delete_document(db, document)
     await db.commit()
-    await storage.delete(location)
+    # The document is gone; a file that can't be removed now mustn't turn that into an error.
+    await _remove_quietly(storage, location)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
