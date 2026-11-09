@@ -20,7 +20,10 @@ from app.documents.models import (
     ExtractedField,
     FieldName,
 )
+from app.main import app
 from app.profile.service import save_profile
+from app.tax.router import get_summariser
+from app.tax.summary import FakeSummariser
 
 pytestmark = pytest.mark.anyio
 
@@ -177,3 +180,24 @@ async def test_without_a_confirmed_salary_certificate_it_says_so(client: AsyncCl
 
     assert body["blocked_reason"] == "no_confirmed_salary_certificate"
     assert "salary certificate" in body["message"]
+
+
+async def test_a_checked_summary_is_returned_with_the_breakdown(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a safe summary is lost, or an unsafe one reaches the user (FR-011)."""
+    await add_document(
+        db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
+    )
+    for text, expected in [
+        ("Your salary tax is Rs 72,000; Rs 12,000 is payable.", True),
+        ("Your salary tax is Rs 75,000.", False),
+    ]:
+        app.dependency_overrides[get_summariser] = lambda text=text: FakeSummariser(text)
+        try:
+            body = (await client.get("/api/tax/2025-26")).json()
+        finally:
+            app.dependency_overrides.pop(get_summariser, None)
+
+        assert (body["summary"] == text) is expected
+        assert len(body["steps"]) == 5  # the breakdown is always there

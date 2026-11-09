@@ -56,9 +56,11 @@ def salary_tax(band: Band, taxable: Decimal, exact: Decimal, rounded: Decimal) -
     if band.rate == 0 and band.fixed == 0:
         formula = "no tax"
     elif band.fixed == 0:
-        formula = f"{percent(band.rate)} of {money(over)}"
+        formula = f"{percent(band.rate)} of {money(over)} above {money(band.lower)}"
     else:
-        formula = f"{money(band.fixed)} + {percent(band.rate)} of {money(over)}"
+        formula = (
+            f"{money(band.fixed)} + {percent(band.rate)} of {money(over)} above {money(band.lower)}"
+        )
     return (
         f"Salary tax: taxable salary {money(taxable)} {position}: {formula} "
         f"{equals(exact, rounded)}"

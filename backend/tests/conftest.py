@@ -26,10 +26,12 @@ from sqlalchemy.pool import NullPool
 from app.auth.models import User
 from app.auth.passwords import hash_password
 from app.db import get_db
-from app.documents.extraction.client import FakeExtractor
+from app.documents.extraction.client import FakeExtractor, failed
 from app.documents.router import get_extractor, get_upload_dir
 from app.main import app
 from app.profile.service import save_profile
+from app.tax.router import get_summariser
+from app.tax.summary import FakeSummariser
 
 TEST_DATABASE = "pak_tax_filer_test"
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -136,6 +138,18 @@ async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
 
 
 # Feature 003: documents.
+
+
+@pytest.fixture(autouse=True)
+def no_real_ai() -> Iterator[None]:
+    """Fakes for both AI services in every test, so no test can call the real Gemini API, even
+    when the environment has a key (research R8 of 003). Tests wanting a particular answer
+    override these again (fake_extractor, or their own FakeSummariser)."""
+    app.dependency_overrides[get_extractor] = lambda: FakeExtractor(failed("No AI in tests."))
+    app.dependency_overrides[get_summariser] = lambda: FakeSummariser(None)
+    yield
+    app.dependency_overrides.pop(get_extractor, None)
+    app.dependency_overrides.pop(get_summariser, None)
 
 
 @pytest.fixture(autouse=True)

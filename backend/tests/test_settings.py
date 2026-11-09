@@ -122,7 +122,7 @@ def test_summary_defaults() -> None:
     """Fails if the summary's defaults differ from feature 004's plan."""
     settings = load_settings({"DATABASE_URL": DB})
 
-    assert settings.summary_model == "gemini-3.8-flash"
+    assert settings.summary_model == "gemini-3.5-flash-lite"
     assert settings.summary_effort == "low"
 
 

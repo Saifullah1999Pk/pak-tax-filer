@@ -73,12 +73,12 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 ### Tests for User Story 2 (write first, confirm they fail)
 
 - [X] T015 [P] [US2] Extend `backend/tests/tax/test_worked_examples.py`: each example's breakdown has the expected steps in order, each with a `rule_location` naming the Ordinance row
-- [ ] T016 [P] [US2] Write `backend/tests/tax/test_summary_check.py` per research R8: a summary using only breakdown numbers passes; one with a wrong amount, a wrong percentage, a number with different formatting of a wrong value, or a number word ("1.8 million", "lakh") is rejected; an API error, refusal or a response slower than 4 seconds returns no summary and the breakdown is still returned
+- [X] T016 [P] [US2] Write `backend/tests/tax/test_summary_check.py` per research R8: a summary using only breakdown numbers passes; one with a wrong amount, a wrong percentage, a number with different formatting of a wrong value, or a number word ("1.8 million", "lakh") is rejected; an API error, refusal or a response slower than 4 seconds returns no summary and the breakdown is still returned
 
 ### Implementation for User Story 2
 
 - [X] T017 [US2] Create `backend/app/tax/breakdown.py`: step templates per research R7, used by `engine.py`; T015 passes
-- [ ] T018 [US2] Create `backend/app/tax/summary.py`: Gemini call (official `google-genai` SDK, free tier, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
+- [X] T018 [US2] Create `backend/app/tax/summary.py`: Gemini call (official `google-genai` SDK, free tier, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
 - [ ] T019 [US2] Show the breakdown (with rule locations) and the summary (when present) on `frontend/src/pages/TaxPage.tsx`; extend its test
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 

@@ -16,12 +16,24 @@ from app.auth.models import User
 from app.db import get_db
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
+from app.settings import get_settings
 from app.tax.service import BLOCKED_MESSAGES, tax_inputs
+from app.tax.summary import GeminiSummariser, Summariser, verified_summary
 
 router = APIRouter(prefix="/api/tax", tags=["tax"])
 
 # On every result (constitution Principle IV, FR-014).
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
+
+
+def get_summariser() -> Summariser:
+    """The summary writer the app uses (tests replace it with a FakeSummariser)."""
+    settings = get_settings()
+    return GeminiSummariser(
+        api_key=settings.gemini_api_key,
+        model=settings.summary_model,
+        effort=settings.summary_effort,
+    )
 
 
 class StepOut(BaseModel):
@@ -79,6 +91,7 @@ async def read_tax(
     tax_year: str,
     user: Annotated[User, Depends(current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    summariser: Annotated[Summariser, Depends(get_summariser)],
 ) -> TaxOut:
     """The user's tax for the year, with every step; or why it can't be calculated."""
     try:
@@ -86,4 +99,5 @@ async def read_tax(
     except KeyError as missing:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No rates for that tax year.") from missing
     result = calculate(await tax_inputs(db, user, tax_year), rates)
-    return tax_out(result)
+    # Optional and checked: no summary unless every number in it is in the breakdown.
+    return tax_out(result, await verified_summary(result, summariser))
