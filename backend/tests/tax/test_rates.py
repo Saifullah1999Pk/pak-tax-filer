@@ -4,11 +4,12 @@ Research R10: each band's fixed amount must equal the tax at the top of the band
 would have caught FBR Circular 01 of 2025-26's two wrong amounts (345,000 and 615,000).
 """
 
-from dataclasses import fields
+from dataclasses import fields, replace
 from decimal import Decimal
 
 import pytest
 
+from app.tax.engine import TaxInputs, calculate
 from app.tax.rates import RATES, rates_for
 from app.tax.rates.model import Band, Rule, Source, TaxYearRates
 
@@ -98,3 +99,26 @@ def test_all_amounts_are_exact_decimals(tax_year: str) -> None:
     ]
 
     assert all(isinstance(number, Decimal) for number in numbers)
+
+
+def test_a_new_tax_year_is_data_only() -> None:
+    """Fails if a second year's rates can't change the result without touching engine.py
+    (FR-008). The made-up year lives in a test-only registry; the real one is unchanged."""
+    real = rates_for("2025-26")
+    flat_ten_percent = Band(
+        Decimal(0), None, Decimal(0), Decimal("0.10"), real.salary_bands[0].source
+    )
+    registry = {
+        **RATES,
+        "2099-00": replace(real, tax_year="2099-00", salary_bands=(flat_ten_percent,)),
+    }
+    inputs = TaxInputs(
+        "2099-00", True, Decimal(1800000), Decimal(60000), Decimal(0), Decimal(0), True
+    )
+
+    made_up = calculate(inputs, registry["2099-00"])
+    actual = calculate(replace(inputs, tax_year="2025-26"), registry["2025-26"])
+
+    assert made_up.salary_tax == Decimal(180000)
+    assert actual.salary_tax == Decimal(72000)
+    assert "2099-00" not in RATES

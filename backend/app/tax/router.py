@@ -14,9 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import current_user
 from app.auth.models import User
 from app.db import get_db
+from app.settings import get_settings
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
-from app.settings import get_settings
 from app.tax.service import BLOCKED_MESSAGES, tax_inputs
 from app.tax.summary import GeminiSummariser, Summariser, verified_summary
 

@@ -112,7 +112,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 **Independent Test**: [quickstart.md](quickstart.md), section 4.
 
-- [ ] T025 [US4] Add a test in `backend/tests/tax/test_rates.py` that registering a second, made-up tax year with different bands changes results without any change to `engine.py` (FR-008); use a test-only registry so the real registry is unchanged
+- [X] T025 [US4] Add a test in `backend/tests/tax/test_rates.py` that registering a second, made-up tax year with different bands changes results without any change to `engine.py` (FR-008); use a test-only registry so the real registry is unchanged
 - [ ] T026 [US4] Run [quickstart.md](quickstart.md) section 4, including the deliberate 1-rupee change and revert
 
 **Checkpoint**: all four user stories work.
@@ -121,7 +121,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ## Phase 7: Polish
 
-- [ ] T027 [P] Add a "Tax engine" section to `backend/CLAUDE.md`: rates live only in `backend/app/tax/rates/` with sources; every rate change comes with signed-off worked examples; never compute or check figures with an LLM
+- [X] T027 [P] Add a "Tax engine" section to `backend/CLAUDE.md`: rates live only in `backend/app/tax/rates/` with sources; every rate change comes with signed-off worked examples; never compute or check figures with an LLM
 - [ ] T028 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules and the open questions for the lead
 
 ---

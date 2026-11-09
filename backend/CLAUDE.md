@@ -55,3 +55,18 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   normalisation and rules only together with an eval run, and paste its report in the PR:
   `python -m evals.extraction.generate`, then `python -m evals.extraction.run --model <model>`
   (needs `GEMINI_API_KEY`, free from AI Studio; contract: `specs/003-document-extraction/contracts/eval.md`).
+
+## Tax engine (feature 004)
+
+- Rates live **only** in `app/tax/rates/` (one module per tax year, e.g. `ty2026.py`), each
+  value with its FBR source: document, location, Finance Act. The folder is guarded by a hook;
+  call out every change in review. A new year is a new module in `RATES`; `engine.py` doesn't
+  change.
+- Every rate change comes with worked examples in `tests/tax/worked_examples.yaml`, hand-checked
+  and signed off by a human (`signed_off_by`, `signed_off_date`); `test_sign_off.py` fails on an
+  unsigned one.
+- Tax figures are plain `Decimal` code with §219 rounding (`ROUND_HALF_UP`) on final amounts.
+  Never compute, round or "check" a figure with an LLM. The AI summary (`tax/summary.py`) may
+  only repeat breakdown numbers; plain code checks that and drops it otherwise.
+- Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
+  summariser; use `FakeSummariser` to test a summary.
