@@ -22,6 +22,9 @@ from app.tax.engine import TaxResult
 logger = logging.getLogger(__name__)
 
 LIMIT_SECONDS = 4.0
+# The deadline sent to Google. Gemini refuses anything under 10 s (400 INVALID_ARGUMENT), so the
+# 4-second limit is enforced here, by verified_summary's wait_for, not by the request.
+GOOGLE_DEADLINE_MS = 10_000
 INSTRUCTIONS = """\
 You explain an income tax result to the taxpayer in 2 or 3 short, plain sentences. Use only the \
 numbers that appear in the breakdown you are given, written the same way (e.g. "Rs 72,000"). Do \
@@ -124,7 +127,7 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
                         thinking_level=THINKING_LEVELS[self._effort]
                     ),
                     max_output_tokens=300,
-                    http_options=types.HttpOptions(timeout=int(LIMIT_SECONDS * 1000)),
+                    http_options=types.HttpOptions(timeout=GOOGLE_DEADLINE_MS),
                 ),
             )
         except (errors.APIError, httpx2.HTTPError) as exc:

@@ -60,6 +60,9 @@ async def test_the_model_instructions_and_breakdown_are_sent() -> None:
     body = json.loads(sent[0].content)
     assert body["systemInstruction"]["parts"][0]["text"] == INSTRUCTIONS
     assert "Rs 72,000" in body["contents"][0]["parts"][0]["text"]
+    # Gemini refuses a deadline under 10 s (400 INVALID_ARGUMENT, found live on 2026-11-09);
+    # our own 4-second limit is verified_summary's wait_for, not this header.
+    assert int(sent[0].headers["x-server-timeout"]) >= 10
 
 
 async def test_an_api_error_is_no_summary_and_logs_only_its_type(
