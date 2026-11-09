@@ -1,4 +1,5 @@
-"""POST /api/auth/login, /logout and GET /api/auth/me (feature 002, tasks T015, T021).
+"""POST /api/auth/login, /signup, /logout and GET /api/auth/me (feature 002, tasks T015, T021,
+T047).
 
 Contract: specs/002-auth-foundation/contracts/auth-api.md. Research: R2 (cookie), R3 (JSON only),
 R4 (throttling), R5 (same answer and same work for unknown emails).
@@ -15,13 +16,20 @@ from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
 from app.auth import passwords
 from app.auth.passwords import DUMMY_HASH
-from app.auth.users import get_user_by_email, normalize_email
+from app.auth.users import (
+    EmailTaken,
+    PasswordTooShort,
+    create_user,
+    get_user_by_email,
+    normalize_email,
+)
 from app.db import get_db
 from app.settings import get_settings
 
 COOKIE_NAME = "session"
 INVALID_LOGIN = "Invalid email or password."
 TOO_MANY_ATTEMPTS = "Too many attempts. Try again later."
+EMAIL_TAKEN = "An account with this email already exists. Log in instead."
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -34,6 +42,13 @@ class LoginRequest(BaseModel):
 
     # Bounded so oversized values are refused before any hashing or storing (review L1).
     email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=1024)
+
+
+class SignupRequest(BaseModel):
+    """Sign-up body (contract): an email-shaped name and a password, bounded like login's."""
+
+    email: str = Field(min_length=3, max_length=254, pattern="@")
     password: str = Field(min_length=1, max_length=1024)
 
 
@@ -82,6 +97,25 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailR
         await db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, INVALID_LOGIN)
 
+    await _start_session(db, user, response)
+    return EmailResponse(email=user.email)
+
+
+@router.post("/signup", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_json)])
+async def signup(body: SignupRequest, response: Response, db: DbSession) -> EmailResponse:
+    """Create an account and log it in, exactly as login does (FR-024 to FR-026, research R15)."""
+    try:
+        user = await create_user(db, body.email, body.password)
+    except PasswordTooShort as short:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(short)) from short
+    except EmailTaken as taken:
+        raise HTTPException(status.HTTP_409_CONFLICT, EMAIL_TAKEN) from taken
+    await _start_session(db, user, response)
+    return EmailResponse(email=user.email)
+
+
+async def _start_session(db: AsyncSession, user: User, response: Response) -> None:
+    """Create a session, commit, and set its cookie: the one way login and sign-up log in."""
     token = await sessions.create_session(db, user)
     await db.commit()
     response.set_cookie(
@@ -90,7 +124,6 @@ async def login(body: LoginRequest, response: Response, db: DbSession) -> EmailR
         max_age=int(sessions.SESSION_LIFETIME.total_seconds()),
         **_cookie_settings(),
     )
-    return EmailResponse(email=user.email)
 
 
 @router.post(
