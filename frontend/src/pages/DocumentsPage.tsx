@@ -71,7 +71,16 @@ export function DocumentsPage() {
     setUploading(true);
     try {
       const doc = await uploadDocument(file, docType);
-      navigate(`/documents/${doc.id}`);
+      if (doc.status === "needs_review") {
+        navigate(`/documents/${doc.id}`);
+        return;
+      }
+      // Nothing to review: stay here with the reason; the list shows it with Retry (FR-005a).
+      setUploadError(
+        doc.failure_reason ?? "The figures couldn't be read. Try again.",
+      );
+      setUploading(false);
+      refresh();
     } catch (caught) {
       setUploadError(message(caught, "The upload failed. Try again."));
       setUploading(false);

@@ -377,3 +377,71 @@ test("each row's buttons say which document they are for", async () => {
     name: /delete salary certificate uploaded/i,
   });
 });
+
+// Task T046 (FR-005a): only a document ready to review opens the review page.
+
+test("a failed extraction stays on this page with the reason and lists the document", async () => {
+  let listed: DocumentSummary[] = [];
+  const failedDocument = {
+    ...FAILED,
+    id: "d9",
+    doc_type: "salary_certificate" as const,
+    failure_reason: "The AI service had a problem. Try again.",
+  };
+  const fetch = mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: listed }),
+      "POST /api/documents": () => {
+        listed = [failedDocument];
+        return { status: 201, body: { ...failedDocument, fields: [] } };
+      },
+    }),
+  );
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "The AI service had a problem. Try again.",
+  );
+  screen.getByRole("heading", { level: 1, name: /^documents$/i });
+  await screen.findByRole("row", { name: /salary certificate/i });
+  expect(
+    fetch.mock.calls.filter(([p]) => p === "/api/documents").length,
+  ).toBeGreaterThanOrEqual(3); // load, the upload, then the refresh
+});
+
+test("a wrong-type refusal keeps the chosen type so the user can fix it and upload again", async () => {
+  mockFetch(
+    routes({
+      "POST /api/documents": () => ({
+        status: 422,
+        body: {
+          detail:
+            "This looks like a bank profit certificate, not a salary certificate. Choose the right type and upload it again.",
+        },
+      }),
+    }),
+  );
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /looks like a bank profit certificate/i,
+  );
+  expect(screen.getByLabelText(/document type/i)).toHaveProperty(
+    "value",
+    "salary_certificate",
+  );
+  expect(screen.getByRole("button", { name: /upload/i })).toHaveProperty(
+    "disabled",
+    false,
+  );
+});

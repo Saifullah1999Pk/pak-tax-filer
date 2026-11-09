@@ -38,6 +38,10 @@ class DocumentLocked(Exception):
     """The document isn't in a state that allows this change (HTTP 409)."""
 
 
+class WrongDocumentType(Exception):
+    """The document isn't the type the user chose (FR-005a); the message says what it looks like."""
+
+
 class FieldNotOnDocument(LookupError):
     """The document's type has no field with that name (HTTP 404)."""
 
@@ -99,6 +103,9 @@ async def extract_document(
     if result.failure_reason is not None:
         document.status = DocStatus.FAILED
         document.failure_reason = result.failure_reason
+        if result.wrong_type:
+            await db.flush()
+            raise WrongDocumentType(result.failure_reason)
     else:
         document.fields = build_fields(document.doc_type, document.tax_year, result.fields)
         document.status = DocStatus.NEEDS_REVIEW
