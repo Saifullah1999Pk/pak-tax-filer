@@ -25,6 +25,8 @@ type AuthState = {
   /** A message for the login page, e.g. after the session ended. */
   notice: string | null;
   login: (email: string, password: string) => Promise<void>;
+  /** Create an account; the new user is logged in, as after login (feature 002, US6). */
+  signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -73,6 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(loggedIn);
   }, []);
 
+  const signup = useCallback(async (email: string, password: string) => {
+    const created = await apiFetch<User>("/api/auth/signup", {
+      method: "POST",
+      body: { email, password },
+      allowUnauthenticated: true,
+    });
+    setNotice(null);
+    setUser(created);
+  }, []);
+
   const logout = useCallback(async () => {
     await apiFetch<void>("/api/auth/logout", {
       method: "POST",
@@ -82,8 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, notice, login, logout }),
-    [user, loading, notice, login, logout],
+    () => ({ user, loading, notice, login, signup, logout }),
+    [user, loading, notice, login, signup, logout],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

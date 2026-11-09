@@ -6,6 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ReviewPage } from "./pages/ReviewPage";
+import { SignupPage } from "./pages/SignupPage";
 import { TaxPage } from "./pages/TaxPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
@@ -17,6 +18,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route
         path="/profile"
         element={
