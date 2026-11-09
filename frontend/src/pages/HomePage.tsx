@@ -24,7 +24,7 @@ export function HomePage() {
       <h1>pak-tax-filer</h1>
       {user && <p>Logged in as {user.email}</p>}
       <nav>
-        <Link to="/documents">Documents</Link>{" "}
+        <Link to="/documents">Documents</Link> <Link to="/tax">Tax</Link>{" "}
         <Link to="/profile">Profile</Link> <LogoutButton />
       </nav>
     </main>

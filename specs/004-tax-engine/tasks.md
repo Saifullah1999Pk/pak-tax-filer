@@ -57,7 +57,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 - [X] T010 [US1] Create `backend/app/tax/engine.py` with `TaxInputs`, `TaxResult` and pure `calculate(inputs, rates)` per research R1 and R3: band selection with "does not exceed" upper limits, surcharge on "exceeds", profit tax, credits, separate balances, `ROUND_HALF_UP` only on final amounts; no imports from database, network or AI modules, enforced by a test in `backend/tests/tax/test_engine_imports.py` that fails if `engine.py` imports `anthropic`, `app.tax.summary` or any database module; T009 passes
 - [X] T011 [US1] Create `backend/app/tax/service.py`: build `TaxInputs` from `confirmed_documents(user_id, tax_year)` (summing per type) and `on_atl` from feature 002's `get_profile` (no profile → `needs_atl_answer`), per research R5
 - [X] T012 [US1] Write `backend/tests/tax/test_tax_api.py` (unauthenticated → `401`; unknown tax year → `404`; an `atl` query parameter has no effect and the profile's ATL status is used; a user's confirmed certificates produce the contract's response shape with money as strings and the label), then create `backend/app/tax/router.py` with `GET /api/tax/{tax_year}` and include it in `backend/app/main.py`
-- [ ] T013 [P] [US1] Write `frontend/src/pages/TaxPage.test.tsx` (no ATL question; the `needs_atl_answer` message links to `/profile`; salary and profit results shown separately with no combined total; practitioner label always visible), then create `frontend/src/pages/TaxPage.tsx` and its route under `RequireAuth`
+- [X] T013 [P] [US1] Write `frontend/src/pages/TaxPage.test.tsx` (no ATL question; the `needs_atl_answer` message links to `/profile`; salary and profit results shown separately with no combined total; practitioner label always visible), then create `frontend/src/pages/TaxPage.tsx` and its route under `RequireAuth`
 - [ ] T014 [US1] Run [quickstart.md](quickstart.md) section 1
 
 **Checkpoint**: User Story 1 works on its own.
@@ -79,7 +79,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 - [X] T017 [US2] Create `backend/app/tax/breakdown.py`: step templates per research R7, used by `engine.py`; T015 passes
 - [X] T018 [US2] Create `backend/app/tax/summary.py`: Gemini call (official `google-genai` SDK, free tier, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) and the number check; wire into the router after a successful calculation; T016 passes using a fake client
-- [ ] T019 [US2] Show the breakdown (with rule locations) and the summary (when present) on `frontend/src/pages/TaxPage.tsx`; extend its test
+- [X] T019 [US2] Show the breakdown (with rule locations) and the summary (when present) on `frontend/src/pages/TaxPage.tsx`; extend its test
 - [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
 
 **Checkpoint**: User Story 2 works on its own.
@@ -99,7 +99,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 ### Implementation for User Story 3
 
 - [X] T022 [US3] Add the eligibility checks from research R4 to the start of `calculate()` in `backend/app/tax/engine.py`, each provisional rule as one named constant; T021 passes
-- [ ] T023 [US3] Show each blocked reason's message and the non-ATL "to be confirmed" label on `frontend/src/pages/TaxPage.tsx`; extend its test
+- [X] T023 [US3] Show each blocked reason's message and the non-ATL "to be confirmed" label on `frontend/src/pages/TaxPage.tsx`; extend its test
 - [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
 
 **Checkpoint**: User Stories 1–3 work.

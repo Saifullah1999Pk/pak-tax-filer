@@ -1,0 +1,50 @@
+// The tax result (feature 004), per specs/004-tax-engine/contracts/tax-api.md. Money arrives as
+// decimal strings and is only displayed, never calculated with (constitution, Principle I).
+
+import { apiFetch } from "./client";
+
+export type TaxStep = {
+  description: string;
+  rule_location: string;
+  result: string;
+};
+
+export type TaxResult = {
+  tax_year: string;
+  /** Set when the calculation is refused; `message` then says what to do. */
+  blocked_reason: string | null;
+  message: string | null;
+  salary_tax: string | null;
+  surcharge: string | null;
+  profit_tax: string | null;
+  /** Positive: payable; negative: over-deducted. */
+  salary_balance: string | null;
+  /** Positive: payable; negative: over-withheld. */
+  profit_balance: string | null;
+  /** Non-ATL users only: withholding above the profit tax, "to be confirmed". */
+  non_atl_extra_withheld: string | null;
+  steps: TaxStep[];
+  summary: string | null;
+  label: string;
+};
+
+export const getTax = (taxYear: string) =>
+  apiFetch<TaxResult>(`/api/tax/${encodeURIComponent(taxYear)}`);
+
+/**
+ * "Rs 1,234,567.5" from "1234567.5": digit grouping on the string itself, so the value is
+ * never turned into a float. A leading "-" is dropped; callers say which way it goes.
+ */
+export function rupees(amount: string): string {
+  const [whole, fraction] = amount.replace(/^-/, "").split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `Rs ${grouped}${fraction === undefined ? "" : `.${fraction}`}`;
+}
+
+/** "Rs 12,000 payable", "Rs 4,000 over-withheld" or "Nothing to pay". */
+export function balanceWords(balance: string, overpaid: string): string {
+  if (/^-?0*(\.0*)?$/.test(balance)) {
+    return "Nothing to pay";
+  }
+  return `${rupees(balance)} ${balance.startsWith("-") ? overpaid : "payable"}`;
+}

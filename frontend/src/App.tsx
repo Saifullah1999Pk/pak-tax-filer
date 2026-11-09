@@ -6,10 +6,11 @@ import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ReviewPage } from "./pages/ReviewPage";
+import { TaxPage } from "./pages/TaxPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
 /**
- * The app's pages (feature 002 tasks T029, T041; feature 003 tasks T015, T019). Every logged-in page except /profile also needs the
+ * The app's pages (feature 002 tasks T029, T041; feature 003 tasks T015, T019; feature 004 task T013). Every logged-in page except /profile also needs the
  * taxpayer profile. main.tsx provides the router, AuthProvider and ProfileProvider.
  */
 export function AppRoutes() {
@@ -40,6 +41,16 @@ export function AppRoutes() {
           <RequireAuth>
             <RequireProfile>
               <ReviewPage />
+            </RequireProfile>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tax"
+        element={
+          <RequireAuth>
+            <RequireProfile>
+              <TaxPage />
             </RequireProfile>
           </RequireAuth>
         }
