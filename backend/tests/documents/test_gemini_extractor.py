@@ -284,3 +284,15 @@ async def test_a_deadline_timeout_is_not_retried() -> None:
 
     assert len(sent) == 1
     assert result.failure_reason is not None
+
+
+async def test_a_wrong_type_answer_is_flagged() -> None:
+    """Fails if the router can't tell a wrong-type refusal from other failures (FR-005a)."""
+    body = reply(json.dumps({**BANK_REPLY, "document_type": "salary_certificate"}))
+
+    result = await extractor(replying(body)).extract(
+        DocType.BANK_PROFIT_CERTIFICATE, PDF, "application/pdf"
+    )
+
+    assert result.wrong_type is True
+    assert result.limit_reached is False

@@ -64,6 +64,8 @@ class ExtractionResult:
     failure_reason: str | None = None
     # True when the free tier's limit was hit (HTTP 429): the eval waits or stops on it.
     limit_reached: bool = False
+    # True when the document isn't the type the user chose (FR-005a): the upload is refused.
+    wrong_type: bool = False
     input_tokens: int = 0
     output_tokens: int = 0
 
@@ -160,12 +162,15 @@ def _result_from(
     usage = response.usage_metadata
 
     def result(
-        fields: Mapping[str, ExtractedValue] | None = None, reason: str | None = None
+        fields: Mapping[str, ExtractedValue] | None = None,
+        reason: str | None = None,
+        wrong_type: bool = False,
     ) -> ExtractionResult:
         return ExtractionResult(
             fields=fields or {},
             model=response.model_version or requested_model,
             failure_reason=reason,
+            wrong_type=wrong_type,
             input_tokens=(usage.prompt_token_count or 0) if usage else 0,
             output_tokens=(usage.candidates_token_count or 0) if usage else 0,
         )
@@ -184,7 +189,7 @@ def _result_from(
         return result(reason=INCOMPLETE)
     seen = getattr(parsed, "document_type", doc_type.value)
     if seen != doc_type.value:
-        return result(reason=_wrong_type_reason(doc_type, seen))
+        return result(reason=_wrong_type_reason(doc_type, seen), wrong_type=True)
     return result(fields={name: v for name, v in parsed if isinstance(v, ExtractedValue)})
 
 

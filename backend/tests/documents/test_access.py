@@ -142,3 +142,22 @@ async def test_missing_stored_file_is_404_and_retry_fails_cleanly(
     assert retried.status_code == 200
     assert retried.json()["status"] == "failed"
     assert "upload it again" in retried.json()["failure_reason"]
+
+
+async def test_a_retry_that_finds_the_wrong_type_stays_failed_with_the_reason(
+    client: AsyncClient, fake_extractor: FakeExtractor
+) -> None:
+    """Fails if a retry's wrong-type answer is lost or crashes (FR-005a; the row already exists)."""
+    fake_extractor.result = ExtractionResult(failure_reason="busy")
+    document_id = (await upload(client, make_pdf())).json()["id"]
+    fake_extractor.result = ExtractionResult(
+        failure_reason="This looks like a bank profit certificate, not a salary certificate. "
+        "Choose the right type and upload it again.",
+        wrong_type=True,
+    )
+
+    retried = await client.post(f"/api/documents/{document_id}/retry", json={})
+
+    assert retried.status_code == 200
+    assert retried.json()["status"] == "failed"
+    assert "looks like a bank profit certificate" in retried.json()["failure_reason"]

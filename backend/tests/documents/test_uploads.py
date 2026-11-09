@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.documents.extraction.client import FakeExtractor
+from app.documents.extraction.client import ExtractionResult, FakeExtractor
 from app.documents.models import Document
 from app.documents.router import get_extractor
 from app.documents.uploads import MAX_BYTES
@@ -148,4 +148,23 @@ async def test_a_crash_after_saving_leaves_no_file_behind(
     finally:
         app.dependency_overrides.pop(get_extractor, None)
 
+    assert not [path for path in upload_dir.rglob("*") if path.is_file()]
+
+
+@pytest.mark.usefixtures("user_with_profile")
+async def test_a_document_of_the_wrong_type_is_refused_and_nothing_is_kept(
+    client: AsyncClient, fake_extractor: FakeExtractor, db: AsyncSession, upload_dir: Path
+) -> None:
+    """Fails if a wrong-type upload is saved, or doesn't come back as 422 with why (FR-005a)."""
+    fake_extractor.result = ExtractionResult(
+        failure_reason="This looks like a bank profit certificate, not a salary certificate. "
+        "Choose the right type and upload it again.",
+        wrong_type=True,
+    )
+
+    response = await upload(client, make_pdf())
+
+    assert response.status_code == 422
+    assert "looks like a bank profit certificate" in response.json()["detail"]
+    assert (await db.scalars(select(Document))).first() is None
     assert not [path for path in upload_dir.rglob("*") if path.is_file()]

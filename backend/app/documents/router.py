@@ -41,6 +41,7 @@ from app.documents.service import (
     list_documents,
     remove_stored_file,
     retry_extraction,
+    WrongDocumentType,
 )
 from app.documents.uploads import MAX_BYTES, UploadRefused, check_file, save_file
 from app.profile.dependencies import require_profile
@@ -205,7 +206,13 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
             checked=checked,
             file_path=path,
         )
-        await extract_document(db, document, extractor, content)
+        try:
+            await extract_document(db, document, extractor, content)
+        except WrongDocumentType as wrong:
+            # Refused, not kept (FR-005a): retrying the same type would only fail again.
+            await db.delete(document)
+            await db.flush()
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(wrong)) from wrong
         await db.commit()
     except BaseException:
         # Nothing records the file now, so delete could never remove it: remove it here.
@@ -272,6 +279,8 @@ async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep
         await retry_extraction(db, document, extractor)
     except DocumentLocked as locked:
         raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
+    except WrongDocumentType:
+        pass  # The document already exists: it stays failed, with the reason.
     await db.commit()
     return document_out(document)
 
