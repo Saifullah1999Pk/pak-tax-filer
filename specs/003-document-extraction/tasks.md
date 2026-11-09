@@ -156,7 +156,7 @@ Nothing outside the AI call changes.
 
 - [X] T041 Tests first, then add `document_type` (`salary_certificate`, `bank_profit_certificate` or `other`) to both output schemas in `backend/app/documents/extraction/schemas.py`, ask for it in `prompt.py`, and fail a mismatch in `client.py` with a reason naming what the document looks like (FR-005a)
 - [X] T042 Tests first, then teach `parse_tax_year` in `backend/app/documents/extraction/normalise.py` July-to-June periods ("1 July 2025 to 30 June 2026", "July 2025 - June 2026", "01-07-2025 to 30-06-2026")
-- [ ] T043 Test first, then hide the confidence of "not found" fields on `frontend/src/pages/ReviewPage.tsx`
+- [X] T043 Test first, then hide the confidence of "not found" fields on `frontend/src/pages/ReviewPage.tsx`
 - [ ] T044 Re-run the eval for `gemini-3.5-flash-lite` (the answer's schema changed); all checks pass
 
 ---

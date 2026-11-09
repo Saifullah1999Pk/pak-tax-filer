@@ -201,6 +201,9 @@ function FieldRow({
   const [saving, setSaving] = useState(false);
   const label = labelOf(field.name);
   const changed = !readOnly && draft !== null && draft !== (field.value ?? "");
+  // A confidence for an empty field only means the model is sure it's absent, which reads as
+  // noise; an unreadable amount still shows its reason (task T043).
+  const showConfidence = field.value !== null || field.rule_reason !== null;
   const ids = {
     source: `${field.name}-source`,
     confidence: `${field.name}-confidence`,
@@ -239,7 +242,11 @@ function FieldRow({
       <input
         type="text"
         aria-label={label}
-        aria-describedby={[ids.source, ids.confidence, error ? ids.error : ""]
+        aria-describedby={[
+          ids.source,
+          showConfidence ? ids.confidence : "",
+          error ? ids.error : "",
+        ]
           .filter(Boolean)
           .join(" ")}
         aria-invalid={error ? true : undefined}
@@ -258,16 +265,18 @@ function FieldRow({
                 field.source_label ? `, labelled "${field.source_label}"` : ""
               }.`}
       </p>
-      <p id={ids.confidence}>
-        {field.confidence === "low" ? (
-          <>
-            <strong>Low confidence:</strong>{" "}
-            {field.rule_reason ?? "check this figure carefully."}
-          </>
-        ) : (
-          `Confidence: ${CONFIDENCE_LABELS[field.confidence]}`
-        )}
-      </p>
+      {showConfidence && (
+        <p id={ids.confidence}>
+          {field.confidence === "low" ? (
+            <>
+              <strong>Low confidence:</strong>{" "}
+              {field.rule_reason ?? "check this figure carefully."}
+            </>
+          ) : (
+            `Confidence: ${CONFIDENCE_LABELS[field.confidence]}`
+          )}
+        </p>
+      )}
       {error && (
         <p id={ids.error} role="alert">
           {error}

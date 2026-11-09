@@ -345,3 +345,14 @@ test("each input is described by where it was found and its confidence", async (
   expect(described).toMatch(/page 1/i);
   expect(described).toMatch(/tax deducted is more than gross salary/i);
 });
+
+test("a not-found field shows no confidence, only that it wasn't found (task T043)", async () => {
+  mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  const deducted = screen.getByRole("group", { name: /tax deducted/i });
+  within(deducted).getByText(/not found on the document/i);
+  expect(within(deducted).queryByText(/confidence/i)).toBeNull();
+  const gross = screen.getByRole("group", { name: /gross salary/i });
+  within(gross).getByText(/low confidence/i);
+});
