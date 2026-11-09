@@ -484,7 +484,5 @@ test("a retry over the daily limit shows why", async () => {
   const row = await screen.findByRole("row", { name: /bank profit/i });
   fireEvent.click(within(row).getByRole("button", { name: /retry/i }));
 
-  await waitFor(() =>
-    expect(screen.getByRole("alert").textContent).toContain(DAILY_LIMIT),
-  );
+  expect((await screen.findByRole("alert")).textContent).toBe(DAILY_LIMIT);
 });

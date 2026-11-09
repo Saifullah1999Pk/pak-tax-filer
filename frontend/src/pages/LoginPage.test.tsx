@@ -169,3 +169,11 @@ test("new visitors and wrong passwords never see 'session ended'", async () => {
 
   expect(screen.queryByText(/session has ended/i)).toBeNull();
 });
+
+test("links to sign-up", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/login");
+
+  const link = await screen.findByRole("link", { name: /create an account/i });
+  expect(link.getAttribute("href")).toBe("/signup");
+});
