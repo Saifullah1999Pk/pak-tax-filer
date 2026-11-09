@@ -6,11 +6,9 @@ owner's only: other users' documents are 404, never 403 (docs/api-conventions.md
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,11 +39,11 @@ from app.documents.service import (
     field_value,
     get_document,
     list_documents,
-    remove_stored_file,
     retry_extraction,
     use_extraction,
 )
-from app.documents.uploads import MAX_BYTES, UploadRefused, check_file, save_file
+from app.documents.storage import Storage
+from app.documents.uploads import MAX_BYTES, UploadRefused, check_file
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
 from app.settings import get_settings
@@ -65,9 +63,14 @@ def get_extractor() -> Extractor:
     )
 
 
-def get_upload_dir() -> Path:
-    """Where uploaded files are stored (tests use a temporary folder)."""
-    return get_settings().upload_dir
+def get_storage() -> Storage:
+    """Where uploaded files are kept: the private bucket if configured, else the disk (FR-018).
+    Tests use a temporary folder."""
+    settings = get_settings()
+    return Storage(settings.upload_dir, settings.upload_bucket)
+
+
+StorageDep = Annotated[Storage, Depends(get_storage)]
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
@@ -196,7 +199,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
     profile: Annotated[TaxpayerProfile, Depends(require_profile)],
     db: DbSession,
     extractor: ExtractorDep,
-    upload_dir: Annotated[Path, Depends(get_upload_dir)],
+    storage: StorageDep,
     file: UploadFile,
     doc_type: Annotated[DocType, Form()],
 ) -> DocumentOut:
@@ -209,7 +212,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
     await _use_extraction(db, user.id)
     # Committed now, so the attempt counts even if extraction is refused below (FR-017).
     await db.commit()
-    path = await save_file(upload_dir, user.id, content, checked.extension)
+    location = await storage.save(user.id, content, checked.extension, checked.media_type)
     try:
         document = await create_document(
             db,
@@ -217,7 +220,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
             tax_year=profile.tax_year,
             doc_type=doc_type,
             checked=checked,
-            file_path=path,
+            file_path=location,
         )
         try:
             await extract_document(db, document, extractor, content)
@@ -229,7 +232,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         await db.commit()
     except BaseException:
         # Nothing records the file now, so delete could never remove it: remove it here.
-        await remove_stored_file(path)
+        await storage.delete(location)
         raise
     return document_out(document)
 
@@ -241,11 +244,13 @@ async def read_document(document: OwnedDocument) -> DocumentOut:
 
 
 @router.get("/{document_id}/file")
-async def read_document_file(document: OwnedDocument) -> FileResponse:
-    """The original file, for the review page."""
-    if not Path(document.file_path).is_file():
+async def read_document_file(document: OwnedDocument, storage: StorageDep) -> Response:
+    """The original file, for the review page: only through this owner check, never a public
+    link to the bucket (FR-018)."""
+    content = await storage.read(document.file_path)
+    if content is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "The stored file is missing.")
-    return FileResponse(document.file_path, media_type=document.media_type)
+    return Response(content, media_type=document.media_type)
 
 
 @router.patch("/{document_id}/fields/{name}", dependencies=[Depends(require_json)])
@@ -286,10 +291,12 @@ async def confirm(document: LockedDocument, db: DbSession) -> DocumentOut:
 
 
 @router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
-async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
+async def retry(
+    document: LockedDocument, db: DbSession, extractor: ExtractorDep, storage: StorageDep
+) -> DocumentOut:
     """Re-run a failed extraction (counted towards the daily limits, FR-017)."""
     try:
-        await retry_extraction(db, document, extractor)
+        await retry_extraction(db, document, extractor, storage)
     except DailyLimitReached as limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
     except DocumentLocked as locked:
@@ -305,9 +312,9 @@ async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_json)],
 )
-async def delete(document: LockedDocument, db: DbSession) -> Response:
+async def delete(document: LockedDocument, db: DbSession, storage: StorageDep) -> Response:
     """Delete the document, its fields and its stored file."""
-    path = await delete_document(db, document)
+    location = await delete_document(db, document)
     await db.commit()
-    await remove_stored_file(path)
+    await storage.delete(location)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

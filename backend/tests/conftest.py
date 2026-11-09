@@ -27,7 +27,8 @@ from app.auth.models import User
 from app.auth.passwords import hash_password
 from app.db import get_db
 from app.documents.extraction.client import FakeExtractor, failed
-from app.documents.router import get_extractor, get_upload_dir
+from app.documents.storage import Storage
+from app.documents.router import get_extractor, get_storage
 from app.main import app
 from app.profile.service import save_profile
 from app.tax.router import get_summariser
@@ -162,9 +163,9 @@ def no_real_ai() -> Iterator[None]:
 def upload_dir(tmp_path: Path) -> Iterator[Path]:
     """A temporary UPLOAD_DIR for every test, so no test ever writes to the real uploads
     volume (development data), even one that forgets to ask for this fixture."""
-    app.dependency_overrides[get_upload_dir] = lambda: tmp_path
+    app.dependency_overrides[get_storage] = lambda: Storage(tmp_path)
     yield tmp_path
-    app.dependency_overrides.pop(get_upload_dir, None)
+    app.dependency_overrides.pop(get_storage, None)
 
 
 @pytest.fixture

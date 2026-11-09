@@ -140,3 +140,16 @@ def test_unrecognised_summary_effort_is_refused() -> None:
     """Fails if a typo in SUMMARY_EFFORT is only found when a summary is requested."""
     with pytest.raises(ValueError, match="SUMMARY_EFFORT"):
         load_settings({"DATABASE_URL": DB, "SUMMARY_EFFORT": "lwo"})
+
+
+def test_without_a_bucket_uploads_use_the_disk() -> None:
+    """Fails if development or tests could reach Google Cloud Storage by default (FR-018)."""
+    assert load_settings({"DATABASE_URL": DB}).upload_bucket is None
+    assert load_settings({"DATABASE_URL": DB, "UPLOAD_BUCKET": "  "}).upload_bucket is None
+
+
+def test_the_upload_bucket_is_read() -> None:
+    """Fails if the deployed app can't be pointed at its private bucket (FR-018)."""
+    settings = load_settings({"DATABASE_URL": DB, "UPLOAD_BUCKET": " pak-tax-filer-uploads "})
+
+    assert settings.upload_bucket == "pak-tax-filer-uploads"

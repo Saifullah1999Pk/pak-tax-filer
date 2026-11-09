@@ -9,9 +9,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 
-import anyio
 from sqlalchemy import func, select
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +28,7 @@ from app.documents.models import (
     ExtractionAttempt,
     FieldName,
 )
+from app.documents.storage import Storage
 from app.documents.uploads import CheckedFile
 
 # Reasons starting with this come from reading the printed value, not from a rule.
@@ -110,14 +109,14 @@ async def create_document(  # pylint: disable=too-many-arguments  # all keyword-
     tax_year: str,
     doc_type: DocType,
     checked: CheckedFile,
-    file_path: Path,
+    file_path: str,
 ) -> Document:
     """Record an uploaded, checked and stored file."""
     document = Document(
         user_id=user_id,
         doc_type=doc_type,
         tax_year=tax_year,
-        file_path=str(file_path),
+        file_path=file_path,
         media_type=checked.media_type,
         page_count=checked.page_count,
         status=DocStatus.UPLOADED,
@@ -358,12 +357,14 @@ async def list_documents(db: AsyncSession, user_id: uuid.UUID) -> list[Document]
     return list(documents)
 
 
-async def retry_extraction(db: AsyncSession, document: Document, extractor: Extractor) -> Document:
-    """Re-run a failed extraction on the stored file."""
+async def retry_extraction(
+    db: AsyncSession, document: Document, extractor: Extractor, storage: Storage
+) -> Document:
+    """Re-run a failed extraction on the stored file (bucket or disk, FR-018)."""
     if document.status is not DocStatus.FAILED:
         raise DocumentLocked("Only a failed extraction can be retried.")
-    path = anyio.Path(document.file_path)
-    if not await path.exists():
+    content = await storage.read(document.file_path)
+    if content is None:
         document.failure_reason = (
             "The stored file is missing. Delete this document and upload it again."
         )
@@ -377,17 +378,12 @@ async def retry_extraction(db: AsyncSession, document: Document, extractor: Extr
     await db.refresh(document, with_for_update=True)
     if document.status is not DocStatus.FAILED:
         raise DocumentLocked("Only a failed extraction can be retried.")
-    return await extract_document(db, document, extractor, await path.read_bytes())
+    return await extract_document(db, document, extractor, content)
 
 
-async def delete_document(db: AsyncSession, document: Document) -> Path:
-    """Delete the document and its fields; returns the stored file to remove after commit."""
-    path = Path(document.file_path)
+async def delete_document(db: AsyncSession, document: Document) -> str:
+    """Delete the document and its fields; returns where its file is, to remove after commit."""
+    location = document.file_path
     await db.delete(document)
     await db.flush()
-    return path
-
-
-async def remove_stored_file(path: Path) -> None:
-    """Remove a deleted document's file (after the database change is committed)."""
-    await anyio.Path(path).unlink(missing_ok=True)
+    return location

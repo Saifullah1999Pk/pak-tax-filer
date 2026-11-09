@@ -1,14 +1,12 @@
-"""Checking and storing an uploaded certificate (feature 003, task T012, research R4).
+"""Checking an uploaded certificate (feature 003, task T012, research R4); storage.py keeps it.
 
 Every check runs before anything is sent to the AI (spec US1 scenario 4).
 """
 
 import io
-import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-import anyio
 from fastapi import status
 from pypdf import PdfReader
 from pypdf.errors import PyPdfError
@@ -84,12 +82,3 @@ def _pdf_page_count(content: bytes) -> int:
             f"The PDF has {pages} pages; the limit is {MAX_PAGES} pages.",
         )
     return pages
-
-
-async def save_file(upload_dir: Path, user_id: uuid.UUID, content: bytes, extension: str) -> Path:
-    """Store the file as UPLOAD_DIR/<user_id>/<random uuid>.<ext>, never under its own name."""
-    folder = anyio.Path(upload_dir) / str(user_id)
-    await folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{uuid.uuid4()}.{extension}"
-    await path.write_bytes(content)
-    return Path(path)

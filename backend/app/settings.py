@@ -33,6 +33,9 @@ class Settings:  # pylint: disable=too-many-instance-attributes  # one field per
     extraction_effort: str = "low"
     # Research R4: uploaded files live in a Docker volume, never under the app's own folder.
     upload_dir: Path = Path("/data/uploads")
+    # Feature 003 FR-018: the private Cloud Storage bucket for uploads in the deployed app; None
+    # (development, tests) keeps them in upload_dir. Reached with the VM's own identity: no key.
+    upload_bucket: str | None = None
     # Feature 004, research R8: the model that writes the tax summary (never the figures).
     summary_model: str = "gemini-3.5-flash-lite"
     summary_effort: str = "low"
@@ -62,6 +65,7 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         extraction_model=environ.get("EXTRACTION_MODEL", "").strip() or "gemini-3.5-flash-lite",
         extraction_effort=effort,
         upload_dir=Path(environ.get("UPLOAD_DIR", "").strip() or "/data/uploads"),
+        upload_bucket=environ.get("UPLOAD_BUCKET", "").strip() or None,
         summary_model=environ.get("SUMMARY_MODEL", "").strip() or "gemini-3.5-flash-lite",
         summary_effort=summary_effort,
     )
