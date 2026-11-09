@@ -194,14 +194,12 @@ def _result_from(
 
 
 def _wrong_type_reason(chosen: DocType, seen: str) -> str:
-    """Why a document of another type is refused (FR-005a), naming what it looks like."""
-    expected = DOC_LABELS[chosen.value]
+    """Why a document of another type is refused (FR-005a): what was expected first, the model's
+    guess only as a hint, since the guess could be wrong."""
+    reason = f"This doesn't look like {DOC_LABELS[chosen.value]}."
     if seen in DOC_LABELS:
-        return (
-            f"This looks like {DOC_LABELS[seen]}, not {expected}. "
-            "Choose the right type and upload it again."
-        )
-    return f"This doesn't look like {expected}. Check the file and upload it again."
+        reason += f" It may be {DOC_LABELS[seen]}."
+    return reason + " Check the file and the type you chose."
 
 
 def _api_reason(exc: errors.APIError) -> str:

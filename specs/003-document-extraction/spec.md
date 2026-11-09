@@ -161,8 +161,9 @@ each model tried.
 - **FR-005**: Fields that break a consistency rule (listed in User Story 1, scenario 5) MUST be
   set to low confidence, with the reason shown.
 - **FR-005a**: If the uploaded document is not the type the user chose (e.g. a bank profit
-  certificate uploaded as a salary certificate), the upload MUST be refused with a message naming
-  what it looks like and asking to upload it again with the right type; nothing is saved, and the
+  certificate uploaded as a salary certificate), the upload MUST be refused with a message saying it
+  doesn't look like the chosen type, naming what it may be only as a hint (the AI's guess could
+  be wrong), and asking the user to check the file and type; nothing is saved, and the
   user stays on the upload page with their file and type still chosen. Only a document that is
   ready to review opens the review page; any other failed extraction keeps the user on the upload
   page with the reason, the document listed with Retry. *(Added 2026-11-09 after manual

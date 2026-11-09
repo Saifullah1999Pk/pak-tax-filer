@@ -151,8 +151,8 @@ async def test_a_retry_that_finds_the_wrong_type_stays_failed_with_the_reason(
     fake_extractor.result = ExtractionResult(failure_reason="busy")
     document_id = (await upload(client, make_pdf())).json()["id"]
     fake_extractor.result = ExtractionResult(
-        failure_reason="This looks like a bank profit certificate, not a salary certificate. "
-        "Choose the right type and upload it again.",
+        failure_reason="This doesn't look like a salary certificate. It may be a bank profit "
+        "certificate. Check the file and the type you chose.",
         wrong_type=True,
     )
 
@@ -160,4 +160,4 @@ async def test_a_retry_that_finds_the_wrong_type_stays_failed_with_the_reason(
 
     assert retried.status_code == 200
     assert retried.json()["status"] == "failed"
-    assert "looks like a bank profit certificate" in retried.json()["failure_reason"]
+    assert "It may be a bank profit" in retried.json()["failure_reason"]

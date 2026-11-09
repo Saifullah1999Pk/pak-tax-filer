@@ -157,14 +157,14 @@ async def test_a_document_of_the_wrong_type_is_refused_and_nothing_is_kept(
 ) -> None:
     """Fails if a wrong-type upload is saved, or doesn't come back as 422 with why (FR-005a)."""
     fake_extractor.result = ExtractionResult(
-        failure_reason="This looks like a bank profit certificate, not a salary certificate. "
-        "Choose the right type and upload it again.",
+        failure_reason="This doesn't look like a salary certificate. It may be a bank profit "
+        "certificate. Check the file and the type you chose.",
         wrong_type=True,
     )
 
     response = await upload(client, make_pdf())
 
     assert response.status_code == 422
-    assert "looks like a bank profit certificate" in response.json()["detail"]
+    assert "It may be a bank profit" in response.json()["detail"]
     assert (await db.scalars(select(Document))).first() is None
     assert not [path for path in upload_dir.rglob("*") if path.is_file()]
