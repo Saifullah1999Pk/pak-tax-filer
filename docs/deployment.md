@@ -60,7 +60,27 @@ docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec backend python -m app.cli create-user --email demo@example.com
 ```
 
-The first build takes several minutes. Then open `https://34-123-45-67.sslip.io` and log in.
+The first build takes several minutes. Then open `https://34-123-45-67.sslip.io` and log in,
+or choose **Create an account** (the `create-user` command is optional).
+
+## 5. Private bucket for uploads (once; feature 003, FR-018)
+
+Uploads go to a private Cloud Storage bucket instead of the VM's disk. The app reaches it with
+the VM's own Google identity, so there is no key to create or store.
+
+1. **Keep the IP:** stopping the VM can change its IP, and with it the site's address. VPC
+   network → IP addresses → the VM's external address → **Promote to static IP address**. Check
+   the price shown before confirming.
+2. **Create the bucket:** Cloud Storage → Buckets → Create. A globally unique name (e.g.
+   `pak-tax-filer-uploads-<something>`); location type **Region**, **us-central1** (free tier);
+   storage class **Standard**; **Enforce public access prevention** ticked; access control
+   **Uniform**. No other changes.
+3. **Let the VM write to it:** Compute Engine → VM instances → `pak-tax-filer` → **Stop**. Then
+   **Edit** → API and identity management → Access scopes → **Set access for each API** →
+   Storage: **Read Write** → Save → **Start**.
+4. On the VM, add `UPLOAD_BUCKET=<the bucket's name>` to `.env`, then start the app as in step 4.
+
+Files uploaded before this stay on the disk volume and keep working.
 
 ## Updating
 

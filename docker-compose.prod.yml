@@ -29,10 +29,14 @@ services:
       # The session cookie is HTTPS-only (Caddy provides HTTPS).
       COOKIE_SECURE: "true"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # The private Cloud Storage bucket for uploads (feature 003, FR-018), reached with the
+      # VM's own Google identity, so no key. Empty keeps uploads on the disk volume below.
+      UPLOAD_BUCKET: ${UPLOAD_BUCKET:-}
     depends_on:
       db:
         condition: service_healthy
     volumes:
+      # Files uploaded before UPLOAD_BUCKET was set stay here and keep working.
       - uploads:/data/uploads
 
   web:
