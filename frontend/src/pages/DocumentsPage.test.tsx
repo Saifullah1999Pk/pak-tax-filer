@@ -421,7 +421,7 @@ test("a wrong-type refusal keeps the chosen type so the user can fix it and uplo
         status: 422,
         body: {
           detail:
-            "This looks like a bank profit certificate, not a salary certificate. Choose the right type and upload it again.",
+            "This doesn't look like a salary certificate. It may be a bank profit certificate. Check the file and the type you chose.",
         },
       }),
     }),
@@ -434,7 +434,7 @@ test("a wrong-type refusal keeps the chosen type so the user can fix it and uplo
   fireEvent.click(screen.getByRole("button", { name: /upload/i }));
 
   expect((await screen.findByRole("alert")).textContent).toMatch(
-    /looks like a bank profit certificate/i,
+    /may be a bank profit certificate/i,
   );
   expect(screen.getByLabelText(/document type/i)).toHaveProperty(
     "value",

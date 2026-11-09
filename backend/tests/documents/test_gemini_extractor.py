@@ -209,7 +209,7 @@ async def test_network_failures_become_short_reasons(
 @pytest.mark.parametrize(
     ("seen", "expected"),
     [
-        ("salary_certificate", "looks like a salary certificate, not a bank profit certificate"),
+        ("salary_certificate", "It may be a salary certificate"),
         ("other", "doesn't look like a bank profit certificate"),
     ],
 )
@@ -223,7 +223,8 @@ async def test_a_document_of_another_type_fails_with_a_clear_reason(
 
     assert result.failure_reason is not None
     assert expected in result.failure_reason
-    assert "upload it again" in result.failure_reason
+    assert result.failure_reason.startswith("This doesn't look like a bank profit certificate.")
+    assert "Check the file and the type you chose." in result.failure_reason
     assert not result.fields
 
 
