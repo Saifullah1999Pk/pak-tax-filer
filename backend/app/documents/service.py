@@ -7,12 +7,13 @@ figures only through confirmed_documents() (Principle III).
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import anyio
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.documents.extraction.client import Extractor
@@ -26,6 +27,7 @@ from app.documents.models import (
     DocType,
     Document,
     ExtractedField,
+    ExtractionAttempt,
     FieldName,
 )
 from app.documents.uploads import CheckedFile
@@ -44,6 +46,44 @@ class WrongDocumentType(Exception):
 
 class FieldNotOnDocument(LookupError):
     """The document's type has no field with that name (HTTP 404)."""
+
+
+# FR-017 (added 2026-11-09): with open sign-up, one user mustn't use up the free AI quota.
+DAILY_EXTRACTIONS = 10
+DAILY_WINDOW = timedelta(hours=24)
+
+
+class DailyLimitReached(Exception):
+    """The user has started DAILY_EXTRACTIONS extractions in the last 24 hours (HTTP 429)."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            f"Daily limit reached: {DAILY_EXTRACTIONS} extractions per 24 hours. Try again later."
+        )
+
+
+async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Count one AI call for the user, or raise DailyLimitReached if they've used the day's.
+
+    A per-user lock (held until the transaction ends) stops requests sent together from all
+    reading the count before any records an attempt, as with login throttling (002 R4).
+    """
+    await db.execute(
+        sql_text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"extractions:{user_id}"},
+    )
+    since = datetime.now(UTC) - DAILY_WINDOW
+    used = (
+        await db.execute(
+            select(func.count())
+            .select_from(ExtractionAttempt)
+            .where(ExtractionAttempt.user_id == user_id, ExtractionAttempt.attempted_at > since)
+        )
+    ).scalar_one()
+    if used >= DAILY_EXTRACTIONS:
+        raise DailyLimitReached()
+    db.add(ExtractionAttempt(user_id=user_id, attempted_at=datetime.now(UTC)))
+    await db.flush()
 
 
 class IncompleteDocument(Exception):

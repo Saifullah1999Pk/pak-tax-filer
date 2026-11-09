@@ -33,6 +33,7 @@ from app.documents.service import (
     IncompleteDocument,
     confirm_document,
     create_document,
+    DailyLimitReached,
     delete_document,
     edit_field,
     extract_document,
@@ -40,6 +41,7 @@ from app.documents.service import (
     get_document,
     list_documents,
     remove_stored_file,
+    use_extraction,
     retry_extraction,
     WrongDocumentType,
 )
@@ -174,6 +176,14 @@ def _summary(document: Document) -> DocumentSummary:
     return DocumentSummary.model_validate(document_out(document).model_dump(exclude={"fields"}))
 
 
+async def _use_extraction(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """Count one AI call for the user, or answer 429 once the day's are used (FR-017)."""
+    try:
+        await use_extraction(db, user_id)
+    except DailyLimitReached as limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
+
+
 @router.get("")
 async def read_documents(user: CurrentUser, db: DbSession) -> list[DocumentSummary]:
     """The caller's documents, newest first, without their figures."""
@@ -196,6 +206,9 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         checked = check_file(file.filename or "", content)
     except UploadRefused as refused:
         raise HTTPException(refused.status_code, refused.detail) from refused
+    await _use_extraction(db, user.id)
+    # Committed now, so the attempt counts even if extraction is refused below (FR-017).
+    await db.commit()
     path = await save_file(upload_dir, user.id, content, checked.extension)
     try:
         document = await create_document(
@@ -274,7 +287,8 @@ async def confirm(document: LockedDocument, db: DbSession) -> DocumentOut:
 
 @router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
 async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
-    """Re-run a failed extraction."""
+    """Re-run a failed extraction (counted towards the daily limit, FR-017)."""
+    await _use_extraction(db, document.user_id)
     try:
         await retry_extraction(db, document, extractor)
     except DocumentLocked as locked:

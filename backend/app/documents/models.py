@@ -9,7 +9,17 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, UniqueConstraint, func
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -132,3 +142,22 @@ class ExtractedField(Base):
     confirmed: Mapped[bool] = mapped_column(default=False)
 
     document: Mapped[Document] = relationship(back_populates="fields")
+
+
+class ExtractionAttempt(Base):
+    """One AI call for a user's document, kept only for the daily limit (FR-017, added 2026-11-09).
+
+    Not linked to the document, so deleting a document can't reset the count.
+    """
+
+    __tablename__ = "extraction_attempts"
+    __table_args__ = (
+        Index("ix_extraction_attempts_user_id_attempted_at", "user_id", "attempted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # Deleted with the user.
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    attempted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
