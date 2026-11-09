@@ -60,7 +60,7 @@ Gemini's free tier on 2026-11-08 (tasks T033-T040).
 - [X] T013 [US1] Create `extract_document()` in `backend/app/documents/service.py`: set `extracting`, call the extractor, normalise, apply rules, save fields, set `needs_review` or `failed`; record `model`; T011 passes
 - [X] T014 [US1] Create `backend/app/documents/router.py` with `POST /api/documents` (multipart `file`, `doc_type`), `GET /api/documents/{id}` and `GET /api/documents/{id}/file`, all with `current_user` and `404` for other users' documents, the upload also with feature 002's `require_profile` (its `tax_year` stamps the document and is the year the rule checks compare with); include it in `backend/app/main.py`
 - [X] T015 [P] [US1] Write `frontend/src/pages/DocumentsPage.test.tsx` (demo notice shown; type choice required; progress shown while uploading; errors from `413`/`415`/`422` displayed; success navigates to the review page), then create `frontend/src/pages/DocumentsPage.tsx` (upload part) and add its route under `RequireAuth` in `frontend/src/App.tsx`
-- [ ] T016 [US1] Run [quickstart.md](quickstart.md) section 1 with a real API key
+- [X] T016 [US1] Run [quickstart.md](quickstart.md) section 1 with a real API key *(2026-11-09, Saifullah, with the Gemini key: figures correct)*
 
 **Checkpoint**: User Story 1 works on its own.
 
