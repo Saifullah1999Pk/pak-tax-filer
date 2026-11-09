@@ -24,9 +24,20 @@ export function TaxPage() {
   const taxYear = profile?.tax_year ?? "";
   const [result, setResult] = useState<TaxResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shownYear, setShownYear] = useState(taxYear);
+
+  // A different year: forget the previous result (React's reset-on-change pattern).
+  if (taxYear !== shownYear) {
+    setShownYear(taxYear);
+    setResult(null);
+    setError(null);
+  }
 
   useEffect(() => {
     let current = true;
+    if (taxYear === "") {
+      return;
+    }
     getTax(taxYear)
       .then((loaded) => current && setResult(loaded))
       .catch((caught: unknown) => {
@@ -78,6 +89,27 @@ function Result({ result }: { result: TaxResult }) {
   );
 }
 
+/** One figure as the API gave it; left out when the API sent none (never shown as Rs 0). */
+function Row({
+  term,
+  amount,
+  show = rupees,
+}: {
+  term: string;
+  amount: string | null;
+  show?: (amount: string) => string;
+}) {
+  if (amount === null) {
+    return null;
+  }
+  return (
+    <>
+      <dt>{term}</dt>
+      <dd>{show(amount)}</dd>
+    </>
+  );
+}
+
 function Figures({ result }: { result: TaxResult }) {
   return (
     <>
@@ -92,36 +124,37 @@ function Figures({ result }: { result: TaxResult }) {
       <section aria-labelledby="salary-heading">
         <h2 id="salary-heading">Salary</h2>
         <dl>
-          <dt>Salary tax</dt>
-          <dd>{rupees(result.salary_tax ?? "0")}</dd>
-          <dt>Surcharge</dt>
-          <dd>{rupees(result.surcharge ?? "0")}</dd>
-          <dt>After tax deducted by employers</dt>
-          <dd>{balanceWords(result.salary_balance ?? "0", "over-deducted")}</dd>
+          <Row term="Salary tax" amount={result.salary_tax} />
+          <Row term="Surcharge" amount={result.surcharge} />
+          <Row
+            term="After tax deducted by employers"
+            amount={result.salary_balance}
+            show={(balance) => balanceWords(balance, "over-deducted")}
+          />
         </dl>
       </section>
       <section aria-labelledby="profit-heading">
         <h2 id="profit-heading">Bank profit</h2>
         <dl>
-          <dt>Tax on bank profit</dt>
-          <dd>{rupees(result.profit_tax ?? "0")}</dd>
-          <dt>After tax withheld by banks</dt>
-          <dd>{balanceWords(result.profit_balance ?? "0", "over-withheld")}</dd>
-          {result.non_atl_extra_withheld !== null && (
-            <>
-              <dt>Not on the ATL</dt>
-              <dd>
-                {rupees(result.non_atl_extra_withheld)} extra withheld: to be
-                confirmed whether it can be reclaimed
-              </dd>
-            </>
-          )}
+          <Row term="Tax on bank profit" amount={result.profit_tax} />
+          <Row
+            term="After tax withheld by banks"
+            amount={result.profit_balance}
+            show={(balance) => balanceWords(balance, "over-withheld")}
+          />
+          <Row
+            term="Not on the ATL"
+            amount={result.non_atl_extra_withheld}
+            show={(extra) =>
+              `${rupees(extra)} extra tax withheld; whether it can be reclaimed needs confirmation`
+            }
+          />
         </dl>
       </section>
       <h2 id="breakdown-heading">How it was worked out</h2>
-      <ol aria-label="Breakdown">
-        {result.steps.map((step) => (
-          <li key={step.description}>
+      <ol aria-labelledby="breakdown-heading">
+        {result.steps.map((step, index) => (
+          <li key={`${index}-${step.description}`}>
             {step.description}
             <br />
             <small>Source: {step.rule_location}</small>

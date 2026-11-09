@@ -38,6 +38,15 @@ _NUMBER_WORDS = re.compile(
 )
 
 
+# The balance's direction, in the words a summary might use. "Refund" is never allowed: the app
+# never promises one (FR-013), and an over-deduction isn't a refund until FBR says so.
+_PAYABLE_WORDS = re.compile(r"\b(?:owe|owes|owed|owing|payable|outstanding)\b", re.IGNORECASE)
+_OVERPAID_WORDS = re.compile(
+    r"\b(?:over-?deducted|over-?withheld|overpaid|excess)\b", re.IGNORECASE
+)
+_REFUND = re.compile(r"\brefund", re.IGNORECASE)
+
+
 def numbers_in(text: str) -> set[Decimal]:
     """Every number written in digits, as a value: "Rs 72,000.00" and "72000" are the same."""
     found: set[Decimal] = set()
@@ -56,8 +65,17 @@ def breakdown_text(result: TaxResult) -> str:
 
 
 def summary_is_safe(summary: str, result: TaxResult) -> bool:
-    """True only if every number in the summary appears in the breakdown, and none is a word."""
-    if _NUMBER_WORDS.search(summary):
+    """True only if every number in the summary appears in the breakdown, none is a word, and
+    it doesn't reverse a balance (payable vs over-deducted) or mention a refund.
+
+    Known limit (research R8): a right number can still be attached to the wrong figure
+    ("your tax is Rs 600,000"); the breakdown beside it is the authoritative answer."""
+    if _NUMBER_WORDS.search(summary) or _REFUND.search(summary):
+        return False
+    balances = [b for b in (result.salary_balance, result.profit_balance) if b is not None]
+    if _PAYABLE_WORDS.search(summary) and not any(b > 0 for b in balances):
+        return False
+    if _OVERPAID_WORDS.search(summary) and not any(b < 0 for b in balances):
         return False
     return numbers_in(summary) <= numbers_in(breakdown_text(result))
 

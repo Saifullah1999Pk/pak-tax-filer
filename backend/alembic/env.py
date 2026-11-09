@@ -27,7 +27,9 @@ from app.db import Base
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Keep the app's own loggers: the tests migrate in-process, and the default (True) silenced
+    # every app logger for the rest of the run, so log assertions saw nothing.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 database_url = os.environ.get("DATABASE_URL")
 if not database_url:

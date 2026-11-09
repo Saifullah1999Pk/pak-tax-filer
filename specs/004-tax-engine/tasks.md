@@ -24,7 +24,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ## Phase 1: Setup
 
-- [X] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `gemini-3.8-flash` since the switch to Gemini on 2026-11-08; first `claude-opus-5-5`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
+- [X] T001 Add `pyyaml` as a dev dependency in `backend/pyproject.toml` with `uv add --dev`; add `SUMMARY_MODEL` (default `gemini-3.5-flash-lite`: the summary has 4 s and Flash took up to 60 s on the free tier; first `claude-opus-5-5`, then `gemini-3.8-flash`) and `SUMMARY_EFFORT` (default `low`) to `backend/app/settings.py`
 
 ---
 
@@ -122,7 +122,7 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 ## Phase 7: Polish
 
 - [X] T027 [P] Add a "Tax engine" section to `backend/CLAUDE.md`: rates live only in `backend/app/tax/rates/` with sources; every rate change comes with signed-off worked examples; never compute or check figures with an LLM
-- [ ] T028 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules and the open questions for the lead
+- [X] T028 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules and the open questions for the lead
 
 ---
 

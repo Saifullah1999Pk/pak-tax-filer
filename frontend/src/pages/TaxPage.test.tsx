@@ -102,7 +102,9 @@ test("the breakdown shows every step with its rule location", async () => {
   showTax({});
   renderApp("/tax");
 
-  const breakdown = await screen.findByRole("list", { name: /breakdown/i });
+  const breakdown = await screen.findByRole("list", {
+    name: /how it was worked out/i,
+  });
   const steps = within(breakdown).getAllByRole("listitem");
   expect(steps).toHaveLength(2);
   within(steps[0]).getByText(/Rs 6,000 \+ 11% of Rs 600,000/);
@@ -121,7 +123,7 @@ test("the summary is shown only when the API sends one", async () => {
 
   showTax({ summary: null });
   renderApp("/tax");
-  await screen.findByRole("list", { name: /breakdown/i });
+  await screen.findByRole("list", { name: /how it was worked out/i });
   expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
 });
 
@@ -135,7 +137,9 @@ test("without ATL status it links to the profile, with no figures", async () => 
       .getByRole("link", { name: /go to your profile/i })
       .getAttribute("href"),
   ).toBe("/profile");
-  expect(screen.queryByRole("list", { name: /breakdown/i })).toBeNull();
+  expect(
+    screen.queryByRole("list", { name: /how it was worked out/i }),
+  ).toBeNull();
   screen.getByText(LABEL);
 });
 
@@ -170,6 +174,7 @@ test.each([
 
   await screen.findByText(message);
   expect(screen.queryByRole("region", { name: /salary/i })).toBeNull();
+  screen.getByText(LABEL);
 });
 
 test("extra withholding for a non-ATL user is 'to be confirmed', never a refund", async () => {
@@ -177,7 +182,10 @@ test("extra withholding for a non-ATL user is 'to be confirmed', never a refund"
   renderApp("/tax");
 
   const profit = await screen.findByRole("region", { name: /bank profit/i });
-  within(profit).getByText(/Rs 40,000 extra withheld: to be confirmed/);
+  within(profit).getByText(
+    "Rs 40,000 extra tax withheld; whether it can be reclaimed needs confirmation",
+  );
+  within(profit).getByText("Nothing to pay");
   expect(screen.queryByText(/refund/i)).toBeNull();
 });
 
@@ -187,4 +195,36 @@ test("money with paisa keeps them", async () => {
 
   const salary = await screen.findByRole("region", { name: /salary/i });
   within(salary).getByText("Rs 1,234,567.5");
+});
+
+test("a negative salary balance reads over-deducted", async () => {
+  showTax({ salary_balance: "-3000" });
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  within(salary).getByText("Rs 3,000 over-deducted");
+});
+
+test("a missing amount is left out, never shown as Rs 0", async () => {
+  showTax({ surcharge: null });
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  expect(within(salary).queryByText("Surcharge")).toBeNull();
+  within(salary).getByText("Rs 72,000");
+});
+
+test("an error reply is shown instead of the result", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/tax/2025-26": () => ({
+      status: 404,
+      body: { detail: "No rates for that tax year." },
+    }),
+  });
+  renderApp("/tax");
+
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toBe("No rates for that tax year.");
 });

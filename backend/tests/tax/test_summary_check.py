@@ -5,6 +5,7 @@ the summary is dropped. The breakdown is always returned, with or without a summ
 """
 
 import asyncio
+from collections.abc import Callable
 from decimal import Decimal
 
 import pytest
@@ -87,3 +88,30 @@ async def test_a_blocked_result_gets_no_summary() -> None:
     blocked = TaxResult(tax_year="2025-26", blocked_reason="needs_atl_answer")
 
     assert await verified_summary(blocked, FakeSummariser("Anything.")) is None
+
+
+def over_deducted() -> TaxResult:
+    """Taxable salary 1,800,000, tax deducted 76,000: tax 72,000, Rs 4,000 over-deducted."""
+    inputs = TaxInputs(
+        "2025-26", True, Decimal(1800000), Decimal(76000), Decimal(0), Decimal(0), True
+    )
+    return calculate(inputs, rates_for("2025-26"))
+
+
+@pytest.mark.parametrize(
+    ("summary", "result", "kept"),
+    [
+        ("Rs 4,000 was over-deducted by your employers.", over_deducted, True),
+        ("You owe Rs 4,000.", over_deducted, False),  # the direction is wrong
+        ("Rs 4,000 is payable.", over_deducted, False),
+        ("Your employers over-deducted Rs 12,000.", band_3, False),
+        ("You will get a refund of Rs 12,000.", band_3, False),  # the app never says refund
+        ("You will get a refund of Rs 4,000.", over_deducted, False),
+    ],
+)
+def test_a_summary_must_not_reverse_the_balance(
+    summary: str, result: Callable[[], TaxResult], kept: bool
+) -> None:
+    """Fails if a summary with the right number says payable where it's over-deducted, or the
+    reverse, or promises a refund (spec: the summary never contradicts the steps)."""
+    assert summary_is_safe(summary, result()) is kept

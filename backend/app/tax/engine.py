@@ -55,7 +55,8 @@ class TaxResult:  # pylint: disable=too-many-instance-attributes  # one field pe
 
 def rupees(amount: Decimal) -> Decimal:
     """Round to the nearest rupee, 50 paisa or more up (section 219; never banker's rounding)."""
-    return amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    rounded = amount.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return rounded if rounded else Decimal(0)  # never "-0" (e.g. 40 paisa over-deducted)
 
 
 def salary_band(rates: TaxYearRates, taxable_salary: Decimal) -> Band:

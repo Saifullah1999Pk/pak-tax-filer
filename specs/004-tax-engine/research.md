@@ -67,8 +67,8 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
 
 ## R8. AI summary and the number check
 
-- **Decision:** after a successful calculation, call Claude (same pattern as 003: official SDK,
-  `SUMMARY_MODEL` setting defaulting to `claude-opus-5-5`, effort `low`, short output) with the
+- **Decision:** after a successful calculation, call Gemini (free tier; same pattern as 003: official `google-genai` SDK,
+  `SUMMARY_MODEL` setting defaulting to `gemini-3.5-flash-lite`, effort `low`, short output; first `claude-opus-5-5`) with the
   breakdown as data and an instruction to summarise in 2–3 plain sentences using only numbers
   from it. Then a plain-code check:
   - collect the **allowed set**: every number appearing in the rendered breakdown (amounts,
@@ -78,7 +78,9 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
   - **reject** the summary if any extracted number isn't in the allowed set, or if it contains
     number words (`lakh`, `crore`, `million`, `thousand`, written-out numbers), since those can't
     be checked reliably.
-  The call has a **4-second limit** so results stay within SC-004; a late, rejected or refused summary, or an API error, means no summary. The breakdown is always shown and never waits on Claude.
+  The call has a **4-second limit** so results stay within SC-004; a late, rejected or refused summary, or an API error, means no summary. The breakdown is always returned; the response waits for the summary at most 4 seconds.
+  - **Added after review (2026-11-09):** the summary is also dropped if it says "refund" (the app never promises one, FR-013), uses payable words ("owe", "payable", "outstanding") when nothing is payable, or over-deduction words when nothing is over-deducted.
+  - **Known limit:** a number from the breakdown can still be attached to the wrong figure ("your tax is Rs 600,000"). The breakdown beside it is the authoritative answer; this is accepted for the MVP.
 - **Rationale:** enforces Principle I's "no new figures" mechanically instead of trusting the
   model.
 - **Alternatives:** trusting the prompt (unenforced); asking a second model to verify (still

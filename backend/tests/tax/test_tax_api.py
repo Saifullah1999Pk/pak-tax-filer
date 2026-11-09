@@ -112,6 +112,7 @@ async def test_confirmed_certificates_are_summed_and_calculated(
     body = response.json()
     assert body["tax_year"] == "2025-26"
     assert body["blocked_reason"] is None
+    assert body["message"] is None
     assert body["salary_tax"] == "72000"
     assert body["surcharge"] == "0"
     assert body["profit_tax"] == "20000"
@@ -168,7 +169,8 @@ async def test_without_a_profile_it_asks_for_the_atl_status(
 
     assert body["blocked_reason"] == "needs_atl_answer"
     assert body["message"] == "Set your ATL status in your profile."
-    assert body["salary_tax"] is None
+    money = ["salary_tax", "surcharge", "profit_tax", "salary_balance", "profit_balance"]
+    assert all(body[name] is None for name in [*money, "non_atl_extra_withheld", "summary"])
     assert body["steps"] == []
     assert body["label"] == LABEL
 
@@ -201,3 +203,20 @@ async def test_a_checked_summary_is_returned_with_the_breakdown(
 
         assert (body["summary"] == text) is expected
         assert len(body["steps"]) == 5  # the breakdown is always there
+
+
+async def test_another_users_certificates_are_never_counted(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if one user's confirmed figures reach another user's tax."""
+    other = User(email="someone-else@example.com", password_hash="not-a-real-hash")
+    db.add(other)
+    await db.flush()
+    await add_document(db, other, DocType.SALARY_CERTIFICATE, salary("5000000", "0"))
+    await add_document(
+        db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
+    )
+
+    body = (await client.get("/api/tax/2025-26")).json()
+
+    assert body["salary_tax"] == "72000"

@@ -129,10 +129,10 @@ def test_summary_defaults() -> None:
 def test_summary_settings_are_read() -> None:
     """Fails if the environment can't change the summary's model or effort."""
     settings = load_settings(
-        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-3.5-flash-lite", "SUMMARY_EFFORT": "medium"}
+        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-test-model", "SUMMARY_EFFORT": "medium"}
     )
 
-    assert settings.summary_model == "gemini-3.5-flash-lite"
+    assert settings.summary_model == "gemini-test-model"
     assert settings.summary_effort == "medium"
 
 

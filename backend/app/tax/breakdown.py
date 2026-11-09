@@ -5,16 +5,18 @@ Fixed templates filled with the calculation's own numbers, each step citing its 
 checks any of this (constitution Principle I).
 """
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from app.tax.rates.model import Band, Source
 
 
 def money(amount: Decimal) -> str:
-    """'Rs 1,800,000', or 'Rs 2,681,000.35' when there are paisa."""
+    """'Rs 1,800,000', 'Rs 2,681,000.35' when there are paisa (half up), '-Rs 4,000'."""
+    sign = "-" if amount < 0 else ""
+    amount = abs(amount)
     if amount == amount.to_integral_value():
-        return f"Rs {amount:,.0f}"
-    return f"Rs {amount:,.2f}"
+        return f"{sign}Rs {amount:,.0f}"
+    return f"{sign}Rs {amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):,.2f}"
 
 
 def percent(rate: Decimal) -> str:
