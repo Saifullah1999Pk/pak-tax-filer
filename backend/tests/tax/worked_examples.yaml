@@ -41,6 +41,15 @@
 #   row 5: exceeds 3,200,000, not 4,100,000            -> 346,000 + 30% over 3,200,000
 #   row 6: exceeds 4,100,000                           -> 616,000 + 35% over 4,100,000
 
+# SIGNED OFF 2026-11-09 by Saifullah Khan, against the Ordinance (FBR PDF, amended up to
+# 31.07.2025): the salaried table (PDF page 493; all six rows), the 9% salaried surcharge above
+# Rs 10 million (s.4AB, page 34), tax on the gross profit on debt (s.7B(2), page 41) and its
+# Rs 5 million limit (s.7B(3)(b), page 41), the 20% bank rate (Division IIIA(a), page 501) and
+# rounding (s.219, page 437); and he agreed with three readings: (A) each balance is rounded from
+# the unrounded tax figures, (B) exactly 75% is not "more than 75%", so it is blocked, (C) a
+# non-ATL user's withholding above the profit tax is "to be confirmed", never a refund. The
+# arithmetic was checked with a calculator when the examples were written.
+
 tax_year: "2025-26"
 
 examples:
@@ -58,8 +67,8 @@ examples:
       - "Salary balance = 0 - 0 = 0."
     expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-1-limit
     description: Exactly 600,000 stays in row 1 ("does not exceed").
@@ -72,8 +81,8 @@ examples:
       - "Salary balance = 0 - 0 = 0."
     expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-2-inside
     description: Inside row 2.
@@ -87,8 +96,8 @@ examples:
       - "Salary balance = 3,000 - 2,500 = 500 payable."
     expected: {blocked_reason: null, salary_tax: "3000", surcharge: "0", profit_tax: "0",
                salary_balance: "500", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-2-limit
     description: Exactly 1,200,000 stays in row 2.
@@ -102,8 +111,8 @@ examples:
       - "Salary balance = 6,000 - 6,000 = 0."
     expected: {blocked_reason: null, salary_tax: "6000", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-3-inside
     description: Inside row 3; also the "no bank certificates" case (profit side zero).
@@ -118,8 +127,8 @@ examples:
       - "No bank certificates: profit tax 0, profit balance 0."
     expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "0",
                salary_balance: "12000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-3-limit
     description: Exactly 2,200,000 stays in row 3; more deducted than due.
@@ -133,8 +142,8 @@ examples:
       - "Salary balance = 116,000 - 120,000 = -4,000 (over-deducted)."
     expected: {blocked_reason: null, salary_tax: "116000", surcharge: "0", profit_tax: "0",
                salary_balance: "-4000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-4-inside-deducted-equals-due
     description: Inside row 4; tax deducted exactly equals tax due, so the balance is zero.
@@ -148,8 +157,8 @@ examples:
       - "Salary balance = 231,000 - 231,000 = 0."
     expected: {blocked_reason: null, salary_tax: "231000", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-4-limit
     description: Exactly 3,200,000 stays in row 4.
@@ -163,8 +172,8 @@ examples:
       - "Salary balance = 346,000 - 340,000 = 6,000 payable."
     expected: {blocked_reason: null, salary_tax: "346000", surcharge: "0", profit_tax: "0",
                salary_balance: "6000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-5-inside
     description: Inside row 5.
@@ -178,8 +187,8 @@ examples:
       - "Salary balance = 481,000 - 470,000 = 11,000 payable."
     expected: {blocked_reason: null, salary_tax: "481000", surcharge: "0", profit_tax: "0",
                salary_balance: "11000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-5-limit
     description: Exactly 4,100,000 stays in row 5.
@@ -193,8 +202,8 @@ examples:
       - "Salary balance = 616,000 - 616,000 = 0."
     expected: {blocked_reason: null, salary_tax: "616000", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: band-6-inside
     description: Row 6 (no upper limit), below the surcharge limit; over-deducted.
@@ -209,8 +218,8 @@ examples:
       - "Salary balance = 1,281,000 - 1,300,000 = -19,000 (over-deducted)."
     expected: {blocked_reason: null, salary_tax: "1281000", surcharge: "0", profit_tax: "0",
                salary_balance: "-19000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   # ---- The Rs 10 million surcharge limit (section 4AB) ---------------------------------------
 
@@ -227,8 +236,8 @@ examples:
       - "Salary balance = 2,681,000 - 2,681,000 = 0."
     expected: {blocked_reason: null, salary_tax: "2681000", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: surcharge-above-10-million
     description: One rupee over 10,000,000 brings the 9% surcharge; shows rounding of each part.
@@ -246,8 +255,8 @@ examples:
         22,290 payable."
     expected: {blocked_reason: null, salary_tax: "2681000", surcharge: "241290", profit_tax: "0",
                salary_balance: "22290", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   # ---- Rounding (section 219) ----------------------------------------------------------------
 
@@ -263,8 +272,8 @@ examples:
       - "Salary balance = 0.50 - 0 = 0.50; rounded: 1 payable."
     expected: {blocked_reason: null, salary_tax: "1", surcharge: "0", profit_tax: "0",
                salary_balance: "1", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: rounding-49-paisa
     description: Tax of 49 paisa rounds down to 0.
@@ -278,8 +287,8 @@ examples:
       - "Salary balance = 0.49; rounded: 0."
     expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: profit-tax-rounding
     description: Profit tax with paisa is rounded; salary is just over 75% of taxable income.
@@ -300,8 +309,8 @@ examples:
       - "Profit balance = 79,999.80 - 79,999.80 = 0."
     expected: {blocked_reason: null, salary_tax: "6000", surcharge: "0", profit_tax: "80000",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   # ---- Bank profit and the Rs 5 million limit (section 7B) -----------------------------------
 
@@ -325,8 +334,8 @@ examples:
     expected: {blocked_reason: null, salary_tax: "4781000", surcharge: "430290",
                profit_tax: "1000000", salary_balance: "11290", profit_balance: "0",
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: two-salary-and-two-bank-certificates
     description: Two employers and two banks, summed per type before calculating.
@@ -348,8 +357,8 @@ examples:
       - "Profit tax = 20% x 100,000 = 20,000. Balance 20,000 - 20,000 = 0."
     expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "20000",
                salary_balance: "3000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: non-atl-40-percent-withheld
     description: Not on the ATL, the bank withheld 40%; the extra is "to be confirmed", not a
@@ -368,8 +377,8 @@ examples:
         reclaim needs confirmation."
     expected: {blocked_reason: null, salary_tax: "300000", surcharge: "0", profit_tax: "40000",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: "40000"}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: salary-payable-profit-over-withheld
     description: The salary side is payable while the profit side is over-withheld; the two are
@@ -385,8 +394,8 @@ examples:
         on the ATL, so this is a profit balance)."
     expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "20000",
                salary_balance: "12000", profit_balance: "-5000", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   # ---- Blocked: no figures at all (one example per blocked_reason) ---------------------------
 
@@ -401,8 +410,8 @@ examples:
     expected: {blocked_reason: needs_atl_answer, salary_tax: null, surcharge: null,
                profit_tax: null, salary_balance: null, profit_balance: null,
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: blocked-no-salary-certificate
     description: Only a bank certificate is confirmed.
@@ -415,8 +424,8 @@ examples:
     expected: {blocked_reason: no_confirmed_salary_certificate, salary_tax: null,
                surcharge: null, profit_tax: null, salary_balance: null, profit_balance: null,
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: blocked-profit-over-5-million
     description: One rupee over 5,000,000 of profit; section 7B no longer applies (provisional
@@ -431,8 +440,8 @@ examples:
     expected: {blocked_reason: profit_over_limit, salary_tax: null, surcharge: null,
                profit_tax: null, salary_balance: null, profit_balance: null,
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: blocked-salary-share-ambiguous
     description: Salary is exactly 75% of taxable income with the profit included (not "more
@@ -449,8 +458,8 @@ examples:
     expected: {blocked_reason: salary_share_ambiguous, salary_tax: null, surcharge: null,
                profit_tax: null, salary_balance: null, profit_balance: null,
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
 
   - id: blocked-surcharge-ambiguous
     description: Over 10,000,000 only when the profit is counted (provisional rule 3).
@@ -465,5 +474,5 @@ examples:
     expected: {blocked_reason: surcharge_ambiguous, salary_tax: null, surcharge: null,
                profit_tax: null, salary_balance: null, profit_balance: null,
                non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
