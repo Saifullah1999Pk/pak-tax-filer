@@ -225,3 +225,62 @@ async def test_a_document_of_another_type_fails_with_a_clear_reason(
     assert expected in result.failure_reason
     assert "upload it again" in result.failure_reason
     assert not result.fields
+
+
+def with_app_retries(handler: Handler) -> GeminiExtractor:
+    """A GeminiExtractor using its own retry settings, talking to `handler` instead of Google."""
+    http = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    return GeminiExtractor(api_key=FAKE_KEY, model="gemini-test", effort="low", http_client=http)
+
+
+def answers(*statuses: int) -> tuple[Handler, list[httpx2.Request]]:
+    """A handler answering each request with the next status (200 = a good reply)."""
+    sent: list[httpx2.Request] = []
+    queue = list(statuses)
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        sent.append(request)
+        status = queue.pop(0) if queue else 200
+        if status == 200:
+            return httpx2.Response(200, json=reply(json.dumps(BANK_REPLY)))
+        error = {"error": {"code": status, "message": "busy", "status": "UNAVAILABLE"}}
+        return httpx2.Response(status, json=error)
+
+    return handle, sent
+
+
+async def test_temporary_server_errors_are_retried() -> None:
+    """Fails if a brief Google outage (503) fails the upload instead of being retried."""
+    handler, sent = answers(503, 503)
+
+    result = await with_app_retries(handler).extract(
+        DocType.BANK_PROFIT_CERTIFICATE, PDF, "application/pdf"
+    )
+
+    assert result.failure_reason is None
+    assert len(sent) == 3
+
+
+async def test_a_lasting_outage_still_fails_cleanly() -> None:
+    """Fails if retries go on forever or the final failure loses its short reason."""
+    handler, sent = answers(503, 503, 503, 503)
+
+    result = await with_app_retries(handler).extract(
+        DocType.BANK_PROFIT_CERTIFICATE, PDF, "application/pdf"
+    )
+
+    assert len(sent) == 3
+    assert result.failure_reason is not None
+    assert "problem" in result.failure_reason
+
+
+async def test_a_deadline_timeout_is_not_retried() -> None:
+    """Fails if a 504 (the 60-second deadline) is retried, making the user wait minutes."""
+    handler, sent = answers(504)
+
+    result = await with_app_retries(handler).extract(
+        DocType.BANK_PROFIT_CERTIFICATE, PDF, "application/pdf"
+    )
+
+    assert len(sent) == 1
+    assert result.failure_reason is not None
