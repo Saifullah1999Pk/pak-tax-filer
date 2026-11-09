@@ -50,11 +50,11 @@ Principle VI). **No engine code (T009 onward) starts until T003 is complete.**
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T009 [P] [US1] Write `backend/tests/tax/test_worked_examples.py`: one test per non-blocked example in `worked_examples.yaml`, asserting `salary_tax`, `surcharge`, `profit_tax`, `salary_balance`, `profit_balance` and `non_atl_extra_withheld` equal the signed-off figures exactly
+- [X] T009 [P] [US1] Write `backend/tests/tax/test_worked_examples.py`: one test per non-blocked example in `worked_examples.yaml`, asserting `salary_tax`, `surcharge`, `profit_tax`, `salary_balance`, `profit_balance` and `non_atl_extra_withheld` equal the signed-off figures exactly
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Create `backend/app/tax/engine.py` with `TaxInputs`, `TaxResult` and pure `calculate(inputs, rates)` per research R1 and R3: band selection with "does not exceed" upper limits, surcharge on "exceeds", profit tax, credits, separate balances, `ROUND_HALF_UP` only on final amounts; no imports from database, network or AI modules, enforced by a test in `backend/tests/tax/test_engine_imports.py` that fails if `engine.py` imports `anthropic`, `app.tax.summary` or any database module; T009 passes
+- [X] T010 [US1] Create `backend/app/tax/engine.py` with `TaxInputs`, `TaxResult` and pure `calculate(inputs, rates)` per research R1 and R3: band selection with "does not exceed" upper limits, surcharge on "exceeds", profit tax, credits, separate balances, `ROUND_HALF_UP` only on final amounts; no imports from database, network or AI modules, enforced by a test in `backend/tests/tax/test_engine_imports.py` that fails if `engine.py` imports `anthropic`, `app.tax.summary` or any database module; T009 passes
 - [ ] T011 [US1] Create `backend/app/tax/service.py`: build `TaxInputs` from `confirmed_documents(user_id, tax_year)` (summing per type) and `on_atl` from feature 002's `get_profile` (no profile → `needs_atl_answer`), per research R5
 - [ ] T012 [US1] Write `backend/tests/tax/test_tax_api.py` (unauthenticated → `401`; unknown tax year → `404`; an `atl` query parameter has no effect and the profile's ATL status is used; a user's confirmed certificates produce the contract's response shape with money as strings and the label), then create `backend/app/tax/router.py` with `GET /api/tax/{tax_year}` and include it in `backend/app/main.py`
 - [ ] T013 [P] [US1] Write `frontend/src/pages/TaxPage.test.tsx` (no ATL question; the `needs_atl_answer` message links to `/profile`; salary and profit results shown separately with no combined total; practitioner label always visible), then create `frontend/src/pages/TaxPage.tsx` and its route under `RequireAuth`
