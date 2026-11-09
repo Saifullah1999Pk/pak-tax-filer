@@ -41,3 +41,16 @@ fields and the file. Several confirmed documents per type and tax year are allow
 
 Unique on (`document_id`, `name`). A document can be confirmed only when all its fields are
 confirmed and none is still "not found" (the user enters a value or zero).
+
+## extraction_attempts (added 2026-11-09, migration `0005_extraction_attempts`)
+
+| Column | Type | Rules |
+|---|---|---|
+| `id` | bigint | primary key |
+| `user_id` | UUID | required; references `users.id`, deleted with the user |
+| `attempted_at` | timestamptz | defaults to now |
+
+Indexed on (`user_id`, `attempted_at`). One row per AI call for a user's document (upload or
+retry), kept even if the document is later deleted, so deleting can't reset the limit. A user
+with 10 rows in the last 24 hours is refused (FR-017). Written and counted under a per-user
+lock, so requests sent together can't pass the limit.

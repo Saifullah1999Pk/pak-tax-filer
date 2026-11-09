@@ -53,3 +53,14 @@ docker compose exec frontend npm test
 
 Both pass. Contracts: [auth-api.md](contracts/auth-api.md),
 [cli-and-ui.md](contracts/cli-and-ui.md).
+
+## 6. Sign up and the daily limit (User Story 6, added 2026-11-09)
+
+1. Log out → on `/login`, follow "Create an account" → `/signup` shows email, password, confirm
+   password and the demo notice.
+2. Sign up with a new email and mismatched passwords → refused on the page. Fix them → you land
+   on `/profile` (setup), logged in, in under 1 minute (SC-011).
+3. Log out; sign up again with the same email in capitals → "An account with this email already
+   exists. Log in instead."; logging in with the original password works.
+4. As one user, upload certificates until the 11th extraction in 24 hours → "Daily limit
+   reached: 10 extractions per 24 hours. Try again later." (feature 003, FR-017).

@@ -135,3 +135,20 @@ Each decision: what was chosen, why, and what else was considered.
   isn't in the state this needs", distinct from `401`.
 - **Alternatives:** `403` (reads as a permissions problem); enforcing only in the UI (fails
   FR-022, SC-008).
+
+## R15. Sign-up (added 2026-11-09)
+
+- **Decision:** `POST /api/auth/signup` reuses `create_user` (the same rules and hashing as the
+  `create-user` command) and then `create_session`, so a new user is logged in exactly as after
+  login; the page then goes to `/profile`, where the existing setup step takes over. An existing
+  email answers `409` "An account with this email already exists. Log in instead."
+- **Rationale:** FR-024 to FR-026 with no new auth code paths. Without verification emails,
+  sign-up can't hide whether an email is registered: hiding it would also hide "your account
+  exists" from the real owner. Accepted for a demo with synthetic data and no identity fields
+  (Principle V); verification can close this later.
+- **Abuse:** the real cost of open sign-up is the free AI quota, so extraction is limited per
+  user per day (feature 003, FR-017). Sign-up itself isn't rate-limited yet: an account costs
+  only a database row, and login stays throttled per email (R4). Revisit with email
+  verification.
+- **Alternatives:** invite-only sign-up (needs invite codes; the lead asked for plain sign-up);
+  always answering "check your email" (needs an email service).

@@ -32,13 +32,13 @@ show the original as a PDF or an image.
 
 | Method and path | Purpose | Success | Errors |
 |---|---|---|---|
-| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable, or not the chosen type (FR-005a: nothing is saved); `409` "Set up your profile first." (feature 002's `require_profile`) |
+| `POST /api/documents` (multipart: `file`, `doc_type`) | Upload and extract | `201` document (`needs_review` or `failed`) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted or unreadable, or not the chosen type (FR-005a: nothing is saved); `409` "Set up your profile first." (feature 002's `require_profile`); `429` "Daily limit reached: 10 extractions per 24 hours. Try again later." (FR-017, checked after the file checks, before storing or the AI) |
 | `GET /api/documents` | List own documents, newest first | `200` array (without `fields`) | |
 | `GET /api/documents/{id}` | One document with fields | `200` | `404` |
 | `GET /api/documents/{id}/file` | Original file for the review page | `200` with its media type | `404` |
 | `PATCH /api/documents/{id}/fields/{name}` body `{"value": "…"?, "confirmed": true?}` | Edit and/or confirm a field | `200` field (rule checks re-run) | `404` (also for a field name the type doesn't have); `409` document confirmed; `422` invalid value, or confirming a field that is empty or negative |
 | `POST /api/documents/{id}/confirm` | Confirm the document | `200` document | `409` with the names of unconfirmed or not-found fields; `409` if its tax year isn't the profile's (FR-008) |
-| `POST /api/documents/{id}/retry` | Re-run a failed extraction | `200` document | `409` not failed |
+| `POST /api/documents/{id}/retry` | Re-run a failed extraction | `200` document | `409` not failed; `429` daily limit reached (FR-017) |
 | `DELETE /api/documents/{id}` | Delete document, fields and file | `204` | `404` |
 
 ## Internal service for later features

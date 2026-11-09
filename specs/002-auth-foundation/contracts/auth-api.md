@@ -23,6 +23,25 @@ Request (`Content-Type: application/json` required):
 The email is trimmed and lower-cased before use. A failed attempt (401) is recorded for
 throttling; a throttled attempt (429) does not check the password.
 
+## POST /api/auth/signup (added 2026-11-09)
+
+Request (`Content-Type: application/json` required):
+
+```json
+{ "email": "new@example.com", "password": "at-least-8-chars" }
+```
+
+| Outcome | Status | Body | Cookie |
+|---|---|---|---|
+| Account created | `201` | `{"email": "new@example.com"}` | sets `session`, exactly as login |
+| Email already has an account (any case or spacing) | `409` | `{"detail": "An account with this email already exists. Log in instead."}` | none |
+| Password under 8 characters | `422` | `{"detail": "Password must be at least 8 characters."}` | none |
+| Missing or invalid fields (email 3–254 characters and containing `@`, password 1–1,024) | `422` | FastAPI validation error, without the rejected values | none |
+| Not `Content-Type: application/json` | `415` | `{"detail": "Content-Type must be application/json."}` | none |
+
+The email is trimmed and lower-cased before use, as at login. The "confirm password" check is
+the page's; the API takes the password once. Covers FR-024 to FR-026; research R15.
+
 ## POST /api/auth/logout
 
 No body required (`Content-Type: application/json`; otherwise `415` and the session is kept). Otherwise always `204`. Deletes the current session if

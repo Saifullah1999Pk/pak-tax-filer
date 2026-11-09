@@ -18,6 +18,10 @@
 
 - Q: Can a certificate whose tax year differs from the profile's be confirmed (the rule check only flags it)? → A: No. Confirming is refused until the certificate's tax year equals the profile's, so a certificate for another year can never be counted in the profile's year. Confirmed amounts must also be non-negative, whether typed or extracted (found in code review).
 
+### Session 2026-11-09
+
+- Q: With open sign-up (feature 002, User Story 6) on a public site, how is the free AI quota protected? → A: Each user may start at most 10 extractions in any 24 hours (FR-017); uploads and retries both count, including files refused as the wrong type, since each one calls the AI.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Upload a certificate and get its figures (Priority: P1)
@@ -194,6 +198,10 @@ each model tried.
   before merge on proposals from a fork, because the API key can't be shared with them; if the
   developer is given branch access to the main repository, it MUST also run before merge.)
 - **FR-016**: The AI model used MUST be a setting, chosen as the cheapest that meets the bar.
+- **FR-017**: Each user MUST be limited to 10 extraction attempts (uploads and retries) in any
+  24 hours. Over the limit, the request MUST be refused before the AI is called or any file is
+  stored, with "Daily limit reached: 10 extractions per 24 hours. Try again later." (added
+  2026-11-09).
 
 ### Key Entities
 
@@ -204,6 +212,8 @@ each model tried.
   confirmed.
 - **Eval case**: one synthetic file with its correct values, type, layout and whether it is a
   clean PDF or photo.
+- **Extraction attempt**: one call to the AI for a user's document, with its time; kept only to
+  enforce the daily limit (FR-017).
 
 ## Success Criteria *(mandatory)*
 

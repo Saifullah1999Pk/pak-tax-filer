@@ -162,6 +162,23 @@ backend enforces it (FR-016 to FR-020, FR-022, FR-023).
 
 ---
 
+## Phase 9: User Story 6 - Sign up (Priority: P6, added 2026-11-09)
+
+**Goal**: visitors create their own accounts (FR-024 to FR-027), and the free AI quota is
+protected by a per-user daily extraction limit (feature 003, FR-017).
+
+**Independent Test**: [quickstart.md](quickstart.md) section 6.
+
+- [ ] T047 [P] [US6] Write `backend/tests/auth/test_signup.py` per [contracts/auth-api.md](contracts/auth-api.md) "POST /api/auth/signup": 201 sets the same session cookie as login and `/me` then answers; the stored email is trimmed and lower-cased and the password is hashed; an existing email in another case or with spaces is 409 and changes nothing; a 7-character password is 422 with no account; non-JSON is 415; a validation error doesn't echo the password; then add the endpoint to `backend/app/auth/router.py` reusing `create_user` and `create_session`
+- [ ] T048 [P] [US6] Write `backend/tests/documents/test_daily_limit.py` (feature 003, FR-017): the 11th upload within 24 hours is 429 with the contract message, stores no file, creates no document and never calls the extractor; retries count too; deleting a document doesn't reset the count; attempts older than 24 hours don't count; another user's attempts don't count; then add `extraction_attempts` (model and migration `0005_extraction_attempts`, per 003's data-model.md) and the check in `backend/app/documents/service.py`, called from upload (after the file checks, committed before extraction) and retry
+- [ ] T049 [P] [US6] Write `frontend/src/pages/SignupPage.test.tsx`: fields and the demo notice; mismatched passwords are refused without a request; success goes to the profile setup step; a 409 shows the server's message; logged-in visitors go to `/`; the login page links to `/signup`; then create `frontend/src/pages/SignupPage.tsx`, its route in `frontend/src/App.tsx`, a `signup` call next to login in `frontend/src/auth/AuthContext.tsx`, and the link on `frontend/src/pages/LoginPage.tsx`
+- [ ] T050 [US6] Show the 429 daily-limit message on `frontend/src/pages/DocumentsPage.tsx` (upload and retry); extend its test
+- [ ] T051 [US6] Update the "Authentication" section of `CLAUDE.md` and the README (sign-up exists; `create-user` stays for scripts); run both test suites, lint, types and formatting; run [quickstart.md](quickstart.md) section 6
+
+**Checkpoint**: all six stories work; extraction is limited per user per day.
+
+---
+
 ## Dependencies & Execution Order
 
 - **Setup (T001–T004)** → **Foundational (T005–T009)** → stories.
