@@ -33,6 +33,9 @@ class SalaryCertificateFields(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    document_type: Literal["salary_certificate", "bank_profit_certificate", "other"] = Field(
+        description="Which kind of document this is, whatever the user said it was."
+    )
     tax_year: ExtractedValue = Field(description="The tax year the certificate covers.")
     gross_salary: ExtractedValue = Field(description="Total salary before exemptions.")
     taxable_salary: ExtractedValue = Field(description="Salary on which tax is charged.")
@@ -44,6 +47,9 @@ class BankProfitCertificateFields(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    document_type: Literal["salary_certificate", "bank_profit_certificate", "other"] = Field(
+        description="Which kind of document this is, whatever the user said it was."
+    )
     tax_year: ExtractedValue = Field(description="The tax year the certificate covers.")
     profit_amount: ExtractedValue = Field(description="Gross profit paid on the deposits.")
     tax_withheld: ExtractedValue = Field(description="Tax withheld by the bank under section 151.")

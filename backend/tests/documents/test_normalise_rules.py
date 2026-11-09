@@ -174,3 +174,33 @@ def test_missing_fields_are_not_rule_failures() -> None:
     values: Values = {name: None for name in SALARY_OK}
 
     assert not check_rules(DocType.SALARY_CERTIFICATE, values, PROFILE_YEAR)
+
+
+@pytest.mark.parametrize(
+    "printed",
+    [
+        "1 July 2025 to 30 June 2026",
+        "1st July 2025 to 30th June 2026",
+        "July 2025 - June 2026",
+        "Jul 2025 – Jun 2026",
+        "01-07-2025 to 30-06-2026",
+        "01/07/2025 - 30/06/2026",
+        "From 1 July 2025 to 30 June 2026",
+    ],
+)
+def test_july_to_june_periods_become_the_tax_year(printed: str) -> None:
+    """Fails if a period printed the way salary certificates often do isn't read (task T042)."""
+    assert parse_tax_year(printed) == "2025-26"
+
+
+@pytest.mark.parametrize(
+    "printed",
+    [
+        "1 July 2025 to 30 June 2027",  # two years apart
+        "1 January 2025 to 31 December 2025",  # a calendar year, not a tax year
+        "30 June 2026 to 1 July 2025",  # backwards
+    ],
+)
+def test_other_periods_are_kept_as_printed(printed: str) -> None:
+    """Fails if a period that isn't one July-to-June tax year is guessed into one."""
+    assert parse_tax_year(printed) == printed

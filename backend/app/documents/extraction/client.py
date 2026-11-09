@@ -23,6 +23,11 @@ from app.documents.models import DocType
 logger = logging.getLogger(__name__)
 
 TIMEOUT_MS = 60_000
+# Brief Google outages (500, 502, 503: common on the free tier) are retried: 3 attempts in all,
+# a second or two apart. 504 (the 60-second deadline) and 429 (the free limit) are not.
+RETRY = types.HttpRetryOptions(
+    attempts=3, initial_delay=1.0, max_delay=4.0, http_status_codes=[500, 502, 503]
+)
 # Room for the JSON answer plus a little thinking; the answer itself is a few hundred tokens.
 MAX_OUTPUT_TOKENS = 4096
 THINKING_LEVELS = {
@@ -42,6 +47,10 @@ DECLINED = {
     types.FinishReason.IMAGE_PROHIBITED_CONTENT,
 }
 INCOMPLETE = "The AI's answer was incomplete. Try again."
+DOC_LABELS = {
+    "salary_certificate": "a salary certificate",
+    "bank_profit_certificate": "a bank profit certificate",
+}
 DECLINED_REASON = "The AI declined to read this document."
 
 
@@ -95,8 +104,11 @@ class GeminiExtractor:
         model: str,
         effort: str,
         client: genai.Client | None = None,
+        http_client: httpx2.AsyncClient | None = None,
     ) -> None:
         self._api_key = api_key
+        # Lets tests answer in place of Google while keeping the real retry settings.
+        self._http_client = http_client
         self._model = model
         # Checked against Gemini's thinking levels when the settings are loaded.
         self._effort = effort
@@ -104,7 +116,12 @@ class GeminiExtractor:
 
     def _get_client(self) -> genai.Client:
         if self._client is None:
-            self._client = genai.Client(api_key=self._api_key)
+            self._client = genai.Client(
+                api_key=self._api_key,
+                http_options=types.HttpOptions(
+                    retry_options=RETRY, httpx_async_client=self._http_client
+                ),
+            )
         return self._client
 
     async def extract(self, doc_type: DocType, content: bytes, media_type: str) -> ExtractionResult:
@@ -165,7 +182,21 @@ def _result_from(
         parsed = OUTPUT_SCHEMAS[doc_type].model_validate_json(text)
     except ValidationError:
         return result(reason=INCOMPLETE)
+    seen = getattr(parsed, "document_type", doc_type.value)
+    if seen != doc_type.value:
+        return result(reason=_wrong_type_reason(doc_type, seen))
     return result(fields={name: v for name, v in parsed if isinstance(v, ExtractedValue)})
+
+
+def _wrong_type_reason(chosen: DocType, seen: str) -> str:
+    """Why a document of another type is refused (FR-005a), naming what it looks like."""
+    expected = DOC_LABELS[chosen.value]
+    if seen in DOC_LABELS:
+        return (
+            f"This looks like {DOC_LABELS[seen]}, not {expected}. "
+            "Choose the right type and upload it again."
+        )
+    return f"This doesn't look like {expected}. Check the file and upload it again."
 
 
 def _api_reason(exc: errors.APIError) -> str:

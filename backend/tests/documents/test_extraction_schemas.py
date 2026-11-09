@@ -14,7 +14,8 @@ def test_each_type_asks_for_exactly_its_fields(doc_type: DocType) -> None:
     """Fails if the schema and the stored fields drift apart (a field never saved, or lost)."""
     schema = OUTPUT_SCHEMAS[doc_type].model_json_schema()
 
-    assert set(schema["properties"]) == {name.value for name in FIELDS_BY_TYPE[doc_type]}
+    fields = {name.value for name in FIELDS_BY_TYPE[doc_type]}
+    assert set(schema["properties"]) == fields | {"document_type"}
     assert set(schema["required"]) == set(schema["properties"])
 
 
@@ -49,3 +50,11 @@ def test_unknown_confidence_is_refused(confidence: str) -> None:
     """Fails if a confidence other than high, medium or low gets through."""
     with pytest.raises(ValidationError):
         ExtractedValue(value="1", confidence=confidence, page=1, label="x")  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("doc_type", list(DocType))
+def test_the_model_says_which_kind_of_document_it_sees(doc_type: DocType) -> None:
+    """Fails if the answer can't say the document is another type (FR-005a)."""
+    prop = OUTPUT_SCHEMAS[doc_type].model_json_schema()["properties"]["document_type"]
+
+    assert set(prop["enum"]) == {"salary_certificate", "bank_profit_certificate", "other"}

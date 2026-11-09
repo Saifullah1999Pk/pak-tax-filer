@@ -160,6 +160,10 @@ each model tried.
   medium or low, and its source location (page and printed label).
 - **FR-005**: Fields that break a consistency rule (listed in User Story 1, scenario 5) MUST be
   set to low confidence, with the reason shown.
+- **FR-005a**: If the uploaded document is not the type the user chose (e.g. a bank profit
+  certificate uploaded as a salary certificate), extraction MUST fail with a message naming
+  what it looks like and asking to upload it again with the right type, rather than showing a
+  review of empty fields. *(Added 2026-11-09 after manual testing.)*
 - **FR-006**: Amounts MUST be stored exactly, never as approximate numbers (constitution,
   Principle I).
 - **FR-007**: Users MUST be able to edit any field before confirmation; edited values MUST pass
