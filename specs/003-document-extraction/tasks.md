@@ -160,7 +160,7 @@ Nothing outside the AI call changes.
 - [X] T044 Re-run the eval for `gemini-3.5-flash-lite` (the answer's schema changed); all checks pass *(2026-11-09: first re-run 265/280, all four failed certificates were Google 503s, not the type check; with retries for 500/502/503 (c8f0e3a) it passed 280/280 with no failures)*
 
 - [X] T045 Tests first, then refuse a wrong-type upload with `422` and keep nothing (no row, no file); a retry that finds the wrong type marks the document failed with the reason (FR-005a)
-- [ ] T046 Test first, then on `frontend/src/pages/DocumentsPage.tsx` open the review page only for a document ready to review; otherwise stay with the reason (and the file and type still chosen) and refresh the list
+- [X] T046 Test first, then on `frontend/src/pages/DocumentsPage.tsx` open the review page only for a document ready to review; otherwise stay with the reason (and the file and type still chosen) and refresh the list
 
 ---
 
