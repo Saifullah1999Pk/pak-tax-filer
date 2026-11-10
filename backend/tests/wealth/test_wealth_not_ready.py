@@ -20,3 +20,7 @@ def test_a_not_ready_statement_gives_its_reason_and_no_figures(example: dict[str
     assert result.not_ready_reason == example["expected"]["not_ready_reason"]
     assert all(getattr(result, figure) is None for figure in FIGURES)
     assert result.certificate == example["expected"].get("certificate")
+    assert result.message  # what to do, in words (FR-011)
+    if result.certificate:
+        assert result.message.startswith(result.certificate)  # the certificate is named
+    assert not result.steps and not result.where_to_look

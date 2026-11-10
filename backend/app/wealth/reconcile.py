@@ -17,6 +17,8 @@ from decimal import Decimal
 
 from app.tax.engine import rupees
 from app.tax.rates.model import TaxYearRates
+from app.wealth import breakdown as words
+from app.wealth.breakdown import Step
 
 RECONCILED = "reconciled"
 INFLOWS_EXCEED_GROWTH = "inflows_exceed_growth"
@@ -79,7 +81,10 @@ class ReconciliationResult:  # pylint: disable=too-many-instance-attributes
     outflows: Decimal | None = None
     unreconciled: Decimal | None = None
     direction: str | None = None
-    steps: tuple[object, ...] = field(default_factory=tuple)
+    message: str | None = None
+    # The fixed checklist for a non-zero result (FR-007); empty when reconciled or not ready.
+    where_to_look: tuple[str, ...] = ()
+    steps: tuple[Step, ...] = field(default_factory=tuple)
 
 
 def _total(amounts: Iterable[Decimal]) -> Decimal:
@@ -109,19 +114,25 @@ def build_inputs(
 
 def _not_ready(inputs: WealthInputs) -> ReconciliationResult | None:
     """A reason and no figures, checked in this order (research R6, FR-011, task T021)."""
+    reason = None
     if inputs.entries.previous_net_assets is None:
-        return ReconciliationResult(not_ready_reason="needs_previous_net_assets")
-    if not inputs.has_salary_certificate:
-        return ReconciliationResult(not_ready_reason="no_confirmed_salary_certificate")
-    if inputs.bank_profit > inputs.profit_limit:
+        reason = "needs_previous_net_assets"
+    elif not inputs.has_salary_certificate:
+        reason = "no_confirmed_salary_certificate"
+    elif inputs.bank_profit > inputs.profit_limit:
         # Line 7033 assumes s.7B applies, which stops above the limit (004 provisional rule 1).
-        return ReconciliationResult(not_ready_reason="profit_over_limit")
-    if inputs.gross_below_taxable is not None:
+        reason = "profit_over_limit"
+    elif inputs.gross_below_taxable is not None:
         # 7032 (gross - taxable, provisional rule 4) would be negative for that certificate.
+        name = inputs.gross_below_taxable
         return ReconciliationResult(
-            not_ready_reason="gross_below_taxable", certificate=inputs.gross_below_taxable
+            not_ready_reason="gross_below_taxable",
+            certificate=name,
+            message=words.gross_below_taxable_message(name),
         )
-    return None
+    if reason is None:
+        return None
+    return ReconciliationResult(not_ready_reason=reason, message=words.NOT_READY_MESSAGES[reason])
 
 
 def reconcile(inputs: WealthInputs) -> ReconciliationResult:
@@ -130,21 +141,30 @@ def reconcile(inputs: WealthInputs) -> ReconciliationResult:
     if not_ready is not None:
         return not_ready
     entries = inputs.entries
-    assert entries.previous_net_assets is not None  # checked by _not_ready
-    net_assets = _total(entries.assets) - _total(entries.liabilities)
-    increase = net_assets - entries.previous_net_assets
-    exempt = inputs.gross_salary - inputs.taxable_salary + entries.other_exempt_income
-    inflows = (
-        inputs.taxable_salary
-        + exempt
-        + inputs.bank_profit
-        + entries.foreign_remittance
-        + entries.inheritance
-        + entries.gifts_received
-        + entries.family_contribution
-    )
-    tax_at_source = inputs.tax_deducted + inputs.tax_withheld
-    outflows = _total(entries.personal_expenses) + entries.gifts_given + tax_at_source
+    previous = entries.previous_net_assets
+    assert previous is not None  # checked by _not_ready
+    assets, liabilities = _total(entries.assets), _total(entries.liabilities)
+    net_assets = assets - liabilities
+    increase = net_assets - previous
+    inflow_parts = [
+        ("taxable salary (7031)", inputs.taxable_salary),
+        (
+            "exempt income (7032)",
+            inputs.gross_salary - inputs.taxable_salary + entries.other_exempt_income,
+        ),
+        ("bank profit (7033)", inputs.bank_profit),
+        ("foreign remittance (7035)", entries.foreign_remittance),
+        ("inheritance (7036)", entries.inheritance),
+        ("gifts received (7037)", entries.gifts_received),
+        ("family contribution (7088)", entries.family_contribution),
+    ]
+    inflows = _total(amount for _, amount in inflow_parts)
+    outflow_parts = [
+        ("personal expenses (7089)", _total(entries.personal_expenses)),
+        ("gifts given (7091)", entries.gifts_given),
+        ("tax deducted and withheld at source", inputs.tax_deducted + inputs.tax_withheld),
+    ]
+    outflows = _total(amount for _, amount in outflow_parts)
     unreconciled = inflows - outflows - increase
     if unreconciled == 0:
         direction = RECONCILED
@@ -152,6 +172,15 @@ def reconcile(inputs: WealthInputs) -> ReconciliationResult:
         direction = INFLOWS_EXCEED_GROWTH
     else:
         direction = GROWTH_EXCEEDS_INFLOWS
+    steps = (
+        words.total_step("Total assets", "7019", len(entries.assets), assets),
+        words.total_step("Total liabilities", "7029", len(entries.liabilities), liabilities),
+        words.net_assets_step(assets, liabilities, net_assets),
+        words.increase_step(net_assets, previous, increase),
+        words.inflows_step(inflow_parts, inflows),
+        words.outflows_step(outflow_parts, outflows),
+        words.unreconciled_step(inflows, outflows, increase, unreconciled),
+    )
     return ReconciliationResult(
         net_assets=net_assets,
         increase=increase,
@@ -159,4 +188,7 @@ def reconcile(inputs: WealthInputs) -> ReconciliationResult:
         outflows=outflows,
         unreconciled=unreconciled,
         direction=direction,
+        message=words.gap_message(direction, unreconciled),
+        where_to_look=words.WHERE_TO_LOOK.get(direction, ()),
+        steps=steps,
     )

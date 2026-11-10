@@ -71,12 +71,12 @@ summary that can't introduce figures.
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T013 [P] [US2] Extend `backend/tests/wealth/test_worked_examples.py`: each example's breakdown has the expected steps in order, each with its `form_line`; the message states the absolute amount and direction; `where_to_look` is the fixed list for that direction, empty when reconciled, and contains no digits (SC-003)
+- [X] T013 [P] [US2] Extend `backend/tests/wealth/test_worked_examples.py`: each example's breakdown has the expected steps in order, each with its `form_line`; the message states the absolute amount and direction; `where_to_look` is the fixed list for that direction, empty when reconciled, and contains no digits (SC-003)
 - [ ] T014 [P] [US2] Write `backend/tests/wealth/test_wealth_summary.py`: a summary using only breakdown numbers is shown; one with a wrong amount is dropped; an API error, refusal or a response slower than 4 seconds returns no summary and the result is still returned
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Create `backend/app/wealth/breakdown.py`: step templates and the two fixed "where to look" lists per research R2 and R9, used by `reconcile.py`; T013 passes
+- [X] T015 [US2] Create `backend/app/wealth/breakdown.py`: step templates and the two fixed "where to look" lists per research R2 and R9, used by `reconcile.py`; T013 passes
 - [ ] T016 [US2] Create `backend/app/wealth/summary.py`: Claude call (official SDK, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) checked with `app.explain.number_check`; wire into the router after a ready result; T014 passes using a fake client
 - [ ] T017 [US2] Show the breakdown (with form lines), the direction message, the checklist and the summary (when present) on `frontend/src/pages/WealthPage.tsx`; extend its test
 - [ ] T018 [US2] Run [quickstart.md](quickstart.md) section 2
