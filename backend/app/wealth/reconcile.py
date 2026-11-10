@@ -107,11 +107,30 @@ def build_inputs(
     )
 
 
+def _not_ready(inputs: WealthInputs) -> ReconciliationResult | None:
+    """A reason and no figures, checked in this order (research R6, FR-011, task T021)."""
+    if inputs.entries.previous_net_assets is None:
+        return ReconciliationResult(not_ready_reason="needs_previous_net_assets")
+    if not inputs.has_salary_certificate:
+        return ReconciliationResult(not_ready_reason="no_confirmed_salary_certificate")
+    if inputs.bank_profit > inputs.profit_limit:
+        # Line 7033 assumes s.7B applies, which stops above the limit (004 provisional rule 1).
+        return ReconciliationResult(not_ready_reason="profit_over_limit")
+    if inputs.gross_below_taxable is not None:
+        # 7032 (gross - taxable, provisional rule 4) would be negative for that certificate.
+        return ReconciliationResult(
+            not_ready_reason="gross_below_taxable", certificate=inputs.gross_below_taxable
+        )
+    return None
+
+
 def reconcile(inputs: WealthInputs) -> ReconciliationResult:
     """The reconciliation of one statement (research R2)."""
+    not_ready = _not_ready(inputs)
+    if not_ready is not None:
+        return not_ready
     entries = inputs.entries
-    if entries.previous_net_assets is None:
-        raise ValueError("Not-ready checks come with task T021.")
+    assert entries.previous_net_assets is not None  # checked by _not_ready
     net_assets = _total(entries.assets) - _total(entries.liabilities)
     increase = net_assets - entries.previous_net_assets
     exempt = inputs.gross_salary - inputs.taxable_salary + entries.other_exempt_income

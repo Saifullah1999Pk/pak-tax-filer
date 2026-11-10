@@ -93,12 +93,12 @@ summary that can't introduce figures.
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T019 [P] [US3] Write `backend/tests/wealth/test_not_ready.py`: one test per not-ready example in `worked_examples.yaml`, asserting its `not_ready_reason` and that every figure is null; `gross_below_taxable` names the certificate; the Rs 5 million limit is read from 004's TY2026 rates (`profit_limit`), not a copy
+- [X] T019 [P] [US3] Write `backend/tests/wealth/test_wealth_not_ready.py`: one test per not-ready example in `worked_examples.yaml`, asserting its `not_ready_reason` and that every figure is null; `gross_below_taxable` names the certificate; the Rs 5 million limit is read from 004's TY2026 rates (`profit_limit`), not a copy
 - [ ] T020 [P] [US3] Extend `backend/tests/wealth/test_wealth_api.py`: `certificates_changed` is false right after a save, true after a certificate is deleted or a new one confirmed, and false again after the next save
 
 ### Implementation for User Story 3
 
-- [ ] T021 [US3] Add the not-ready checks from research R6 to the start of `reconcile()` in `backend/app/wealth/reconcile.py` (certificate-level checks supplied by `service.py` as inputs); T019 passes
+- [X] T021 [US3] Add the not-ready checks from research R6 to the start of `reconcile()` in `backend/app/wealth/reconcile.py` (certificate-level checks supplied by `service.py` as inputs); T019 passes
 - [ ] T022 [US3] Compute `certificates_changed` in `backend/app/wealth/service.py` per research R7; T020 passes
 - [ ] T023 [US3] Show each not-ready message and the certificate-change notice on `frontend/src/pages/WealthPage.tsx`; extend its test
 - [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
