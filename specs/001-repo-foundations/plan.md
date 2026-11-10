@@ -133,3 +133,14 @@ their tests live beside them in `.claude/hooks/tests/` and run on the host
 ## Complexity Tracking
 
 No constitution violations; nothing to justify.
+
+## Amendment 2026-11-10: User Story 6 (responsive redesign)
+
+Frontend only; no backend, API or contract change. A shared visual system in `styles.css`, an
+`AppFrame` (header, nav) and a simple frame in `src/components/`, Home's filing checklist (a pure
+`filingSteps` function in `src/home/` plus the page), and restyled pages. One new dependency: the
+font. Decisions in [research.md](research.md) R11; design in
+`docs/superpowers/specs/2026-11-10-responsive-ui-design.md`. Constitution: Principle I (no maths
+in the frontend: Home only counts documents; the Tax page shows the two sides without a total)
+and IV (the label stays with each result) hold; tests are written first for every behaviour
+change (frame, nav, checklist, Tax headline, Wealth section bar).

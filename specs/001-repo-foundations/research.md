@@ -150,3 +150,20 @@ Each decision: what was chosen, why, and what else was considered.
   generated OpenAPI schema is the machine-readable source the frontend can check against.
 - **Rationale:** one human-readable standard, per-feature contracts reviewed with the spec, and
   an automatically generated schema that can't drift from the code.
+
+## R11. Frontend look and layout (added 2026-11-10, User Story 6)
+
+- **Decision:** plain CSS with custom properties (colour, type, spacing tokens) in
+  `frontend/src/styles.css`, light and dark via `prefers-color-scheme`; one self-hosted variable
+  font (Public Sans, `@fontsource-variable/public-sans`); one `AppFrame` component around the
+  logged-in routes in `App.tsx`, and a simpler frame for login, sign-up, not-found and first-time
+  profile setup; one `<nav>` restyled by CSS into a bottom bar below 720 px; Home's step states
+  worked out by a pure function from the profile and `GET /api/documents`.
+- **Rationale:** the app is small; plain CSS keeps the bundle and the dependency list small
+  ("snappy"), matches what already exists, and keeps tests finding elements by role and text.
+  One nav element means no duplicate links for tests or screen readers.
+- **Alternatives considered:** Tailwind (fast to write, but a build dependency and class-heavy
+  markup for nine pages); a component library such as MUI or Chakra (heavy, and its own look);
+  CSS modules per component (more files for little gain at this size); a hamburger menu on phones
+  (one more tap and hides where you can go; a bottom bar is the mobile-app norm).
+- Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`.

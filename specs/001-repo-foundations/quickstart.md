@@ -68,3 +68,16 @@ Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** 
 3. A CI run for a pull request (or a failing one) starts no deploy.
 4. With the deploy key, `ssh <user>@<vm> whoami` doesn't run `whoami`: it is refused as an
    invalid deploy request.
+
+## 7. Responsive redesign (User Story 6, SC-010, SC-011; added 2026-11-10)
+
+1. Start the app and log in as the demo user. In the browser's device toolbar, open every page
+   at 320, 768, 1024 and 1440 px wide, in light and dark mode. **Expected:** no sideways scroll;
+   the nav is in the header from 720 px and at the bottom below; the current page is marked.
+2. With no confirmed salary certificate for the profile's year, open Home. **Expected:**
+   Documents is next; Tax and Wealth say they need a confirmed salary certificate. Confirm one:
+   Tax becomes next.
+3. Tab through Home, Documents and Wealth with the keyboard only. **Expected:** a visible focus
+   ring everywhere, "Skip to content" first, every action reachable.
+4. Run Lighthouse (mobile) on the production build for login, home and wealth. **Expected:**
+   performance at least 90, accessibility at least 95.

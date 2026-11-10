@@ -189,3 +189,24 @@ review subagents and an API convention.
 
 GitHub issues for these tasks are titled `[001] T0NN: <description>` so they can't clash with
 other features' task numbers.
+
+---
+
+## Phase 9: User Story 6 - A clean app that works on phone and computer (P6, added 2026-11-10)
+
+**Goal**: FR-026 to FR-031. Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`; research R11.
+
+**Independent Test**: [quickstart.md](quickstart.md) section 7.
+
+**Skills**: `react-feature`, `superpowers:test-driven-development`; anthropics `frontend-design` and addyosmani `frontend-ui-engineering` while building; vercel `web-design-guidelines` and addyosmani `browser-testing-with-devtools` when checking.
+
+- [X] T049 [US6] Visual system: add `@fontsource-variable/public-sans`, import it in `frontend/src/main.tsx`; rewrite `frontend/src/styles.css` with the design's tokens (colour light and dark, type scale 14/16/18/22/28/36, 4 px spacing scale, radii), base element styles (forms with labels above 48 px inputs, buttons, tables, focus ring, skip link, `.visually-hidden`), keeping the existing `.review`, `.low-confidence` and `.notice` meanings; all existing tests still pass
+- [X] T050 [US6] Write failing tests in `frontend/src/components/AppFrame.test.tsx` (via `renderApp`): the header has a "PakTaxFiler" link home, "Tax year 2025-26" and Log out; one navigation with Home, Documents, Tax, Wealth statement and Profile, the current page `aria-current="page"`; "Skip to content" is the first link; login, sign-up and not-found have no navigation; first-time profile setup has no navigation but has Log out. Then build `frontend/src/components/AppFrame.tsx` (and the simple frame, nav icons as inline SVG), use it in `frontend/src/App.tsx`, and remove the per-page Home links and Profile's own Log out button (FR-027)
+- [X] T051 [US6] Write failing unit tests in `frontend/src/home/steps.test.ts` for `filingSteps(profile, documents)`: only the profile's tax year counts; no confirmed salary certificate → Documents next, Tax and Wealth "Needs a confirmed salary certificate"; a confirmed salary certificate and nothing to review → Documents done, Tax next and Ready; a document to review → Documents not done, action "Review"; failed documents are counted but don't hold the step back; documents still being read count as neither. Then write `frontend/src/home/steps.ts`
+- [X] T052 [US6] Write failing tests in `frontend/src/pages/HomePage.test.tsx`: the four steps as an ordered list with their states and actions, the next step marked, "Logged in as" kept; the documents list failing shows "Couldn't load your documents" with "Try again" and no step states for documents, tax or wealth. Then rebuild `frontend/src/pages/HomePage.tsx` (FR-028)
+- [X] T053 [P] [US6] Restyle `LoginPage.tsx`, `SignupPage.tsx`, `NotFoundPage.tsx` in the simple frame; `ProfilePage.tsx`, `DocumentsPage.tsx` (rows that stack on phone) and `ReviewPage.tsx` (original document collapsible above the figures on phone) in the app frame; wording and behaviour unchanged (FR-030); existing tests pass
+- [X] T054 [US6] Write a failing test in `frontend/src/pages/TaxPage.test.tsx`: the label comes first in the result, then the salary and bank-profit headline figures, each as the API words them, and no combined total. Then restyle `TaxPage.tsx` (headline figures side by side, stacked on phone; the breakdown as a ledger with right-aligned tabular amounts)
+- [X] T055 [US6] Write failing tests in `frontend/src/pages/WealthPage.test.tsx`: a section bar with links to "What I own", "What I owe", "Money in and out" and "Result"; in the result, the label then the message before "Where to look". Then restyle `WealthPage.tsx` (rows stacked on phone and in one line on computer; one Save as now)
+- [X] T056 [US6] Checks: `npm test`, `npm run lint`, `npx tsc -b`, `npx prettier --check .`; audit the changed files with vercel `web-design-guidelines`; look at every page in a real browser at 320, 768, 1024 and 1440 px in light and dark mode (screenshots); Lighthouse per SC-010; the `frontend-reviewer` agent and the `code-review` skill; fix findings; record [quickstart.md](quickstart.md) section 7 (done 2026-11-11: 161 tests pass on the host and in Docker, lint, `tsc` and Prettier clean; guideline audit fixes applied; 72 views, every page at 4 widths in light and dark, with no sideways scroll; keyboard walkthrough of Home, Documents and Wealth at 320 and 1440 px, every stop with a visible focus ring and none hidden by the bars; Lighthouse mobile: login 99/100, home 96/100, wealth 99/100 (performance/accessibility); frontend-reviewer findings fixed, see the PR description)
+
+**Phase 9 order**: needs only US1 (the app). T049 first (everything uses the tokens); then T050 (the frame); T051 before T052; T053, T054 and T055 after T050, in any order; T056 last.

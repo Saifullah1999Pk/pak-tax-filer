@@ -24,6 +24,8 @@
 
 - Q: The lead asked for a free deployment and then CI/CD ("once your tests pass deploy it also directly"); where does it go? → A: Into feature 001 as User Story 5 (FR-021 to FR-025): the production setup on one free Google Cloud VM (PR #30), and continuous deployment after CI passes on `main`. Design: `docs/superpowers/specs/2026-11-10-continuous-deployment-design.md`.
 
+- Q: The lead said the frontend "looks messy"; where does a whole-app redesign go, and how far does it go? → A: Into feature 001 as User Story 6 (FR-026 to FR-031), since it is shared frontend groundwork like the app skeleton. The user chose the middle path: one visual system, a shared frame with navigation and a guiding Home checklist, every page working at phone width; not a step-by-step flow. Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start the whole app with one command (Priority: P1)
@@ -172,6 +174,42 @@ the site serves that one.
 4. **Given** someone holding the deploy key, **When** they try to open a shell or run any other
    command on the VM, **Then** only the deploy itself can run.
 
+### User Story 6 - A clean app that works on phone and computer (Priority: P6, added 2026-11-10)
+
+A taxpayer opens the app on a phone or a computer. Every page looks the same family: the same
+type, colours and spacing, a header with the tax year, and navigation that sits in the header on
+a computer and along the bottom of the screen on a phone. Home shows the four steps of filing
+(profile, documents, tax, wealth statement), what is done, and a button to the next step. Every
+page, including the long wealth statement, can be used at phone width without zooming or
+scrolling sideways.
+
+**Why this priority**: Requested by the lead after seeing the live app ("it looks messy"); it
+changes no behaviour, so it comes after the features it dresses.
+
+**Independent Test**: Open each page at 320 px, 768 px and 1440 px wide, in light and dark
+mode: nothing overflows sideways, the navigation is present and marks the current page, and
+Home's next step matches the user's documents.
+
+**Acceptance Scenarios**:
+
+1. **Given** a logged-in user with a profile, **When** they open any page other than login or
+   sign-up, **Then** they see the header (app name, tax year, Log out) and one navigation with
+   Home, Documents, Tax, Wealth statement and Profile, the current page marked.
+2. **Given** a screen narrower than 720 px, **When** a page is shown, **Then** the navigation sits
+   along the bottom of the screen with labels always visible, and no page scrolls sideways at
+   320 px.
+3. **Given** a user with no confirmed salary certificate for their tax year, **When** they open
+   Home, **Then** Documents is marked as the next step, and Tax and Wealth say they need a
+   confirmed salary certificate.
+4. **Given** a user whose salary certificate for the year is confirmed and nothing waits for
+   review, **When** they open Home, **Then** Profile and Documents are done and Tax is the next
+   step.
+5. **Given** the documents list can't be loaded, **When** Home is shown, **Then** it says so with
+   a "Try again" button and guesses no state.
+6. **Given** a tax or wealth result, **When** it is shown, **Then** the "not yet
+   practitioner-reviewed" label sits with the result's headline, and amounts are shown exactly as
+   the server gave them.
+
 ### Edge Cases
 
 - A required port (backend or frontend) is already in use on the developer's machine: the
@@ -251,6 +289,23 @@ the site serves that one.
   shell or other commands), and the VM's identity MUST be checked before connecting.
 - **FR-025**: No secret (keys, tokens, passwords) MUST appear in the repository, the built
   images, command lines or logs.
+- **FR-026** (added 2026-11-10): Every page MUST use one shared set of colours, type sizes and
+  spacing values, in a light and a dark theme that follows the device setting, with text
+  contrast of at least 4.5:1.
+- **FR-027**: Every logged-in page with a profile MUST share one frame: a header with the app
+  name, the tax year and Log out, and one navigation (Home, Documents, Tax, Wealth statement,
+  Profile) marking the current page; below 720 px wide the navigation MUST sit at the bottom of
+  the screen. Login, sign-up, not-found and first-time profile setup MUST use a simpler frame
+  without the navigation.
+- **FR-028**: Home MUST show the four filing steps (profile, documents, tax, wealth statement)
+  for the profile's tax year, each with its state and one action, and mark the first step not
+  done as next, using only data the app already provides (the profile and the documents list).
+- **FR-029**: Every page MUST be usable from 320 px wide without sideways scrolling, with tap
+  targets at least 44 px, and MUST remain fully usable by keyboard and screen reader.
+- **FR-030**: The redesign MUST NOT change what any page does, what it sends to the server, or
+  its wording for errors, refusals and results, except where FR-027 and FR-028 say so.
+- **FR-031**: The redesign MUST NOT add a UI component library or CSS framework; the only new
+  dependency allowed is one self-hosted font.
 
 ## Success Criteria *(mandatory)*
 
@@ -273,6 +328,10 @@ the site serves that one.
 
 - **SC-009** (added 2026-11-10): A change merged into `main` is live within 10 minutes of CI
   passing, with nobody signing in to the VM.
+- **SC-010** (added 2026-11-10): On mobile settings, Lighthouse scores the production build at
+  least 90 for performance and 95 for accessibility on the login, home and wealth pages.
+- **SC-011**: At 320 px, 768 px, 1024 px and 1440 px wide, in light and dark mode, no page
+  scrolls sideways and every page's main action is visible without zooming.
 
 ## Assumptions
 
