@@ -110,7 +110,7 @@ summary that can't introduce figures.
 ## Phase 6: Polish
 
 - [X] T025 [P] Add a "Wealth statement" section to `backend/CLAUDE.md`: `reconcile.py` stays pure; never compute or check figures, or write the "where to look" list, with an LLM; any change to the formula comes with signed-off worked examples
-- [ ] T026 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules, and the hidden expense categories to confirm on the live IRIS screen (research R3)
+- [X] T026 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules, and the hidden expense categories to confirm on the live IRIS screen (research R3)
 
 ---
 
