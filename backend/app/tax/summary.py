@@ -79,8 +79,11 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
         model: str,
         effort: str,
         http_client: httpx2.AsyncClient | None = None,
+        instructions: str = INSTRUCTIONS,
     ) -> None:
         self._api_key = api_key
+        # The tax page's by default; the wealth page (005) passes its own.
+        self._instructions = instructions
         self._model = model
         self._effort = effort
         self._http_client = http_client
@@ -101,7 +104,7 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
                 model=self._model,
                 contents=breakdown,
                 config=types.GenerateContentConfig(
-                    system_instruction=INSTRUCTIONS,
+                    system_instruction=self._instructions,
                     thinking_config=types.ThinkingConfig(
                         thinking_level=THINKING_LEVELS[self._effort]
                     ),
