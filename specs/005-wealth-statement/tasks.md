@@ -24,7 +24,7 @@ Principle VI). **No reconciliation code (T008 onward) starts until T003 is compl
 
 ## Phase 1: Setup
 
-- [ ] T001 Move 004's summary number check from `backend/app/tax/summary.py` to `backend/app/explain/number_check.py` (with `backend/app/explain/__init__.py`), update 004's imports, and confirm `backend/tests/tax/test_summary_check.py` still passes unchanged (research R9)
+- [X] T001 Move 004's summary number check from `backend/app/tax/summary.py` to `backend/app/explain/number_check.py` (with `backend/app/explain/__init__.py`), update 004's imports, and confirm `backend/tests/tax/test_summary_check.py` still passes unchanged (research R9)
 
 ---
 

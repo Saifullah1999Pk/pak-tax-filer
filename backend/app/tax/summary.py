@@ -9,7 +9,6 @@ summary. The breakdown is always shown and never waits on it. No tax figure is p
 import asyncio
 import logging
 import re
-from decimal import Decimal, InvalidOperation
 from typing import Protocol
 
 import httpx2
@@ -17,6 +16,7 @@ from google import genai
 from google.genai import errors, types
 
 from app.documents.extraction.client import THINKING_LEVELS
+from app.explain.number_check import uses_only_numbers_from
 from app.tax.engine import TaxResult
 
 logger = logging.getLogger(__name__)
@@ -31,16 +31,6 @@ numbers that appear in the breakdown you are given, written the same way (e.g. "
 not calculate, round or add any new number, and never write numbers as words (no "lakh", \
 "million", "thousand"). Do not give advice."""
 
-_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
-_NUMBER_WORDS = re.compile(
-    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|"
-    r"fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|"
-    r"seventy|eighty|ninety|hundred|thousand|lakh|lakhs|lac|lacs|crore|crores|million|millions|"
-    r"billion|billions)\b",
-    re.IGNORECASE,
-)
-
-
 # The balance's direction, in the words a summary might use. "Refund" is never allowed: the app
 # never promises one (FR-013), and an over-deduction isn't a refund until FBR says so.
 _PAYABLE_WORDS = re.compile(r"\b(?:owe|owes|owed|owing|payable|outstanding)\b", re.IGNORECASE)
@@ -48,17 +38,6 @@ _OVERPAID_WORDS = re.compile(
     r"\b(?:over-?deducted|over-?withheld|overpaid|excess)\b", re.IGNORECASE
 )
 _REFUND = re.compile(r"\brefund", re.IGNORECASE)
-
-
-def numbers_in(text: str) -> set[Decimal]:
-    """Every number written in digits, as a value: "Rs 72,000.00" and "72000" are the same."""
-    found: set[Decimal] = set()
-    for token in _NUMBER.findall(text):
-        try:
-            found.add(Decimal(token.replace(",", "")))
-        except InvalidOperation:
-            continue
-    return found
 
 
 def breakdown_text(result: TaxResult) -> str:
@@ -73,14 +52,14 @@ def summary_is_safe(summary: str, result: TaxResult) -> bool:
 
     Known limit (research R8): a right number can still be attached to the wrong figure
     ("your tax is Rs 600,000"); the breakdown beside it is the authoritative answer."""
-    if _NUMBER_WORDS.search(summary) or _REFUND.search(summary):
+    if _REFUND.search(summary):
         return False
     balances = [b for b in (result.salary_balance, result.profit_balance) if b is not None]
     if _PAYABLE_WORDS.search(summary) and not any(b > 0 for b in balances):
         return False
     if _OVERPAID_WORDS.search(summary) and not any(b < 0 for b in balances):
         return False
-    return numbers_in(summary) <= numbers_in(breakdown_text(result))
+    return uses_only_numbers_from(summary, breakdown_text(result))
 
 
 class Summariser(Protocol):  # pylint: disable=too-few-public-methods
