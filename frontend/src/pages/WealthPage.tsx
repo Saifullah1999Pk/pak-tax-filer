@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent, RefObject } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api/client";
 import { rupees } from "../api/tax";
@@ -33,16 +33,20 @@ type Liability = {
   creditor: string;
   amount: string;
 };
-type Form = Omit<
-  StatementIn,
-  "assets" | "liabilities" | "previous_net_assets"
-> & {
+type MoneyField =
+  | "other_exempt_income"
+  | "foreign_remittance"
+  | "inheritance"
+  | "gifts_received"
+  | "family_contribution"
+  | "gifts_given";
+type Form = Pick<StatementIn, MoneyField | "expenses"> & {
   previous_net_assets: string;
   assets: Asset[];
   liabilities: Liability[];
 };
 
-const MONEY_FIELDS: [keyof Form, string][] = [
+const MONEY_FIELDS: [MoneyField, string][] = [
   ["other_exempt_income", "Other exempt income"],
   ["foreign_remittance", "Foreign remittance"],
   ["inheritance", "Inheritance"],
@@ -54,10 +58,22 @@ const MONEY_FIELDS: [keyof Form, string][] = [
 let nextKey = 0;
 const key = () => ++nextKey;
 
+/** "30 June 2026" (this statement's date) and "30 June 2025" (last year's) for "2025-26". */
+function statementDates(taxYear: string) {
+  const end = Number(taxYear.slice(0, 4)) + 1;
+  return { now: `30 June ${end}`, before: `30 June ${end - 1}` };
+}
+
 function toForm(statement: Wealth["statement"]): Form {
   return {
-    ...statement,
     previous_net_assets: statement.previous_net_assets ?? "",
+    other_exempt_income: statement.other_exempt_income,
+    foreign_remittance: statement.foreign_remittance,
+    inheritance: statement.inheritance,
+    gifts_received: statement.gifts_received,
+    family_contribution: statement.family_contribution,
+    gifts_given: statement.gifts_given,
+    expenses: statement.expenses,
     assets: statement.assets.map((a) => ({ key: key(), ...a })),
     liabilities: statement.liabilities.map((l) => ({
       key: key(),
@@ -68,7 +84,7 @@ function toForm(statement: Wealth["statement"]): Form {
 }
 
 /** The statement as the API takes it: empty amounts are zero, an empty previous figure is
- * "not entered". The server checks every rule. */
+ * "not entered", empty expense categories are left out. The server checks every rule. */
 function toStatement(form: Form): StatementIn {
   const zero = (value: string) => value.trim() || "0";
   return {
@@ -90,10 +106,15 @@ function toStatement(form: Form): StatementIn {
     family_contribution: zero(form.family_contribution),
     gifts_given: zero(form.gifts_given),
     expenses: Object.fromEntries(
-      Object.entries(form.expenses).filter(([, value]) => value.trim() !== ""),
+      Object.entries(form.expenses)
+        .map(([category, value]) => [category, value.trim()])
+        .filter(([, value]) => value !== ""),
     ),
   };
 }
+
+const message = (caught: unknown, fallback: string) =>
+  caught instanceof ApiError ? caught.message : fallback;
 
 export function WealthPage() {
   const { profile } = useProfile();
@@ -101,8 +122,21 @@ export function WealthPage() {
   const taxYear = profile?.tax_year ?? "";
   const [wealth, setWealth] = useState<Wealth | null>(null);
   const [form, setForm] = useState<Form | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [shownYear, setShownYear] = useState(taxYear);
+
+  // A different year: forget the previous one (React's reset-on-change pattern).
+  if (taxYear !== shownYear) {
+    setShownYear(taxYear);
+    setWealth(null);
+    setForm(null);
+    setLoadError(null);
+    setSaveError(null);
+    setSaved(false);
+  }
 
   useEffect(() => {
     let current = true;
@@ -118,10 +152,8 @@ export function WealthPage() {
       })
       .catch((caught: unknown) => {
         if (current) {
-          setError(
-            caught instanceof ApiError
-              ? caught.message
-              : "Couldn't load your wealth statement. Try again.",
+          setLoadError(
+            message(caught, "Couldn't load your wealth statement. Try again."),
           );
         }
       });
@@ -136,34 +168,34 @@ export function WealthPage() {
       return;
     }
     setSaving(true);
-    setError(null);
+    setSaveError(null);
+    setSaved(false);
     try {
-      const saved = await saveWealth(taxYear, toStatement(form));
-      setWealth(saved);
-      setForm(toForm(saved.statement));
+      const result = await saveWealth(taxYear, toStatement(form));
+      setWealth(result);
+      setForm(toForm(result.statement));
+      setSaved(true);
     } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Couldn't save. Try again.",
-      );
+      setSaveError(message(caught, "Couldn't save. Try again."));
     } finally {
       setSaving(false);
     }
   }
 
-  const update = (changes: Partial<Form>) =>
+  const update = (changes: Partial<Form>) => {
+    setSaved(false);
     setForm((current) => (current ? { ...current, ...changes } : current));
+  };
+  const dates = statementDates(taxYear);
 
   return (
     <main>
       <h1>Wealth statement for {taxYear}</h1>
-      {error !== null && <p role="alert">{error}</p>}
+      {loadError !== null && <p role="alert">{loadError}</p>}
       {wealth === null || form === null ? (
-        error === null && <p role="status">Loading…</p>
+        loadError === null && <p role="status">Loading…</p>
       ) : (
         <>
-          <p className="notice">{wealth.label}</p>
           {wealth.certificates_changed && (
             <p role="status">
               Your confirmed certificates changed since you last saved. Check
@@ -171,18 +203,25 @@ export function WealthPage() {
             </p>
           )}
           <form onSubmit={handleSave}>
-            <Assets form={form} update={update} />
-            <Liabilities form={form} update={update} />
-            <MoneyInAndOut
-              form={form}
-              update={update}
-              autoFilled={wealth.auto_filled}
-            />
+            {/* Disabled while saving: the saved statement then replaces the form, so
+                anything typed meanwhile would be lost. */}
+            <fieldset disabled={saving}>
+              <Assets form={form} update={update} asOn={dates.now} />
+              <Liabilities form={form} update={update} />
+              <MoneyInAndOut
+                form={form}
+                update={update}
+                autoFilled={wealth.auto_filled}
+                previousDate={dates.before}
+              />
+            </fieldset>
             <button type="submit" disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </button>
+            {saveError !== null && <p role="alert">{saveError}</p>}
+            {saved && <p role="status">Saved.</p>}
           </form>
-          <Result result={wealth.result} />
+          <Result result={wealth.result} label={wealth.label} />
         </>
       )}
       <nav>
@@ -194,7 +233,17 @@ export function WealthPage() {
 
 type FormProps = { form: Form; update: (changes: Partial<Form>) => void };
 
-function Assets({ form, update }: FormProps) {
+/** Removing a row moves focus to the "Add" button, not to the page's top. */
+function useFocusAfterRemove(): [
+  RefObject<HTMLButtonElement | null>,
+  () => void,
+] {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  return [ref, () => ref.current?.focus()];
+}
+
+function Assets({ form, update, asOn }: FormProps & { asOn: string }) {
+  const [addButton, focusAdd] = useFocusAfterRemove();
   const change = (k: number, changes: Partial<Asset>) =>
     update({
       assets: form.assets.map((a) => (a.key === k ? { ...a, ...changes } : a)),
@@ -202,9 +251,10 @@ function Assets({ form, update }: FormProps) {
   return (
     <section aria-labelledby="own-heading">
       <h2 id="own-heading">What I own</h2>
-      <p>Each asset at its cost, as on 30 June 2026.</p>
-      {form.assets.map((asset) => (
+      <p>Each asset at its cost, as on {asOn}.</p>
+      {form.assets.map((asset, index) => (
         <fieldset key={asset.key}>
+          <legend>Asset {index + 1}</legend>
           <label>
             Category
             <select
@@ -223,6 +273,7 @@ function Assets({ form, update }: FormProps) {
             <input
               value={asset.description}
               maxLength={200}
+              required
               onChange={(e) =>
                 change(asset.key, { description: e.target.value })
               }
@@ -238,16 +289,20 @@ function Assets({ form, update }: FormProps) {
           </label>
           <button
             type="button"
-            onClick={() =>
-              update({ assets: form.assets.filter((a) => a.key !== asset.key) })
-            }
+            onClick={() => {
+              update({
+                assets: form.assets.filter((a) => a.key !== asset.key),
+              });
+              focusAdd();
+            }}
           >
-            Remove {asset.description || "this asset"}
+            Remove asset {index + 1}
           </button>
         </fieldset>
       ))}
       <button
         type="button"
+        ref={addButton}
         onClick={() =>
           update({
             assets: [
@@ -269,6 +324,7 @@ function Assets({ form, update }: FormProps) {
 }
 
 function Liabilities({ form, update }: FormProps) {
+  const [addButton, focusAdd] = useFocusAfterRemove();
   const change = (k: number, changes: Partial<Liability>) =>
     update({
       liabilities: form.liabilities.map((l) =>
@@ -278,13 +334,15 @@ function Liabilities({ form, update }: FormProps) {
   return (
     <section aria-labelledby="owe-heading">
       <h2 id="owe-heading">What I owe</h2>
-      {form.liabilities.map((row) => (
+      {form.liabilities.map((row, index) => (
         <fieldset key={row.key}>
+          <legend>Liability {index + 1}</legend>
           <label>
             Description
             <input
               value={row.description}
               maxLength={200}
+              required
               onChange={(e) => change(row.key, { description: e.target.value })}
             />
           </label>
@@ -306,18 +364,20 @@ function Liabilities({ form, update }: FormProps) {
           </label>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               update({
                 liabilities: form.liabilities.filter((l) => l.key !== row.key),
-              })
-            }
+              });
+              focusAdd();
+            }}
           >
-            Remove {row.description || "this liability"}
+            Remove liability {index + 1}
           </button>
         </fieldset>
       ))}
       <button
         type="button"
+        ref={addButton}
         onClick={() =>
           update({
             liabilities: [
@@ -337,7 +397,8 @@ function MoneyInAndOut({
   form,
   update,
   autoFilled,
-}: FormProps & { autoFilled: AutoFilledLine[] }) {
+  previousDate,
+}: FormProps & { autoFilled: AutoFilledLine[]; previousDate: string }) {
   return (
     <section aria-labelledby="money-heading">
       <h2 id="money-heading">Money in and out</h2>
@@ -365,19 +426,23 @@ function MoneyInAndOut({
         <Link to="/documents">Documents</Link> and upload it again.
       </p>
       <label>
-        Net assets on 30 June 2025 (from last year's statement)
+        Net assets on {previousDate} (from last year's statement)
+        {/* No numeric keypad: this one may be negative, and phone keypads lack a minus. */}
         <input
-          inputMode="numeric"
+          aria-describedby="previous-hint"
           value={form.previous_net_assets}
           onChange={(e) => update({ previous_net_assets: e.target.value })}
         />
       </label>
+      <p id="previous-hint">
+        May be negative, if you owed more than you owned.
+      </p>
       {MONEY_FIELDS.map(([field, label]) => (
         <label key={field}>
           {label}
           <input
             inputMode="numeric"
-            value={form[field] as string}
+            value={form[field]}
             onChange={(e) => update({ [field]: e.target.value })}
           />
         </label>
@@ -401,11 +466,12 @@ function MoneyInAndOut({
   );
 }
 
-function Result({ result }: { result: WealthResult }) {
+function Result({ result, label }: { result: WealthResult; label: string }) {
   return (
     <section aria-labelledby="result-heading">
       <h2 id="result-heading">Result</h2>
-      <p>{result.message}</p>
+      <p className="notice">{label}</p>
+      {result.message && <p>{result.message}</p>}
       {result.not_ready_reason === null && (
         <>
           {result.where_to_look.length > 0 && (

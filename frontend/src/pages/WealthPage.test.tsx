@@ -147,19 +147,38 @@ test("adding, editing and removing rows is what gets saved", async () => {
 
   const own = screen.getByRole("region", { name: /what i own/i });
   fireEvent.click(within(own).getByRole("button", { name: /add an asset/i }));
-  const descriptions = within(own).getAllByLabelText(/description/i);
-  fireEvent.change(descriptions[1], { target: { value: "Car" } });
-  fireEvent.change(within(own).getAllByLabelText(/category/i)[1], {
+  const second = within(own).getByRole("group", { name: "Asset 2" });
+  expect(within(second).getByLabelText(/category/i)).toHaveProperty(
+    "value",
+    "bank_account",
+  );
+  fireEvent.change(within(second).getByLabelText(/category/i), {
     target: { value: "motor_vehicle" },
   });
-  fireEvent.change(within(own).getAllByLabelText(/amount/i)[1], {
+  fireEvent.change(within(second).getByLabelText(/description/i), {
+    target: { value: "Car" },
+  });
+  fireEvent.change(within(second).getByLabelText(/amount/i), {
     target: { value: "1400000" },
   });
   const owe = screen.getByRole("region", { name: /what i owe/i });
   fireEvent.click(
-    within(owe).getByRole("button", { name: /remove car loan/i }),
+    within(owe).getByRole("button", { name: "Remove liability 1" }),
   );
-  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+  expect(document.activeElement).toBe(
+    within(owe).getByRole("button", { name: /add a liability/i }),
+  );
+  fireEvent.click(
+    within(owe).getByRole("button", { name: /add a liability/i }),
+  );
+  const loan = within(owe).getByRole("group", { name: "Liability 1" });
+  fireEvent.change(within(loan).getByLabelText(/description/i), {
+    target: { value: "Loan from a friend" },
+  });
+  fireEvent.change(within(loan).getByLabelText(/amount/i), {
+    target: { value: "5000" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
   await waitFor(() => expect(saved).toBeDefined());
   expect(saved?.assets).toEqual([
@@ -170,11 +189,29 @@ test("adding, editing and removing rows is what gets saved", async () => {
     },
     { category: "motor_vehicle", description: "Car", amount: "1400000" },
   ]);
-  expect(saved?.liabilities).toEqual([]);
+  expect(saved?.liabilities).toEqual([
+    { description: "Loan from a friend", creditor: null, amount: "5000" },
+  ]);
   expect(saved?.previous_net_assets).toBe("2100000");
 });
 
-test("an empty previous net assets is sent as not entered, and empty amounts as zero", async () => {
+test("removing an asset removes it from what is saved", async () => {
+  let saved: Record<string, unknown> | undefined;
+  serve({}, (body) => {
+    saved = body as Record<string, unknown>;
+    return { status: 200, body: SAVED };
+  });
+  await open();
+
+  const own = screen.getByRole("region", { name: /what i own/i });
+  fireEvent.click(within(own).getByRole("button", { name: "Remove asset 1" }));
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  await waitFor(() => expect(saved).toBeDefined());
+  expect(saved?.assets).toEqual([]);
+});
+
+test("empty fields are sent as not entered, zero or left out, and amounts trimmed", async () => {
   let saved: Record<string, unknown> | undefined;
   serve({}, (body) => {
     saved = body as Record<string, unknown>;
@@ -188,15 +225,41 @@ test("an empty previous net assets is sent as not entered, and empty amounts as 
   fireEvent.change(screen.getByLabelText(/inheritance/i), {
     target: { value: "" },
   });
-  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+  fireEvent.change(screen.getByLabelText(/^rent$/i), { target: { value: "" } });
+  fireEvent.change(screen.getByLabelText(/^medical$/i), {
+    target: { value: " 5000 " },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
   await waitFor(() => expect(saved).toBeDefined());
   expect(saved?.previous_net_assets).toBeNull();
   expect(saved?.inheritance).toBe("0");
+  expect(saved?.expenses).toEqual({ medical: "5000" });
+});
+
+test("last year's net assets can be negative, so its keypad isn't digits-only", async () => {
+  serve();
+  await open();
+
+  const previous = screen.getByLabelText(/net assets on 30 june 2025/i);
+  expect(previous.getAttribute("inputmode")).toBeNull();
+  screen.getByText(/may be negative/i);
+  screen.getByText(/as on 30 june 2026/i);
 });
 
 test("certificate lines are read-only, name their certificate and say how to correct it", async () => {
-  serve();
+  serve({
+    auto_filled: [
+      ...SAVED.auto_filled,
+      {
+        line: "7033",
+        label: "Bank profit",
+        amount: "0",
+        certificates: [],
+        provisional: true,
+      },
+    ],
+  });
   await open();
 
   const money = screen.getByRole("region", { name: /money in and out/i });
@@ -208,22 +271,80 @@ test("certificate lines are read-only, name their certificate and say how to cor
   expect(
     within(fromCertificates).getAllByText(new RegExp(SALARY_CERT)).length,
   ).toBeGreaterThan(0);
-  within(fromCertificates).getByText(/provisional/i);
-  expect(within(fromCertificates).queryByRole("textbox")).toBeNull();
+  within(fromCertificates).getByText("No confirmed certificate");
+  expect(screen.queryByLabelText(/taxable salary/i)).toBeNull(); // nothing to type into
   within(money).getByText(/correct the certificate/i);
 });
 
-test("a save error is shown", async () => {
+test("a save replaces the form and result with what the server saved, and says so", async () => {
+  serve({}, () => ({
+    status: 200,
+    body: {
+      ...SAVED,
+      statement: {
+        ...SAVED.statement,
+        assets: [
+          { category: "bank_account", description: "Renamed", amount: "1" },
+        ],
+      },
+      result: { ...SAVED.result, message: "Saved and recalculated." },
+    },
+  }));
+  await open();
+
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  await screen.findByText("Saved and recalculated.");
+  const own = screen.getByRole("region", { name: /what i own/i });
+  expect(within(own).getByLabelText(/description/i)).toHaveProperty(
+    "value",
+    "Renamed",
+  );
+  expect(screen.getByRole("status").textContent).toMatch(/saved/i);
+});
+
+test("while saving, nothing can be typed or saved twice", async () => {
+  serve({}, () => new Promise(() => {}) as never);
+  await open();
+
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  const saving = await screen.findByRole("button", { name: /saving/i });
+  expect(saving).toHaveProperty("disabled", true);
+  expect(
+    screen.getByLabelText(/inheritance/i).closest("fieldset"),
+  ).toHaveProperty("disabled", true);
+});
+
+test("a save error is shown beside the save button", async () => {
   serve({}, () => ({
     status: 422,
     body: { detail: "inheritance: must not be negative" },
   }));
   await open();
 
-  fireEvent.click(screen.getByRole("button", { name: /save/i }));
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-  expect((await screen.findByRole("alert")).textContent).toContain(
-    "must not be negative",
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain("must not be negative");
+  expect(alert.previousElementSibling).toBe(
+    screen.getByRole("button", { name: /^save$/i }),
+  );
+});
+
+test("a statement that can't be loaded says so", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/wealth/2025-26": () => ({
+      status: 500,
+      body: { detail: "Server error." },
+    }),
+  });
+  renderApp("/wealth");
+
+  expect((await screen.findByRole("alert")).textContent).toMatch(
+    /server error/i,
   );
 });
 
@@ -242,6 +363,8 @@ test("the breakdown shows each step with its form line", async () => {
   within(steps[0]).getByText(/703001/);
   screen.getByText("Your wealth statement reconciles.");
   expect(screen.queryByRole("list", { name: /where to look/i })).toBeNull();
+  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+  within(screen.getByRole("region", { name: /^result$/i })).getByText(LABEL);
 });
 
 test("a gap shows its message, where to look, and the summary when there is one", async () => {
@@ -292,6 +415,8 @@ test("a not-ready statement shows what to do and no breakdown", async () => {
   expect(
     screen.queryByRole("list", { name: /how it was worked out/i }),
   ).toBeNull();
+  expect(screen.queryByRole("list", { name: /where to look/i })).toBeNull();
+  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
   screen.getByText(LABEL);
 });
 

@@ -45,15 +45,23 @@ export type WealthStep = {
   result: string;
 };
 
+export type NotReadyReason =
+  | "needs_previous_net_assets"
+  | "no_confirmed_salary_certificate"
+  | "profit_over_limit"
+  | "gross_below_taxable";
+export type Direction =
+  "reconciled" | "inflows_exceed_growth" | "growth_exceeds_inflows";
+
 export type WealthResult = {
-  not_ready_reason: string | null;
+  not_ready_reason: NotReadyReason | null;
   message: string | null;
   net_assets: string | null;
   increase: string | null;
   inflows: string | null;
   outflows: string | null;
   unreconciled: string | null;
-  direction: string | null;
+  direction: Direction | null;
   where_to_look: string[];
   steps: WealthStep[];
   summary: string | null;
