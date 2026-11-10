@@ -20,6 +20,10 @@
 
 - Q: Now that the hooks are bash scripts (like the lead's #10), what automated checks run on them? → A: Tests only: CI runs each hook (ours and the lead's) against sample inputs and checks the response; no lint or type checks for bash.
 
+### Session 2026-11-10
+
+- Q: The lead asked for a free deployment and then CI/CD ("once your tests pass deploy it also directly"); where does it go? → A: Into feature 001 as User Story 5 (FR-021 to FR-025): the production setup on one free Google Cloud VM (PR #30), and continuous deployment after CI passes on `main`. Design: `docs/superpowers/specs/2026-11-10-continuous-deployment-design.md`.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start the whole app with one command (Priority: P1)
@@ -144,6 +148,30 @@ backend feature and a code review; the matching guide and reviewer are used.
 6. **Given** a new API endpoint, **When** it is designed, **Then** a written API convention
    defines its path, request and response shapes, errors and authentication.
 
+### User Story 5 - The live demo updates itself after a merge (Priority: P5, added 2026-11-10)
+
+The app runs on one free Google Cloud VM. When a change is merged into `main` and the
+automated checks pass there, the live site updates itself within minutes, with nobody signing in
+to the VM; and an earlier version can be redeployed on request.
+
+**Why this priority**: Requested by the lead after the first deployment; it builds on User Story
+4's checks.
+
+**Independent Test**: Merge a small change into `main`; after CI passes, the deploy run
+succeeds and the live site serves the change. Run the deploy manually with an earlier commit;
+the site serves that one.
+
+**Acceptance Scenarios**:
+
+1. **Given** a change merged into `main`, **When** CI passes for it, **Then** it is deployed
+   and the deploy run checks that the live site answers.
+2. **Given** CI fails for a change on `main`, or CI ran for a pull request (including from a
+   fork) or another branch, **When** it finishes, **Then** nothing is deployed.
+3. **Given** a deploy whose site doesn't come back, **When** the check runs out of time, **Then**
+   the run fails visibly.
+4. **Given** someone holding the deploy key, **When** they try to open a shell or run any other
+   command on the VM, **Then** only the deploy itself can run.
+
 ### Edge Cases
 
 - A required port (backend or frontend) is already in use on the developer's machine: the
@@ -210,6 +238,19 @@ backend feature and a code review; the matching guide and reviewer are used.
 - **FR-020**: The repository MUST contain one written API convention covering paths, request
   and response shapes, errors, authentication and how changes are kept in step between backend
   and frontend.
+- **FR-021** (added 2026-11-10): The app MUST run in production on one free-tier VM, from a
+  production configuration that serves the built frontend over HTTPS, keeps the database
+  unreachable from outside, and takes every secret only from the server's own uncommitted
+  settings file.
+- **FR-022**: After CI passes for a push to `main` in the project's repository, the app MUST be
+  deployed automatically; CI runs for pull requests (including from forks) or other branches
+  MUST never deploy. A deploy MUST also be startable by hand for a given commit.
+- **FR-023**: A deploy MUST end by checking that the live site answers, and MUST fail visibly if
+  it doesn't within a few minutes.
+- **FR-024**: The key the deploy uses to reach the VM MUST be usable only for the deploy (no
+  shell or other commands), and the VM's identity MUST be checked before connecting.
+- **FR-025**: No secret (keys, tokens, passwords) MUST appear in the repository, the built
+  images, command lines or logs.
 
 ## Success Criteria *(mandatory)*
 
@@ -229,6 +270,9 @@ backend feature and a code review; the matching guide and reviewer are used.
   failing test or formatting error is marked as failing.
 - **SC-008**: Each of the six rule topics (in the lead's rule files or ours), both folder guides,
   the three reusable guides and both reviewers exists and is referenced from the root guide.
+
+- **SC-009** (added 2026-11-10): A change merged into `main` is live within 10 minutes of CI
+  passing, with nobody signing in to the VM.
 
 ## Assumptions
 

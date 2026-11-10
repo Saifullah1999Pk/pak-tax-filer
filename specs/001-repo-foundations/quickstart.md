@@ -58,3 +58,13 @@ Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** 
    `frontend-reviewer`.
 5. Open `docs/api-conventions.md`. **Expected:** paths, bodies, errors, auth and keeping-in-step
    rules as in [contracts/api-conventions.md](contracts/api-conventions.md).
+
+## 6. Continuous deployment (User Story 5, SC-009; added 2026-11-10)
+
+1. Merge a small change into `main`. CI runs; when it passes, the "Deploy" workflow starts,
+   builds both images, deploys them and checks the site. The live site serves the change within
+   10 minutes, and nobody signed in to the VM.
+2. In Actions → Deploy → Run workflow, enter an earlier commit: the site serves that one.
+3. A CI run for a pull request (or a failing one) starts no deploy.
+4. With the deploy key, `ssh <user>@<vm> whoami` doesn't run `whoami`: it is refused as an
+   invalid deploy request.
