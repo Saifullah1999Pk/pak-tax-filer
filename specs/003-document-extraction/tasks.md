@@ -80,7 +80,7 @@ Gemini's free tier on 2026-11-08 (tasks T033-T040).
 
 - [X] T018 [US2] Add `edit_field()`, `confirm_document()` and `confirmed_documents()` to `backend/app/documents/service.py`, and `PATCH /api/documents/{id}/fields/{name}` and `POST /api/documents/{id}/confirm` to `backend/app/documents/router.py`; T017 passes
 - [X] T019 [P] [US2] Write `frontend/src/pages/ReviewPage.test.tsx` (file shown beside fields; low-confidence fields highlighted with reason; editing and confirming a field; document confirm blocked with a list of missing fields; read-only once confirmed), then create `frontend/src/pages/ReviewPage.tsx` and its route
-- [ ] T020 [US2] Run [quickstart.md](quickstart.md) section 2
+- [X] T020 [US2] Run [quickstart.md](quickstart.md) section 2 *(2026-11-10, through the API on the local app: unconfirmed fields listed; edit + confirm all → confirmed, then edits refused (409); the tax API counted the certificate only after confirming)*
 
 **Checkpoint**: User Story 2 works on its own.
 
@@ -100,7 +100,7 @@ Gemini's free tier on 2026-11-08 (tasks T033-T040).
 
 - [X] T022 [US3] Add `GET /api/documents`, `POST /api/documents/{id}/retry` and `DELETE /api/documents/{id}` (deleting the stored file) to `backend/app/documents/router.py` and `service.py`; T021 passes
 - [X] T023 [US3] Add the document list (type, upload time, status, retry and delete buttons) to `frontend/src/pages/DocumentsPage.tsx` and its test file
-- [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
+- [X] T024 [US3] Run [quickstart.md](quickstart.md) section 3 *(2026-11-10: invalid key → failed, retry with the real key → needs review; the reason wrongly blamed the file, fixed in 49199a9; delete removed the file from disk; another user got 404 for document and file)*
 
 **Checkpoint**: User Stories 1–3 work.
 
