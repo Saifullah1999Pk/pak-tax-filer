@@ -11,7 +11,7 @@ import asyncio
 import logging
 import re
 
-from app.explain.number_check import uses_only_numbers_from
+from app.explain.number_check import numbers_in, uses_only_numbers_from
 from app.tax.summary import LIMIT_SECONDS, Summariser
 from app.wealth.reconcile import ReconciliationResult
 
@@ -24,16 +24,36 @@ the numbers that appear in the breakdown you are given, written the same way (e.
 "lakh", "million", "thousand"), and never suggest an amount to enter. Do not give advice."""
 
 
-# Backend review H1: the amount that would force a zero is always in the breakdown, so the
-# number check alone can't stop a summary suggesting it. Plain-code word checks drop a summary
-# that advises, claims a reconciliation that isn't there, or states the other direction.
-_ADVICE = re.compile(
-    r"\b(?:enter|add|declare|include|put|record|should|must|need to|make it)\b", re.IGNORECASE
+# Backend reviews H1 (two passes): the amount that would force a zero is always in the
+# breakdown, so the number check alone can't stop a summary suggesting it. Plain-code checks,
+# sentence by sentence, drop a summary that advises, ties the gap amount to something to add,
+# claims a reconciliation that isn't there, or states the other direction. Harmless wording
+# ("reconciliation", "unreconciled", "inflows exceed outflows") is left alone.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+# Telling the user what to do, anywhere.
+_ADVICE = re.compile(r"\b(?:should|must|need to|have to|ought to)\b", re.IGNORECASE)
+# Words that, beside the gap amount, would point the user at what to enter (stems on purpose:
+# "adding", "entered", "listing"...), and the checklist's own categories (FR-007).
+_SUGGESTION = re.compile(
+    # Not "assets", "shows" or "may be missing": the app's own message ("Your assets grew Rs X
+    # more than your inflows explain: an inflow may be missing") must stay allowed.
+    r"\b(?:enter|add|declar|includ|put|record|list|report|consider|claim|clear|clos|fix|"
+    r"remov|bring|gift|inherit|remittance|family|exempt|vehicle|jewel|savings|bank account)\w*",
+    re.IGNORECASE,
 )
-# "reconciles", "reconciled", "balanced" (but not "unreconciled": no word boundary inside it).
-_RECONCILED = re.compile(r"\b(?:reconcil\w*|balanced|balances)\b", re.IGNORECASE)
-_INFLOWS_EXCEED = re.compile(r"\binflows?\s+exceed", re.IGNORECASE)
-_GROWTH_EXCEEDS = re.compile(r"\bgrew\b.*\bmore than\b", re.IGNORECASE)
+# "reconciles", "reconciled", "balance(d)" - not "reconciliation" or "unreconciled".
+_RECONCILED = re.compile(r"\b(?:reconciles|reconciled|balanc\w*)\b", re.IGNORECASE)
+_GROWTH_WORD = r"(?:grew|grow\w*|increase\w*|rose|risen)"
+_MORE = r"(?:exceed\w*|more than|greater than|larger than|above)"
+# Inflows are more than the growth (inflows_exceed_growth).
+_INFLOWS_OVER = re.compile(
+    rf"\binflows?\b[^.]*\b{_MORE}[^.]*\b{_GROWTH_WORD}", re.IGNORECASE | re.DOTALL
+)
+# The growth is more than the inflows, or inflows fall short (growth_exceeds_inflows).
+_GROWTH_OVER = re.compile(
+    rf"\b{_GROWTH_WORD}\b[^.]*\b{_MORE}[^.]*\binflows?\b|\binflows?\b[^.]*\bshort\b",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def wealth_summary_is_safe(summary: str, result: ReconciliationResult) -> bool:
@@ -43,10 +63,14 @@ def wealth_summary_is_safe(summary: str, result: ReconciliationResult) -> bool:
     direction = result.direction
     if _RECONCILED.search(summary) and direction != "reconciled":
         return False
-    if _INFLOWS_EXCEED.search(summary) and direction != "inflows_exceed_growth":
+    if _INFLOWS_OVER.search(summary) and direction != "inflows_exceed_growth":
         return False
-    if _GROWTH_EXCEEDS.search(summary) and direction != "growth_exceeds_inflows":
+    if _GROWTH_OVER.search(summary) and direction != "growth_exceeds_inflows":
         return False
+    gap = abs(result.unreconciled) if result.unreconciled else None
+    for sentence in _SENTENCE_END.split(summary):
+        if gap is not None and gap in numbers_in(sentence) and _SUGGESTION.search(sentence):
+            return False
     return True
 
 

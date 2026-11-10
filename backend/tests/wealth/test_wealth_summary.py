@@ -110,3 +110,60 @@ async def test_a_gap_summary_may_not_claim_the_other_direction_for_growth() -> N
 
     assert await verified_wealth_summary(gap, "2025-26", FakeSummariser(wrong)) is None
     assert await verified_wealth_summary(gap, "2025-26", FakeSummariser(right)) == right
+
+
+# Second backend review: inflections, synonyms and the gap amount tied to a checklist category
+# must be caught; harmless wording ("reconciliation", "unreconciled", "inflows exceed outflows",
+# "include") must not be.
+INFLOWS_GAP = run(next(e for e in EXAMPLES if e["id"] == "inflows-exceed-growth"))
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Adding Rs 50,000 of gifts received would balance it.",
+        "Entering Rs 50,000 as a gift clears the gap.",
+        "Listing Rs 50,000 as a gift would clear the gap.",
+        "A gift of Rs 50,000 you received may be missing.",
+        "Your inflows are Rs 50,000 more than the growth in your assets.",
+    ],
+)
+async def test_softer_advice_and_the_other_direction_are_dropped(summary: str) -> None:
+    """Fails if a summary can still tie the gap amount to something to enter, or say inflows
+    exceed growth when growth exceeds inflows (FR-007, FR-010)."""
+    assert await verified_wealth_summary(GAP, "2025-26", FakeSummariser(summary)) is None
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Growth exceeds your inflows by Rs 100,000.",
+        "Your assets increased more than your inflows.",
+        "Your inflows fall short of the growth by Rs 100,000.",
+    ],
+)
+async def test_growth_wording_is_dropped_when_inflows_exceed_growth(summary: str) -> None:
+    """Fails if a summary says the opposite of an inflows-exceed-growth result."""
+    assert await verified_wealth_summary(INFLOWS_GAP, "2025-26", FakeSummariser(summary)) is None
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Your wealth reconciliation shows an unreconciled amount of -Rs 50,000.",
+        "Your inflows of Rs 2,050,000 include your taxable salary of Rs 1,800,000.",
+        "Your inflows of Rs 2,050,000 exceed your outflows of Rs 1,600,000.",
+        "Your net assets this year are Rs 2,600,000, an increase of Rs 500,000 compared to "
+        "Rs 2,100,000. Your inflows are Rs 2,050,000 and outflows Rs 1,600,000, leaving an "
+        "unreconciled amount of -Rs 50,000.",
+    ],
+)
+async def test_harmless_wording_is_kept(summary: str) -> None:
+    """Fails if a faithful summary of a gap is thrown away for innocent words."""
+    assert await verified_wealth_summary(GAP, "2025-26", FakeSummariser(summary)) == summary
+
+
+async def test_repeating_the_apps_own_message_is_kept() -> None:
+    """Fails if a summary that repeats the result message the app itself wrote is dropped."""
+    assert GAP.message is not None
+    assert await verified_wealth_summary(GAP, "2025-26", FakeSummariser(GAP.message)) == GAP.message

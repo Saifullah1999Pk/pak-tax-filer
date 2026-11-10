@@ -26,12 +26,14 @@ EMAIL = "wealth-race@example.com"
 STATEMENT = {
     "previous_net_assets": "100000",
     "assets": [{"category": "bank_account", "description": "Savings", "amount": "100000"}],
-    "liabilities": [],
+    "liabilities": [{"description": "Loan", "creditor": "Bank", "amount": "5000"}],
+    "expenses": {"rent": "1000", "medical": "2000"},
 }
 
 
-async def test_simultaneous_first_saves_all_succeed_with_one_statement(
-    test_database_url: str,
+@pytest.mark.parametrize("saved_before", [False, True], ids=["first-saves", "replacing-saves"])
+async def test_simultaneous_saves_all_succeed_with_one_statement(
+    test_database_url: str, saved_before: bool
 ) -> None:
     """Fails if two first saves both insert (a unique-constraint 500), or two replace-all saves
     collide, instead of being applied one after the other."""
@@ -53,6 +55,11 @@ async def test_simultaneous_first_saves_all_succeed_with_one_statement(
                 "/api/auth/login", json={"email": EMAIL, "password": TEST_PASSWORD}
             )
             assert login.status_code == 200
+            if saved_before:
+                # Then the saves below race to REPLACE rows (asset, liability and expense
+                # rows), not to insert the first statement.
+                first = await http.put("/api/wealth/2025-26", json=STATEMENT)
+                assert first.status_code == 200
             responses = await asyncio.gather(
                 *(http.put("/api/wealth/2025-26", json=STATEMENT) for _ in range(5))
             )
