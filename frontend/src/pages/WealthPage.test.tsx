@@ -87,7 +87,7 @@ afterEach(() => {
 
 function serve(
   wealth: Partial<Wealth> = {},
-  onSave?: (body: unknown) => FakeReply,
+  onSave?: (body: unknown) => FakeReply | Promise<FakeReply>,
 ) {
   const reply = (): FakeReply => ({
     status: 200,
@@ -234,9 +234,8 @@ test("descriptions are required and sent trimmed", async () => {
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
   await waitFor(() => expect(saved).toBeDefined());
-  expect((saved?.assets as { description: string }[])[0].description).toBe(
-    "Savings account",
-  );
+  const assets = (saved?.assets ?? []) as { description: string }[];
+  expect(assets[0].description).toBe("Savings account");
 });
 
 test("empty fields are sent as not entered, zero or left out, and amounts trimmed", async () => {
