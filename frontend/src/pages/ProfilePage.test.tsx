@@ -1,10 +1,11 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import {
+  SAVED_PROFILE,
   hasProfile,
   mockFetch,
+  noDocuments,
   noProfile,
-  SAVED_PROFILE,
 } from "../test/mockFetch";
 import type { FakeRoutes } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
@@ -27,6 +28,7 @@ function newUser(): { routes: FakeRoutes; saved: () => unknown } {
     saved: () => saved,
     routes: {
       "GET /api/auth/me": () => ME,
+      "GET /api/documents": noDocuments,
       "GET /api/profile": () =>
         saved
           ? {
@@ -121,7 +123,8 @@ test("the home page links to the profile, which shows the saved answers for edit
   fireEvent.click(await screen.findByRole("radio", { name: /yes/i }));
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
-  fireEvent.click(await screen.findByRole("link", { name: /profile/i }));
+  // The navigation's Profile link (feature 001, User Story 6).
+  fireEvent.click(await screen.findByRole("link", { name: "Profile" }));
 
   await screen.findByRole("heading", { level: 1, name: /your profile/i });
   expect(screen.getByRole("radio", { name: /yes/i })).toHaveProperty(
@@ -136,7 +139,8 @@ test("changing ATL status saves the new answer", async () => {
   renderApp("/profile?next=/");
   fireEvent.click(await screen.findByRole("radio", { name: /yes/i }));
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
-  fireEvent.click(await screen.findByRole("link", { name: /profile/i }));
+  // The navigation's Profile link (feature 001, User Story 6).
+  fireEvent.click(await screen.findByRole("link", { name: "Profile" }));
 
   fireEvent.click(await screen.findByRole("radio", { name: /no/i }));
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -149,6 +153,7 @@ test("if the profile can't be loaded, the user is told and can retry", async () 
   let failing = true;
   mockFetch({
     "GET /api/auth/me": () => ME,
+    "GET /api/documents": noDocuments,
     "GET /api/profile": () =>
       failing
         ? { status: 500, body: { detail: "Server error." } }
@@ -176,6 +181,7 @@ test("after one user logs out, the next user doesn't see the first user's profil
       current
         ? { status: 200, body: { email: current } }
         : { status: 401, body: { detail: "Not logged in." } },
+    "GET /api/documents": noDocuments,
     "GET /api/profile": () =>
       current === "a@example.com" ? hasProfile() : noProfile(),
     "POST /api/auth/logout": () => {

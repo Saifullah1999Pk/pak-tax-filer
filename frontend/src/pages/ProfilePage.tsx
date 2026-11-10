@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
-import { LogoutButton } from "../components/LogoutButton";
 import { useProfile } from "../profile/ProfileContext";
 import { ProfileLoadError } from "../profile/ProfileLoadError";
 import { safeNext } from "../navigation";
@@ -63,7 +62,9 @@ export function ProfilePage() {
   return (
     <main>
       <h1>{profile ? "Your profile" : "Set up your profile"}</h1>
-      <p>This app covers people who live in Pakistan and earn a salary.</p>
+      <p className="lede">
+        This app covers people who live in Pakistan and earn a salary.
+      </p>
       <form onSubmit={handleSubmit}>
         <label>
           Tax year
@@ -114,7 +115,6 @@ export function ProfilePage() {
           Save
         </button>
       </form>
-      <LogoutButton />
     </main>
   );
 }

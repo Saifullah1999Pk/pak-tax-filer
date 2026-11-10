@@ -87,7 +87,7 @@ export function SignupPage() {
   return (
     <main>
       <h1>Create an account</h1>
-      <p>
+      <p className="notice">
         <strong>Demo data only.</strong> Do not enter real personal information.
       </p>
       <form onSubmit={handleSubmit}>
@@ -96,6 +96,7 @@ export function SignupPage() {
           <input
             type="email"
             autoComplete="username"
+            spellCheck={false}
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -116,7 +117,9 @@ export function SignupPage() {
             {...errorProps("password", "signup-password-hint")}
           />
         </label>
-        <p id="signup-password-hint">At least 8 characters.</p>
+        <p id="signup-password-hint" className="hint">
+          At least 8 characters.
+        </p>
         <label>
           Confirm password
           <input

@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
+import { AppFrame, PlainFrame, ProfileFrame } from "./components/AppFrame";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -12,73 +13,46 @@ import { WealthPage } from "./pages/WealthPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
 /**
- * The app's pages (feature 002 tasks T029, T041; feature 003 tasks T015, T019; feature 004 task T013). Every logged-in page except /profile also needs the
- * taxpayer profile. main.tsx provides the router, AuthProvider and ProfileProvider.
+ * The app's pages (feature 002 tasks T029, T041; feature 003 tasks T015, T019; feature 004 task
+ * T013), each inside its frame (feature 001 task T050). Every logged-in page except /profile
+ * also needs the taxpayer profile. main.tsx provides the router, AuthProvider and
+ * ProfileProvider.
  */
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+      <Route element={<PlainFrame />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+      </Route>
       <Route
         path="/profile"
         element={
           <RequireAuth>
-            <ProfilePage />
+            <ProfileFrame>
+              <ProfilePage />
+            </ProfileFrame>
           </RequireAuth>
         }
       />
       <Route
-        path="/documents"
         element={
           <RequireAuth>
             <RequireProfile>
-              <DocumentsPage />
+              <AppFrame />
             </RequireProfile>
           </RequireAuth>
         }
-      />
-      <Route
-        path="/documents/:id"
-        element={
-          <RequireAuth>
-            <RequireProfile>
-              <ReviewPage />
-            </RequireProfile>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/tax"
-        element={
-          <RequireAuth>
-            <RequireProfile>
-              <TaxPage />
-            </RequireProfile>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/wealth"
-        element={
-          <RequireAuth>
-            <RequireProfile>
-              <WealthPage />
-            </RequireProfile>
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <RequireProfile>
-              <HomePage />
-            </RequireProfile>
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<NotFoundPage />} />
+      >
+        <Route path="/" element={<HomePage />} />
+        <Route path="/documents" element={<DocumentsPage />} />
+        <Route path="/documents/:id" element={<ReviewPage />} />
+        <Route path="/tax" element={<TaxPage />} />
+        <Route path="/wealth" element={<WealthPage />} />
+      </Route>
+      <Route element={<PlainFrame />}>
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
     </Routes>
   );
 }

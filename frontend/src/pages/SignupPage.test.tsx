@@ -1,6 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { hasProfile, mockFetch, noProfile } from "../test/mockFetch";
+import {
+  hasProfile,
+  mockFetch,
+  noDocuments,
+  noProfile,
+} from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
 // Sign-up page, per specs/002-auth-foundation/contracts/cli-and-ui.md (task T049, FR-024 to
@@ -80,6 +85,7 @@ test("a successful sign-up logs in and goes to the profile setup step", async ()
       signedUp
         ? { status: 200, body: { email: "new@example.com" } }
         : { status: 401, body: { detail: "Not logged in." } },
+    "GET /api/documents": noDocuments,
     "GET /api/profile": noProfile,
     "POST /api/auth/signup": () => {
       signedUp = true;
@@ -167,6 +173,7 @@ test("a logged-in visitor goes to the home page", async () => {
       status: 200,
       body: { email: "demo@example.com" },
     }),
+    "GET /api/documents": noDocuments,
     "GET /api/profile": hasProfile,
   });
   renderApp("/signup");

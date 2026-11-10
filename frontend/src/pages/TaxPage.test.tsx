@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TaxResult } from "../api/tax";
 import { hasProfile, mockFetch } from "../test/mockFetch";
@@ -73,7 +73,10 @@ test("asks for the profile's tax year and never asks for ATL status itself", asy
   renderApp("/tax");
 
   await screen.findByRole("heading", { name: /your tax for 2025-26/i });
-  expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything());
+  // The heading shows before the page asks for its tax, so wait for the request.
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything()),
+  );
   expect(screen.queryByText(/active taxpayer/i)).toBeNull();
   expect(screen.queryByRole("radio")).toBeNull();
 });
@@ -227,4 +230,43 @@ test("an error reply is shown instead of the result", async () => {
 
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toBe("No rates for that tax year.");
+});
+
+// Feature 001, User Story 6, task T054: the answer first. Each side's balance is its headline,
+// above the parts it is made of; the summary and the breakdown come after both sides.
+
+const follows = (first: Node, second: Node) =>
+  Boolean(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
+test("the label comes first, then each side's balance as its headline, then the detail", async () => {
+  showTax({ summary: "Your tax is Rs 72,000." });
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  const profit = screen.getByRole("region", { name: /bank profit/i });
+  expect(follows(screen.getByText(LABEL), salary)).toBe(true);
+  expect(
+    follows(
+      within(salary).getByText("Rs 12,000 payable"),
+      within(salary).getByText("Rs 72,000"),
+    ),
+  ).toBe(true);
+  expect(
+    follows(
+      within(profit).getByText("Rs 4,000 over-withheld"),
+      within(profit).getByText("Rs 20,000"),
+    ),
+  ).toBe(true);
+  expect(
+    follows(profit, screen.getByRole("region", { name: /summary/i })),
+  ).toBe(true);
+  expect(
+    follows(
+      profit,
+      screen.getByRole("list", { name: /how it was worked out/i }),
+    ),
+  ).toBe(true);
+  expect(screen.queryByText(/total/i)).toBeNull();
 });

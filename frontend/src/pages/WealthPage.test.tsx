@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Wealth } from "../api/wealth";
-import { hasProfile, mockFetch } from "../test/mockFetch";
+import { hasProfile, mockFetch, noDocuments } from "../test/mockFetch";
 import type { FakeReply } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
@@ -95,6 +95,7 @@ function serve(
   });
   return mockFetch({
     "GET /api/auth/me": () => ME,
+    "GET /api/documents": noDocuments,
     "GET /api/profile": hasProfile,
     "GET /api/wealth/2025-26": reply,
     "PUT /api/wealth/2025-26": ({ body }) => (onSave ? onSave(body) : reply()),
@@ -280,6 +281,7 @@ test("last year's net assets can be negative, so its keypad isn't digits-only", 
 test("the dates follow the profile's tax year", async () => {
   mockFetch({
     "GET /api/auth/me": () => ME,
+    "GET /api/documents": noDocuments,
     "GET /api/profile": () => ({
       status: 200,
       body: {
@@ -357,9 +359,12 @@ test("a save replaces the form and result with what the server saved, and says s
     "Renamed",
   );
   screen.getByText("Saved.");
-  // Keyboard and screen-reader users stay where they were, not at the top of the page.
-  expect(document.activeElement).toBe(
-    screen.getByRole("button", { name: /^save$/i }),
+  // Keyboard and screen-reader users stay where they were, not at the top of the page. Focus
+  // moves just after the page updates, so wait for it.
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /^save$/i }),
+    ),
   );
 });
 
@@ -403,12 +408,13 @@ test("a save error is shown beside the save button", async () => {
   expect(alert.textContent).toContain("must not be negative");
   const save = screen.getByRole("button", { name: /^save$/i });
   expect(save.getAttribute("aria-describedby")).toBe(alert.id);
-  expect(document.activeElement).toBe(save);
+  await waitFor(() => expect(document.activeElement).toBe(save));
 });
 
 test("a statement that can't be loaded says so", async () => {
   mockFetch({
     "GET /api/auth/me": () => ME,
+    "GET /api/documents": noDocuments,
     "GET /api/profile": hasProfile,
     "GET /api/wealth/2025-26": () => ({
       status: 500,
@@ -505,6 +511,53 @@ test("the home page links to the wealth statement", async () => {
   serve();
   renderApp("/");
 
-  const link = await screen.findByRole("link", { name: /wealth statement/i });
+  // From its checklist (feature 001, User Story 6) as well as the navigation.
+  const link = await screen.findByRole("link", {
+    name: "Open wealth statement",
+  });
   expect(link.getAttribute("href")).toBe("/wealth");
+});
+
+// Feature 001, User Story 6, task T055: a section bar to jump between the parts on a phone, and
+// the result's answer before its detail.
+
+test("a section bar links to each part of the statement", async () => {
+  serve();
+  await open();
+
+  const bar = screen.getByRole("navigation", { name: /sections/i });
+  const links = within(bar).getAllByRole("link");
+  expect(links.map((link) => link.textContent)).toEqual([
+    "What I own",
+    "What I owe",
+    "Money in and out",
+    "Result",
+  ]);
+  for (const link of links) {
+    const target = document.getElementById(link.getAttribute("href")!.slice(1));
+    expect(target?.textContent).toBe(link.textContent);
+  }
+});
+
+test("the result shows its label, then its message, then where to look", async () => {
+  serve({
+    result: {
+      ...SAVED.result,
+      unreconciled: "-50000",
+      direction: "growth_exceeds_inflows",
+      message:
+        "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
+      where_to_look: ["A gift you received"],
+    },
+  });
+  await open();
+
+  const result = screen.getByRole("region", { name: /^result$/i });
+  const label = within(result).getByText(LABEL);
+  const message = within(result).getByText(/assets grew Rs 50,000/);
+  const look = within(result).getByRole("list", { name: /where to look/i });
+  const follows = (a: Node, b: Node) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(follows(label, message)).toBe(true);
+  expect(follows(message, look)).toBe(true);
 });

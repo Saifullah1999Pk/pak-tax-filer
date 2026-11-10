@@ -258,7 +258,9 @@ test("a failed document shows why and links back to the list", async () => {
 
   screen.getByText(/the ai declined to read this document/i);
   expect(
-    screen.getByRole("link", { name: /documents/i }).getAttribute("href"),
+    screen
+      .getByRole("link", { name: /back to documents/i })
+      .getAttribute("href"),
   ).toBe("/documents");
 });
 
@@ -355,4 +357,35 @@ test("a not-found field shows no confidence, only that it wasn't found (task T04
   expect(within(deducted).queryByText(/confidence/i)).toBeNull();
   const gross = screen.getByRole("group", { name: /gross salary/i });
   within(gross).getByText(/low confidence/i);
+});
+
+// Feature 001, User Story 6 (frontend review M5): on a narrow screen the original starts folded
+// away, so the figures aren't pushed far down; on a wide one it is open beside them.
+
+function screenIsWide(wide: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string) => ({ matches: wide, media: query }) as MediaQueryList,
+  );
+}
+
+const originalPanel = () =>
+  screen.getByText("Original document", { selector: "summary" })
+    .parentElement as HTMLDetailsElement;
+
+test("on a phone the original document starts folded away, the figures still shown", async () => {
+  screenIsWide(false);
+  mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  expect(originalPanel().open).toBe(false);
+  screen.getByRole("button", { name: /confirm document/i });
+});
+
+test("on a wide screen the original document starts open", async () => {
+  screenIsWide(true);
+  mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  expect(originalPanel().open).toBe(true);
 });

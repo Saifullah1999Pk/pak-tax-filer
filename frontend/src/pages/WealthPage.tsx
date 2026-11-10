@@ -223,10 +223,16 @@ export function WealthPage() {
               the result below and save again.
             </p>
           )}
-          <form onSubmit={handleSave}>
+          <SectionBar />
+          {/* No autofill: these are amounts, not personal details. */}
+          <form onSubmit={handleSave} autoComplete="off">
             {/* Disabled while saving: the saved statement then replaces the form, so
                 anything typed meanwhile would be lost. */}
-            <fieldset disabled={saving} aria-label="Your statement">
+            <fieldset
+              disabled={saving}
+              aria-label="Your statement"
+              className="plain"
+            >
               <Assets form={form} update={update} asOn={dates.now} />
               <Liabilities form={form} update={update} />
               <MoneyInAndOut
@@ -236,30 +242,29 @@ export function WealthPage() {
                 previousDate={dates.before}
               />
             </fieldset>
-            <button
-              type="submit"
-              ref={saveButton}
-              disabled={saving}
-              aria-describedby={
-                saveError !== null ? "wealth-save-error" : undefined
-              }
-            >
-              {saving ? "Saving…" : "Save"}
-            </button>
-            {saveError !== null && (
-              <p id="wealth-save-error" role="alert">
-                {saveError}
-              </p>
-            )}
-            {/* One live region, always present, so "Saved." is announced when it appears. */}
-            <p role="status">{saved ? "Saved." : ""}</p>
+            <div className="save-bar">
+              <button
+                type="submit"
+                ref={saveButton}
+                disabled={saving}
+                aria-describedby={
+                  saveError !== null ? "wealth-save-error" : undefined
+                }
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
+              {saveError !== null && (
+                <p id="wealth-save-error" role="alert">
+                  {saveError}
+                </p>
+              )}
+              {/* One live region, always present, so "Saved." is announced when it appears. */}
+              <p role="status">{saved ? "Saved." : ""}</p>
+            </div>
           </form>
           <Result result={wealth.result} label={wealth.label} />
         </>
       )}
-      <nav>
-        <Link to="/">Home</Link>
-      </nav>
     </main>
   );
 }
@@ -282,11 +287,11 @@ function Assets({ form, update, asOn }: FormProps & { asOn: string }) {
       assets: form.assets.map((a) => (a.key === k ? { ...a, ...changes } : a)),
     });
   return (
-    <section aria-labelledby="own-heading">
+    <section aria-labelledby="own-heading" className="statement-section">
       <h2 id="own-heading">What I own</h2>
-      <p>Each asset at its cost, as on {asOn}.</p>
+      <p className="lede">Each asset at its cost, as on {asOn}.</p>
       {form.assets.map((asset, index) => (
-        <fieldset key={asset.key}>
+        <fieldset key={asset.key} className="entry-row">
           <legend>Asset {index + 1}</legend>
           <label>
             Category
@@ -329,7 +334,8 @@ function Assets({ form, update, asOn }: FormProps & { asOn: string }) {
               focusAdd();
             }}
           >
-            Remove asset {index + 1}
+            {/* "Remove" on screen; the full name says which row. */}
+            Remove <span className="visually-hidden">asset {index + 1}</span>
           </button>
         </fieldset>
       ))}
@@ -365,10 +371,10 @@ function Liabilities({ form, update }: FormProps) {
       ),
     });
   return (
-    <section aria-labelledby="owe-heading">
+    <section aria-labelledby="owe-heading" className="statement-section">
       <h2 id="owe-heading">What I owe</h2>
       {form.liabilities.map((row, index) => (
-        <fieldset key={row.key}>
+        <fieldset key={row.key} className="entry-row liability">
           <legend>Liability {index + 1}</legend>
           <label>
             Description
@@ -404,7 +410,8 @@ function Liabilities({ form, update }: FormProps) {
               focusAdd();
             }}
           >
-            Remove liability {index + 1}
+            Remove{" "}
+            <span className="visually-hidden">liability {index + 1}</span>
           </button>
         </fieldset>
       ))}
@@ -433,17 +440,21 @@ function MoneyInAndOut({
   previousDate,
 }: FormProps & { autoFilled: AutoFilledLine[]; previousDate: string }) {
   return (
-    <section aria-labelledby="money-heading">
+    <section aria-labelledby="money-heading" className="statement-section">
       <h2 id="money-heading">Money in and out</h2>
       <h3 id="certificates-heading">From your certificates</h3>
-      <ul aria-labelledby="certificates-heading">
+      <ul
+        aria-labelledby="certificates-heading"
+        className="auto-filled"
+        role="list"
+      >
         {autoFilled.map((line) => (
           <li key={line.label}>
             <strong>
               {line.label}
               {line.line ? ` (${line.line})` : ""}
             </strong>{" "}
-            <span>{rupees(line.amount)}</span>{" "}
+            <span className="money">{rupees(line.amount)}</span>{" "}
             <small>
               {line.certificates.length
                 ? `From: ${line.certificates.join(", ")}`
@@ -467,50 +478,76 @@ function MoneyInAndOut({
           onChange={(e) => update({ previous_net_assets: e.target.value })}
         />
       </label>
-      <p id="previous-hint">
+      <p id="previous-hint" className="hint">
         May be negative, if you owed more than you owned.
       </p>
-      {MONEY_FIELDS.map(([field, label]) => (
-        <label key={field}>
-          {label}
-          <input
-            inputMode="numeric"
-            value={form[field]}
-            onChange={(e) => update({ [field]: e.target.value })}
-          />
-        </label>
-      ))}
+      <div className="money-grid">
+        {MONEY_FIELDS.map(([field, label]) => (
+          <label key={field}>
+            {label}
+            <input
+              inputMode="numeric"
+              value={form[field]}
+              onChange={(e) => update({ [field]: e.target.value })}
+            />
+          </label>
+        ))}
+      </div>
       <h3>Personal expenses</h3>
-      {EXPENSE_CATEGORIES.map(([category, label]) => (
-        <label key={category}>
-          {label}
-          <input
-            inputMode="numeric"
-            value={form.expenses[category] ?? ""}
-            onChange={(e) =>
-              update({
-                expenses: { ...form.expenses, [category]: e.target.value },
-              })
-            }
-          />
-        </label>
-      ))}
+      <div className="money-grid">
+        {EXPENSE_CATEGORIES.map(([category, label]) => (
+          <label key={category}>
+            {label}
+            <input
+              inputMode="numeric"
+              value={form.expenses[category] ?? ""}
+              onChange={(e) =>
+                update({
+                  expenses: { ...form.expenses, [category]: e.target.value },
+                })
+              }
+            />
+          </label>
+        ))}
+      </div>
     </section>
+  );
+}
+
+const SECTIONS = [
+  ["own-heading", "What I own"],
+  ["owe-heading", "What I owe"],
+  ["money-heading", "Money in and out"],
+  ["result-heading", "Result"],
+];
+
+/** Links to each part of a long page, so a phone user can jump instead of scrolling. */
+function SectionBar() {
+  return (
+    <nav aria-label="Sections of the statement" className="section-bar">
+      <ul>
+        {SECTIONS.map(([id, text]) => (
+          <li key={id}>
+            <a href={`#${id}`}>{text}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
 function Result({ result, label }: { result: WealthResult; label: string }) {
   return (
-    <section aria-labelledby="result-heading">
+    <section aria-labelledby="result-heading" className="result">
       <h2 id="result-heading">Result</h2>
       <p className="notice">{label}</p>
-      {result.message && <p>{result.message}</p>}
+      {result.message && <p className="result-message">{result.message}</p>}
       {result.not_ready_reason === null && (
         <>
           {result.where_to_look.length > 0 && (
             <>
               <h3 id="look-heading">Where to look</h3>
-              <ul aria-labelledby="look-heading">
+              <ul aria-labelledby="look-heading" className="panel">
                 {result.where_to_look.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -518,17 +555,23 @@ function Result({ result, label }: { result: WealthResult; label: string }) {
             </>
           )}
           {result.summary !== null && (
-            <section aria-labelledby="wealth-summary-heading">
+            <section
+              aria-labelledby="wealth-summary-heading"
+              className="panel summary-panel"
+            >
               <h3 id="wealth-summary-heading">Summary</h3>
               <p>{result.summary}</p>
             </section>
           )}
           <h3 id="wealth-breakdown-heading">How it was worked out</h3>
-          <ol aria-labelledby="wealth-breakdown-heading">
+          <ol
+            aria-labelledby="wealth-breakdown-heading"
+            className="ledger"
+            role="list"
+          >
             {result.steps.map((step, index) => (
               <li key={`${index}-${step.form_line}`}>
                 {step.description}
-                <br />
                 <small>Form line {step.form_line}</small>
               </li>
             ))}

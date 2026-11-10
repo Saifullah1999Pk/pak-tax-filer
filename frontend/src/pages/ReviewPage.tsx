@@ -23,6 +23,11 @@ function message(caught: unknown, fallback: string): string {
 
 const labelOf = (name: string) => FIELD_LABELS[name] ?? name;
 
+/** Wide screens show the original beside the figures; phones start with it folded away. */
+const wideScreen = () =>
+  typeof window.matchMedia !== "function" ||
+  window.matchMedia("(min-width: 801px)").matches;
+
 export function ReviewPage() {
   const { id = "" } = useParams();
   const [doc, setDoc] = useState<DocumentDetail | null>(null);
@@ -34,6 +39,8 @@ export function ReviewPage() {
   const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(new Set());
   // Only the newest load may update the page (two saves close together, or a new id).
   const latestLoad = useRef(0);
+  // Decided when the page opens, not when the app loads (frontend review M5).
+  const [openOriginal] = useState(wideScreen);
 
   // A different document: forget the previous one (React's reset-on-change pattern).
   if (id !== shownId) {
@@ -112,7 +119,7 @@ export function ReviewPage() {
 
   const confirmed = doc.status === "confirmed";
   return (
-    <main>
+    <main className="wide">
       <h1>Check the figures: {DOC_TYPE_LABELS[doc.doc_type]}</h1>
       <p>
         <Link to="/documents">Back to documents</Link>
@@ -134,22 +141,27 @@ export function ReviewPage() {
       )}
       <div className="review">
         <section aria-label="Original document">
-          {doc.media_type === "application/pdf" ? (
-            <object
-              data={documentFileUrl(id)}
-              type="application/pdf"
-              title="Original document"
-              className="original"
-            >
-              <a href={documentFileUrl(id)}>Open the original document</a>
-            </object>
-          ) : (
-            <img
-              src={documentFileUrl(id)}
-              alt="Original document"
-              className="original"
-            />
-          )}
+          {/* Collapsible, so on a phone the figures needn't sit far below it; open by default
+              on wide screens, where it sits beside them. */}
+          <details className="original-panel" open={openOriginal}>
+            <summary>Original document</summary>
+            {doc.media_type === "application/pdf" ? (
+              <object
+                data={documentFileUrl(id)}
+                type="application/pdf"
+                title="Original document"
+                className="original"
+              >
+                <a href={documentFileUrl(id)}>Open the original document</a>
+              </object>
+            ) : (
+              <img
+                src={documentFileUrl(id)}
+                alt="Original document"
+                className="original"
+              />
+            )}
+          </details>
         </section>
         <section aria-label="Figures">
           {doc.fields.map((field) => (
@@ -168,6 +180,7 @@ export function ReviewPage() {
               {error && <p role="alert">{error}</p>}
               <button
                 type="button"
+                className="button-primary"
                 onClick={handleConfirmDocument}
                 disabled={confirming}
               >
