@@ -7,13 +7,17 @@ the user's confirmed certificates only (FR-004, FR-012, Principle III).
 from typing import Any
 
 import pytest
+from conftest import TEST_PASSWORD
 from document_helpers import add_confirmed_document
 from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.auth.passwords import hash_password
-from app.documents.models import DocType
+from app.documents.models import DocStatus, DocType
+from app.main import app
+from app.tax.summary import FakeSummariser
+from app.wealth.router import get_wealth_summariser
 
 pytestmark = pytest.mark.anyio
 
@@ -200,3 +204,100 @@ async def test_the_notice_appears_when_certificates_change_and_clears_on_save(
     deleted = await client.request("DELETE", f"/api/documents/{added.id}", json={})
     assert deleted.status_code == 204
     assert (await client.get(URL)).json()["certificates_changed"] is True
+
+
+# Backend review findings.
+
+
+async def test_another_user_never_sees_or_changes_my_statement(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if one user's statement is visible to, or overwritten by, another (FR-016)."""
+    del logged_in_user
+    await client.put(URL, json=STATEMENT)
+    await client.post("/api/auth/logout", json={})
+    other = User(email="other@example.com", password_hash=hash_password("other-pass"))
+    db.add(other)
+    await db.commit()
+    login = await client.post(
+        "/api/auth/login", json={"email": "other@example.com", "password": "other-pass"}
+    )
+    assert login.status_code == 200
+
+    theirs = (await client.get(URL)).json()
+    assert theirs["statement"]["saved_at"] is None and theirs["statement"]["assets"] == []
+    assert theirs["result"]["not_ready_reason"] == "needs_previous_net_assets"
+    await client.put(URL, json={**STATEMENT, "assets": []})
+
+    await client.post("/api/auth/logout", json={})
+    await client.post(
+        "/api/auth/login", json={"email": "demo@example.com", "password": TEST_PASSWORD}
+    )
+    mine = (await client.get(URL)).json()
+    assert len(mine["statement"]["assets"]) == 2
+
+
+async def test_a_certificate_not_yet_confirmed_is_never_counted(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if a figure the user hasn't confirmed reaches the statement (Principle III)."""
+    document = await add_confirmed_document(
+        db, logged_in_user.id, DocType.SALARY_CERTIFICATE, SALARY
+    )
+    document.status = DocStatus.NEEDS_REVIEW
+    await db.commit()
+
+    body = (await client.put(URL, json=STATEMENT)).json()
+
+    assert body["result"]["not_ready_reason"] == "no_confirmed_salary_certificate"
+    assert all(line["certificates"] == [] for line in body["auto_filled"])
+
+
+async def test_a_certificate_is_named_by_its_type_and_upload_time(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if the name loses the upload time (research R11), or two certificates uploaded in
+    the same minute can't be told apart (seconds are shown)."""
+    document = await add_confirmed_document(
+        db, logged_in_user.id, DocType.SALARY_CERTIFICATE, SALARY
+    )
+
+    line = (await client.get(URL)).json()["auto_filled"][0]
+
+    expected = f"Salary certificate uploaded {document.created_at:%Y-%m-%d %H:%M:%S} UTC"
+    assert line["certificates"] == [expected]
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_a_refused_category_or_amount_is_never_echoed(client: AsyncClient) -> None:
+    """Fails if a 422 repeats what was sent (security rule: errors carry no input)."""
+    for change in (
+        {"assets": [{"category": "yacht", "description": "Boat", "amount": "1"}]},
+        {"inheritance": "-12345"},
+    ):
+        response = await client.put(URL, json={**STATEMENT, **change})
+        assert response.status_code == 422
+        assert "yacht" not in response.text and "-12345" not in response.text
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_minus_zero_is_saved_and_shown_as_zero(client: AsyncClient) -> None:
+    """Fails if "-0" is echoed back as a negative-looking amount."""
+    saved = (await client.put(URL, json={**STATEMENT, "inheritance": "-0"})).json()
+
+    assert saved["statement"]["inheritance"] == "0"
+
+
+async def test_a_checked_summary_reaches_the_page(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if a safe summary is lost between the check and the response (service wiring)."""
+    await certificates(db, logged_in_user)
+    text = "Your wealth statement reconciles: inflows of Rs 2,050,000 explain the change."
+    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(text)
+    try:
+        body = (await client.put(URL, json=STATEMENT)).json()
+    finally:
+        app.dependency_overrides.pop(get_wealth_summariser, None)
+
+    assert body["result"]["summary"] == text

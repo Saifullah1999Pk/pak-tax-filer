@@ -14,14 +14,15 @@ from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Fie
 
 from app.wealth.models import AssetCategory, ExpenseCategory
 
-_WHOLE_RUPEES = re.compile(r"-?\d{1,14}")
+# ASCII digits only: \d would also accept other scripts' digits (backend review L6).
+_WHOLE_RUPEES = re.compile(r"-?[0-9]{1,14}")
 
 
 def _rupees(value: object) -> Decimal:
     """A decimal string of whole rupees (up to 14 digits), as an exact Decimal."""
     if not isinstance(value, str) or not _WHOLE_RUPEES.fullmatch(value.strip()):
         raise ValueError("must be whole rupees, written as a string of digits")
-    return Decimal(value.strip())
+    return Decimal(value.strip()) + 0  # + 0 turns "-0" into 0
 
 
 def _not_negative(value: Decimal) -> Decimal:

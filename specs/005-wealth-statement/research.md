@@ -114,7 +114,7 @@ Each decision: what was chosen, why, and what else was considered. FBR sources a
 ## R11. Naming certificates (added 2026-11-10, during implementation)
 
 - **Decision:** auto-filled lines and the `gross_below_taxable` message name a certificate by
-  its type and upload time ("Salary certificate uploaded 2026-11-09 14:05 UTC"). 003's
+  its type and upload time ("Salary certificate uploaded 2026-11-09 14:05:02 UTC"; seconds so two in one minute differ). 003's
   `ConfirmedDocument` gains `uploaded_at` (defaulted, so 004 is unaffected).
 - **Rationale:** the plan assumed file names, but 003 stores uploads under random names and
   never keeps the original (its research R4); type and upload time are what the Documents page

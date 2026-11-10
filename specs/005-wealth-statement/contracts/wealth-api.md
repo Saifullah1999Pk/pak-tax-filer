@@ -26,10 +26,10 @@ computed result.
     "saved_at": "2026-11-03T12:00:00Z"
   },
   "auto_filled": [
-    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC"] },
-    { "line": "7032", "label": "Exempt part of salary (gross - taxable)", "amount": "200000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC"], "provisional": true },
-    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["Bank profit certificate uploaded 2026-11-03 10:20 UTC"], "provisional": true },
-    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC", "Bank profit certificate uploaded 2026-11-03 10:20 UTC"], "provisional": true }
+    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC"] },
+    { "line": "7032", "label": "Exempt part of salary (gross - taxable)", "amount": "200000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC"], "provisional": true },
+    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["Bank profit certificate uploaded 2026-11-03 10:20:41 UTC"], "provisional": true },
+    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC", "Bank profit certificate uploaded 2026-11-03 10:20:41 UTC"], "provisional": true }
   ],
   "certificates_changed": false,
   "result": {

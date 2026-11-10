@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.documents.models import DocType, FieldName
@@ -57,7 +57,7 @@ class Certificates:
 
 def _name(document: ConfirmedDocument) -> str:
     """How a certificate is named on the page: original file names aren't stored (003 R4)."""
-    when = f" uploaded {document.uploaded_at:%Y-%m-%d %H:%M} UTC" if document.uploaded_at else ""
+    when = f" uploaded {document.uploaded_at:%Y-%m-%d %H:%M:%S} UTC" if document.uploaded_at else ""
     return _TYPE_NAMES.get(document.doc_type, "Certificate") + when
 
 
@@ -107,6 +107,12 @@ async def save_statement(
     db: AsyncSession, user_id: uuid.UUID, tax_year: str, body: StatementIn
 ) -> None:
     """Replace the whole statement, rows included, and note the certificates used (R7, R8)."""
+    # Saves sent together (double-click, two tabs) wait for each other, held until the
+    # transaction ends, instead of both inserting or both replacing rows (backend review M2).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"wealth:{user_id}:{tax_year}"},
+    )
     # Queries first: a query auto-flushes, so a new row must be complete before any runs.
     certificate_ids = (await certificates(db, user_id, tax_year)).ids
     statement = await get_statement(db, user_id, tax_year)

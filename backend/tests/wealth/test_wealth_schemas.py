@@ -79,3 +79,16 @@ def test_a_missing_expense_category_means_zero() -> None:
     parsed = StatementIn.model_validate(statement(expenses={}))
 
     assert parsed.expenses == {}
+
+
+def test_only_ascii_digits_are_money() -> None:
+    """Fails if digits from other scripts (e.g. Arabic-Indic) are read as rupees."""
+    with pytest.raises(ValidationError):
+        StatementIn.model_validate(statement(inheritance="١٢٣"))
+
+
+def test_minus_zero_becomes_zero() -> None:
+    """Fails if "-0" is kept as a negative-looking zero."""
+    parsed = StatementIn.model_validate(statement(inheritance="-0", previous_net_assets="-0"))
+
+    assert str(parsed.inheritance) == "0" and str(parsed.previous_net_assets) == "0"

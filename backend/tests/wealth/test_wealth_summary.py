@@ -70,3 +70,43 @@ def test_the_instructions_forbid_new_numbers_and_advice() -> None:
     lowered = WEALTH_INSTRUCTIONS.lower()
 
     assert "only the numbers" in lowered and "advice" in lowered and "words" in lowered
+
+
+# Backend review H1: the number check alone can't stop a summary suggesting the amount that
+# forces a zero (it is always in the breakdown), reversing the direction, or claiming a
+# reconciliation that isn't there.
+RECONCILED = run(next(e for e in EXAMPLES if e["id"] == "reconciled"))
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Add Rs 50,000 of gifts received to reconcile.",  # a suggested amount
+        "You should declare Rs 50,000 more inflows.",
+        "Enter Rs 50,000 as a gift to make it zero.",
+        "Your inflows exceed the growth in your assets by Rs 50,000.",  # the other direction
+        "Your wealth statement reconciles.",  # not reconciled
+        "Your statement is balanced at Rs 2,050,000 of inflows.",
+    ],
+)
+async def test_a_summary_that_advises_or_contradicts_the_result_is_dropped(summary: str) -> None:
+    """Fails if a summary can nudge the user towards a number that merely forces a zero, or say
+    the opposite of the result (spec User Story 2; FR-007, FR-010)."""
+    assert await verified_wealth_summary(GAP, "2025-26", FakeSummariser(summary)) is None
+
+
+async def test_a_reconciled_statement_may_say_so() -> None:
+    """Fails if the guard throws away a faithful summary of a reconciled statement."""
+    text = "Your wealth statement reconciles: inflows of Rs 2,050,000 explain the change."
+
+    assert await verified_wealth_summary(RECONCILED, "2025-26", FakeSummariser(text)) == text
+
+
+async def test_a_gap_summary_may_not_claim_the_other_direction_for_growth() -> None:
+    """Fails if, when inflows exceed growth, a summary saying assets grew more is shown."""
+    gap = run(next(e for e in EXAMPLES if e["id"] == "inflows-exceed-growth"))
+    wrong = "Your assets grew Rs 100,000 more than your inflows explain."
+    right = "Your inflows exceed the growth in your assets by Rs 100,000."
+
+    assert await verified_wealth_summary(gap, "2025-26", FakeSummariser(wrong)) is None
+    assert await verified_wealth_summary(gap, "2025-26", FakeSummariser(right)) == right

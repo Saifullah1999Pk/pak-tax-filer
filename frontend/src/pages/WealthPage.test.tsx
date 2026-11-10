@@ -10,7 +10,7 @@ import { renderApp } from "../test/renderApp";
 
 const ME = { status: 200, body: { email: "demo@example.com" } };
 const LABEL = "Not yet reviewed by a tax practitioner. Not tax advice.";
-const SALARY_CERT = "Salary certificate uploaded 2026-11-09 14:05 UTC";
+const SALARY_CERT = "Salary certificate uploaded 2026-11-09 14:05:02 UTC";
 
 const SAVED: Wealth = {
   tax_year: "2025-26",

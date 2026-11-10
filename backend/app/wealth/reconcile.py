@@ -27,7 +27,7 @@ GROWTH_EXCEEDS_INFLOWS = "growth_exceeds_inflows"
 
 @dataclass(frozen=True)
 class CertificateFigures:  # pylint: disable=too-many-instance-attributes
-    """One confirmed certificate's figures (feature 003), unrounded; name = its file name."""
+    """One confirmed certificate's figures (feature 003), unrounded; name = how it is shown."""
 
     name: str
     gross_salary: Decimal = Decimal(0)
@@ -64,7 +64,9 @@ class WealthInputs:  # pylint: disable=too-many-instance-attributes
     tax_deducted: Decimal
     bank_profit: Decimal
     tax_withheld: Decimal
-    profit_limit: Decimal
+    # Summed bank profit exceeds 004's limit, compared UNROUNDED as the tax engine does, so the
+    # two pages always agree (R6; backend review M1).
+    profit_over_limit: bool
     # The first salary certificate whose gross is below its taxable salary, if any (R6).
     gross_below_taxable: str | None = None
 
@@ -99,15 +101,16 @@ def build_inputs(
 ) -> WealthInputs:
     """Sum each figure across certificates of its type, then round each sum (s.219, R5)."""
     below = next((c.name for c in salary if c.gross_salary < c.taxable_salary), None)
+    profit = _total(c.profit_amount for c in bank)
     return WealthInputs(
         entries=entries,
         has_salary_certificate=bool(salary),
         taxable_salary=rupees(_total(c.taxable_salary for c in salary)),
         gross_salary=rupees(_total(c.gross_salary for c in salary)),
         tax_deducted=rupees(_total(c.tax_deducted for c in salary)),
-        bank_profit=rupees(_total(c.profit_amount for c in bank)),
+        bank_profit=rupees(profit),
         tax_withheld=rupees(_total(c.tax_withheld for c in bank)),
-        profit_limit=rates.profit_limit.value,
+        profit_over_limit=profit > rates.profit_limit.value,
         gross_below_taxable=below,
     )
 
@@ -119,7 +122,7 @@ def _not_ready(inputs: WealthInputs) -> ReconciliationResult | None:
         reason = "needs_previous_net_assets"
     elif not inputs.has_salary_certificate:
         reason = "no_confirmed_salary_certificate"
-    elif inputs.bank_profit > inputs.profit_limit:
+    elif inputs.profit_over_limit:
         # Line 7033 assumes s.7B applies, which stops above the limit (004 provisional rule 1).
         reason = "profit_over_limit"
     elif inputs.gross_below_taxable is not None:
