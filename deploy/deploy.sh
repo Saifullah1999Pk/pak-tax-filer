@@ -19,35 +19,42 @@ refuse() {
   exit 2
 }
 
-# Strict match of the whole request; anything else (a shell, another command, extra words or
-# characters) is refused before git or docker run.
-request="${SSH_ORIGINAL_COMMAND:-}"
-if [[ ! "$request" =~ ^deploy\ ([0-9a-f]{40})\ ([A-Za-z0-9][A-Za-z0-9-]{0,38}(\[bot\])?)$ ]]; then
-  refuse "expected 'deploy <40-hex commit> <GitHub login>'."
-fi
-sha="${BASH_REMATCH[1]}"
-login="${BASH_REMATCH[2]}"
+# Everything runs inside main(), which bash reads in full before running: checking out a new
+# commit can rewrite this very file, and bash otherwise reads a script as it goes.
+main() {
+  # Strict match of the whole request; anything else (a shell, another command, extra words or
+  # characters) is refused before git or docker run.
+  request="${SSH_ORIGINAL_COMMAND:-}"
+  if [[ ! "$request" =~ ^deploy\ ([0-9a-f]{40})\ ([A-Za-z0-9][A-Za-z0-9-]{0,38}(\[bot\])?)$ ]]; then
+    refuse "expected 'deploy <40-hex commit> <GitHub login>'."
+  fi
+  sha="${BASH_REMATCH[1]}"
+  login="${BASH_REMATCH[2]}"
 
-IFS= read -r token || true
-if [ -z "${token:-}" ]; then
-  refuse "no registry token on standard input."
-fi
+  IFS= read -r token || true
+  if [ -z "${token:-}" ]; then
+    refuse "no registry token on standard input."
+  fi
 
-# The login lives only in this temporary config, removed however the script ends.
-DOCKER_CONFIG="$(mktemp -d)"
-export DOCKER_CONFIG
-trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+  # The login lives only in this temporary config, removed however the script ends.
+  DOCKER_CONFIG="$(mktemp -d)"
+  export DOCKER_CONFIG
+  trap 'rm -rf "$DOCKER_CONFIG"' EXIT
 
-echo "Deploying $sha"
-git -C "$APP_DIR" fetch --quiet "$REPO_URL" "$sha"
-git -C "$APP_DIR" checkout --quiet --detach "$sha"
+  echo "Deploying $sha"
+  git -C "$APP_DIR" fetch --quiet "$REPO_URL" "$sha"
+  git -C "$APP_DIR" checkout --quiet --detach "$sha"
 
-printf '%s\n' "$token" | docker login ghcr.io -u "$login" --password-stdin > /dev/null
-unset token
+  printf '%s\n' "$token" | docker login ghcr.io -u "$login" --password-stdin > /dev/null
+  unset token
 
-export IMAGE_TAG="$sha"
-"${COMPOSE[@]}" pull --quiet backend web
-"${COMPOSE[@]}" up -d --no-build --remove-orphans
-# Old images (earlier commits) aren't in use any more; images of running containers are kept.
-docker image prune -af > /dev/null || true
-echo "Deployed $sha"
+  export IMAGE_TAG="$sha"
+  "${COMPOSE[@]}" pull --quiet backend web
+  "${COMPOSE[@]}" up -d --no-build --remove-orphans
+  # Old images (earlier commits) aren't in use any more; images of running containers are kept.
+  docker image prune -af > /dev/null || true
+  echo "Deployed $sha"
+}
+
+main
+exit

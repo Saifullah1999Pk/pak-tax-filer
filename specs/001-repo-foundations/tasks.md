@@ -155,8 +155,8 @@ review subagents and an API convention.
 - [X] T044 [US5] Production setup: `docker-compose.prod.yml`, `deploy/web.Dockerfile`, `deploy/Caddyfile`, `docs/deployment.md` (done 2026-11-09, PR #30)
 - [X] T045 [US5] Write `deploy/tests/test_deploy_sh.py` (stub `git` and `docker` on PATH): a commit that isn't 40 hex characters, a bad user name, or no token is refused before anything runs; the token reaches `docker login` only on standard input and never a command line or the output; the commit is fetched and checked out, both images for that commit are pulled and started without building, and the temporary registry login is removed even on failure; then write `deploy/deploy.sh`
 - [X] T046 [US5] Name the images in `docker-compose.prod.yml` (`IMAGE_REPO`, `IMAGE_TAG`), keeping `build:` for the manual fallback
-- [ ] T047 [US5] Write `.github/workflows/deploy.yml` per the design (trigger only on CI success for a push to `main` in this repository, or by hand; build and push both images to GHCR; deploy over SSH with the checked host key; check the live site); lint it with actionlint; run the deploy tests in CI's hooks job
-- [ ] T048 [US5] Update `docs/deployment.md` (the deploy key with its forced command, the secrets, rollback) and record the run of [quickstart.md](quickstart.md) section 6
+- [X] T047 [US5] Write `.github/workflows/deploy.yml` per the design (trigger only on CI success for a push to `main` in this repository, or by hand; build and push both images to GHCR; deploy over SSH with the checked host key; check the live site); lint it with actionlint; run the deploy tests in CI's hooks job
+- [X] T048 [US5] Update `docs/deployment.md` (the deploy key with its forced command, the secrets, rollback) and record the run of [quickstart.md](quickstart.md) section 6
 
 ---
 

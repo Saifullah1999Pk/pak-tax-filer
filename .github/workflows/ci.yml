@@ -87,3 +87,5 @@ jobs:
         run: jq --version
       - name: Hook tests (every hook, ours and the lead's)
         run: uv run --no-project --with pytest pytest .claude/hooks/tests
+      - name: Deploy script tests (the only command the deploy key may run; feature 001, US5)
+        run: uv run --no-project --with pytest pytest deploy/tests
