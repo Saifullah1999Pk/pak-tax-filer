@@ -56,7 +56,7 @@ Principle VI). **No reconciliation code (T008 onward) starts until T003 is compl
 - [X] T009 [US1] Create `backend/app/wealth/service.py` per research R5 and R7: build `WealthInputs` from `confirmed_documents(user_id, tax_year)` (sum per type, round each sum with `ROUND_HALF_UP`; line 7032 salary part = gross − taxable; tax deducted + withheld as one outflow), each provisional rule (research R5, design rules 1, 2 and 4) as one named constant; keep each auto-filled line's source certificate names; load and replace-all save of the statement, recording `saved_at` and the sorted confirmed certificate ids
 - [X] T010 [US1] Write `backend/tests/wealth/test_wealth_api.py` (unauthenticated → `401`; unknown tax year → `404`; `PUT` then `GET` round-trips every field; invalid amounts or categories → `422`; one user can't read or change another's statement (FR-016); auto-filled lines can't be set through `PUT`; a certificate still in `needs_review` never appears in `auto_filled` and never counts toward the reconciliation (Principle III guardrail test)), then create `backend/app/wealth/router.py` with `GET` and `PUT /api/wealth/{tax_year}` and include it in `backend/app/main.py`
 - [X] T011 [P] [US1] Write `frontend/src/pages/WealthPage.test.tsx` (three sections: what I own, what I owe, money in and out; add, edit and delete rows; auto-filled lines read-only with certificate names and a "correct the certificate" hint; result shown; practitioner label always visible), then create `frontend/src/pages/WealthPage.tsx` and its route under `RequireAuth` and `RequireProfile` (feature 002), opening on the profile's tax year
-- [ ] T012 [US1] Run [quickstart.md](quickstart.md) section 1, including the timing check (result within 5 seconds, SC-006)
+- [X] T012 [US1] Run [quickstart.md](quickstart.md) section 1, including the timing check (result within 5 seconds, SC-006) *(2026-11-10, API on the local app: the four certificate lines filled in, naming their certificates; the contract example reconciles (net 2,565,000, increase 465,000, inflows 2,050,000, outflows 1,585,000, unreconciled 0); entries kept; reload 2.9 s with the summary; label present)*
 
 **Checkpoint**: User Story 1 works on its own.
 
@@ -79,7 +79,7 @@ summary that can't introduce figures.
 - [X] T015 [US2] Create `backend/app/wealth/breakdown.py`: step templates and the two fixed "where to look" lists per research R2 and R9, used by `reconcile.py`; T013 passes
 - [X] T016 [US2] Create `backend/app/wealth/summary.py`: Gemini call (004's summariser with its own instructions, `SUMMARY_MODEL`, `SUMMARY_EFFORT`, 4-second limit, breakdown passed as data, instruction to use only its numbers) checked with `app.explain.number_check`; wire into the router after a ready result; T014 passes using a fake client
 - [X] T017 [US2] Show the breakdown (with form lines), the direction message, the checklist and the summary (when present) on `frontend/src/pages/WealthPage.tsx`; extend its test
-- [ ] T018 [US2] Run [quickstart.md](quickstart.md) section 2
+- [X] T018 [US2] Run [quickstart.md](quickstart.md) section 2 *(2026-11-10: rent 40,000 lower → inflows exceed growth by Rs 40,000 with the missing-asset checklist (no digits); a Rs 40,000 asset added → assets grew Rs 40,000 more with the missing-inflow checklist; every step has its form line; a real Gemini summary appeared and passed the number check)*
 
 **Checkpoint**: User Stories 1 and 2 work.
 
@@ -101,7 +101,7 @@ summary that can't introduce figures.
 - [X] T021 [US3] Add the not-ready checks from research R6 to the start of `reconcile()` in `backend/app/wealth/reconcile.py` (certificate-level checks supplied by `service.py` as inputs); T019 passes
 - [X] T022 [US3] Compute `certificates_changed` in `backend/app/wealth/service.py` per research R7; T020 passes
 - [X] T023 [US3] Show each not-ready message and the certificate-change notice on `frontend/src/pages/WealthPage.tsx`; extend its test
-- [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
+- [X] T024 [US3] Run [quickstart.md](quickstart.md) section 3 *(2026-11-10: previous net assets cleared → not ready; salary certificate deleted → not ready and the notice; re-uploaded → reconciles, notice cleared by saving; bank profit summing to 5,000,001 → the same message as the tax page; gross below taxable → not ready, naming the certificate)*
 
 **Checkpoint**: all three user stories work.
 
@@ -109,7 +109,7 @@ summary that can't introduce figures.
 
 ## Phase 6: Polish
 
-- [ ] T025 [P] Add a "Wealth statement" section to `backend/CLAUDE.md`: `reconcile.py` stays pure; never compute or check figures, or write the "where to look" list, with an LLM; any change to the formula comes with signed-off worked examples
+- [X] T025 [P] Add a "Wealth statement" section to `backend/CLAUDE.md`: `reconcile.py` stays pure; never compute or check figures, or write the "where to look" list, with an LLM; any change to the formula comes with signed-off worked examples
 - [ ] T026 Run Ruff, mypy, Prettier and `tsc` checks and both test suites; list in the PR description the four provisional rules, and the hidden expense categories to confirm on the live IRIS screen (research R3)
 
 ---

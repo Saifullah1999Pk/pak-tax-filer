@@ -70,3 +70,17 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   only repeat breakdown numbers; plain code checks that and drops it otherwise.
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
   summariser; use `FakeSummariser` to test a summary.
+
+## Wealth statement (feature 005)
+
+- `app/wealth/reconcile.py` stays pure: no database, network, clock or AI (an import test
+  guards it). The formula is unreconciled = inflows - outflows - increase, with each step citing
+  its SRO 1495(I)/2026 form line.
+- Never compute, round or "check" a figure with an LLM, and never let one write the "where to
+  look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. The summary
+  (`app/wealth/summary.py`) uses the shared `app.explain.number_check`, like the tax page's.
+- Certificate figures come only from `confirmed_documents`, summed per type and then rounded
+  (s.219) by `build_inputs`. Any change to the formula or the lines comes with signed-off worked
+  examples in `tests/wealth/worked_examples.yaml` (`test_wealth_sign_off.py` fails if unsigned).
+- The entries are stored; the result never is. A test's wealth summariser is faked by the
+  autouse `no_real_ai` fixture.
