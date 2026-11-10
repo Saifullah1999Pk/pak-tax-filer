@@ -33,6 +33,7 @@ from app.main import app
 from app.profile.service import save_profile
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
+from app.wealth.router import get_wealth_summariser
 
 TEST_DATABASE = "pak_tax_filer_test"
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -154,9 +155,11 @@ def no_real_ai() -> Iterator[None]:
     override these again (fake_extractor, or their own FakeSummariser)."""
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(failed("No AI in tests."))
     app.dependency_overrides[get_summariser] = lambda: FakeSummariser(None)
+    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(None)
     yield
     app.dependency_overrides.pop(get_extractor, None)
     app.dependency_overrides.pop(get_summariser, None)
+    app.dependency_overrides.pop(get_wealth_summariser, None)
 
 
 @pytest.fixture(autouse=True)

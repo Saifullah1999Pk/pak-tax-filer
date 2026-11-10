@@ -26,10 +26,10 @@ computed result.
     "saved_at": "2026-11-03T12:00:00Z"
   },
   "auto_filled": [
-    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["salary-cert-a.pdf"] },
-    { "line": "7032", "label": "Exempt part of salary (gross − taxable)", "amount": "200000", "certificates": ["salary-cert-a.pdf"], "provisional": true },
-    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["bank-cert-a.pdf"], "provisional": true },
-    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["salary-cert-a.pdf", "bank-cert-a.pdf"], "provisional": true }
+    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC"] },
+    { "line": "7032", "label": "Exempt part of salary (gross - taxable)", "amount": "200000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC"], "provisional": true },
+    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["Bank profit certificate uploaded 2026-11-03 10:20 UTC"], "provisional": true },
+    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15 UTC", "Bank profit certificate uploaded 2026-11-03 10:20 UTC"], "provisional": true }
   ],
   "certificates_changed": false,
   "result": {
@@ -47,7 +47,7 @@ computed result.
 }
 ```
 
-`line` is the TY2026 form code, or `null` when the form has no separate code: the tax line is
+A certificate is named by its type and upload time (amended 2026-11-10): 003 never stores original file names (its research R4), and the Documents page shows the same two facts. `line` is the TY2026 form code, or `null` when the form has no separate code: the tax line is
 part of outflows (7099, the total) without a sub-code of its own (provisional rule 1).
 
 **Not ready:** `result` has `not_ready_reason` (`needs_previous_net_assets`,

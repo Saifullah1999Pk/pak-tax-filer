@@ -53,8 +53,8 @@ Principle VI). **No reconciliation code (T008 onward) starts until T003 is compl
 ### Implementation for User Story 1
 
 - [X] T008 [US1] Create `backend/app/wealth/reconcile.py` with `WealthInputs`, `ReconciliationResult` and pure `reconcile(inputs)` per research R1 and R2 (unreconciled = inflows − outflows − increase; zero means `reconciled`); no imports from database, network or AI modules, enforced by `backend/tests/wealth/test_reconcile_imports.py` failing if `reconcile.py` or `breakdown.py` imports `anthropic`, `app.wealth.summary`, `app.explain` or any database module; T007 passes
-- [ ] T009 [US1] Create `backend/app/wealth/service.py` per research R5 and R7: build `WealthInputs` from `confirmed_documents(user_id, tax_year)` (sum per type, round each sum with `ROUND_HALF_UP`; line 7032 salary part = gross − taxable; tax deducted + withheld as one outflow), each provisional rule (research R5, design rules 1, 2 and 4) as one named constant; keep each auto-filled line's source certificate names; load and replace-all save of the statement, recording `saved_at` and the sorted confirmed certificate ids
-- [ ] T010 [US1] Write `backend/tests/wealth/test_wealth_api.py` (unauthenticated → `401`; unknown tax year → `404`; `PUT` then `GET` round-trips every field; invalid amounts or categories → `422`; one user can't read or change another's statement (FR-016); auto-filled lines can't be set through `PUT`; a certificate still in `needs_review` never appears in `auto_filled` and never counts toward the reconciliation (Principle III guardrail test)), then create `backend/app/wealth/router.py` with `GET` and `PUT /api/wealth/{tax_year}` and include it in `backend/app/main.py`
+- [X] T009 [US1] Create `backend/app/wealth/service.py` per research R5 and R7: build `WealthInputs` from `confirmed_documents(user_id, tax_year)` (sum per type, round each sum with `ROUND_HALF_UP`; line 7032 salary part = gross − taxable; tax deducted + withheld as one outflow), each provisional rule (research R5, design rules 1, 2 and 4) as one named constant; keep each auto-filled line's source certificate names; load and replace-all save of the statement, recording `saved_at` and the sorted confirmed certificate ids
+- [X] T010 [US1] Write `backend/tests/wealth/test_wealth_api.py` (unauthenticated → `401`; unknown tax year → `404`; `PUT` then `GET` round-trips every field; invalid amounts or categories → `422`; one user can't read or change another's statement (FR-016); auto-filled lines can't be set through `PUT`; a certificate still in `needs_review` never appears in `auto_filled` and never counts toward the reconciliation (Principle III guardrail test)), then create `backend/app/wealth/router.py` with `GET` and `PUT /api/wealth/{tax_year}` and include it in `backend/app/main.py`
 - [ ] T011 [P] [US1] Write `frontend/src/pages/WealthPage.test.tsx` (three sections: what I own, what I owe, money in and out; add, edit and delete rows; auto-filled lines read-only with certificate names and a "correct the certificate" hint; result shown; practitioner label always visible), then create `frontend/src/pages/WealthPage.tsx` and its route under `RequireAuth` and `RequireProfile` (feature 002), opening on the profile's tax year
 - [ ] T012 [US1] Run [quickstart.md](quickstart.md) section 1, including the timing check (result within 5 seconds, SC-006)
 
@@ -94,12 +94,12 @@ summary that can't introduce figures.
 ### Tests for User Story 3 (write first, confirm they fail)
 
 - [X] T019 [P] [US3] Write `backend/tests/wealth/test_wealth_not_ready.py`: one test per not-ready example in `worked_examples.yaml`, asserting its `not_ready_reason` and that every figure is null; `gross_below_taxable` names the certificate; the Rs 5 million limit is read from 004's TY2026 rates (`profit_limit`), not a copy
-- [ ] T020 [P] [US3] Extend `backend/tests/wealth/test_wealth_api.py`: `certificates_changed` is false right after a save, true after a certificate is deleted or a new one confirmed, and false again after the next save
+- [X] T020 [P] [US3] Extend `backend/tests/wealth/test_wealth_api.py`: `certificates_changed` is false right after a save, true after a certificate is deleted or a new one confirmed, and false again after the next save
 
 ### Implementation for User Story 3
 
 - [X] T021 [US3] Add the not-ready checks from research R6 to the start of `reconcile()` in `backend/app/wealth/reconcile.py` (certificate-level checks supplied by `service.py` as inputs); T019 passes
-- [ ] T022 [US3] Compute `certificates_changed` in `backend/app/wealth/service.py` per research R7; T020 passes
+- [X] T022 [US3] Compute `certificates_changed` in `backend/app/wealth/service.py` per research R7; T020 passes
 - [ ] T023 [US3] Show each not-ready message and the certificate-change notice on `frontend/src/pages/WealthPage.tsx`; extend its test
 - [ ] T024 [US3] Run [quickstart.md](quickstart.md) section 3
 

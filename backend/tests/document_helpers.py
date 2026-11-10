@@ -4,14 +4,27 @@ Every file is generated on the fly; no real document is ever used (Principle V).
 """
 
 import io
+import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 
 from google.api_core.exceptions import NotFound
 from httpx2 import AsyncClient, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 from PIL import Image
 from pypdf import PdfWriter
 
 from app.documents.extraction.client import ExtractionResult
 from app.documents.extraction.schemas import ExtractedValue
+from app.documents.models import (
+    FIELDS_BY_TYPE,
+    Confidence,
+    DocStatus,
+    DocType,
+    Document,
+    ExtractedField,
+    FieldName,
+)
 
 PROFILE_YEAR = "2025-26"
 
@@ -138,3 +151,36 @@ class _FakeBlob:
         self._maybe_fail()
         if self.store.pop(self.name, None) is None:
             raise NotFound(self.name)  # type: ignore[no-untyped-call]  # google-api-core is untyped
+
+
+async def add_confirmed_document(
+    db: AsyncSession, user_id: uuid.UUID, doc_type: DocType, values: dict[str, str]
+) -> Document:
+    """A confirmed certificate with these figures (field name -> amount), for features that
+    read confirmed_documents (004, 005). Unlisted fields are zero."""
+    fields = [
+        ExtractedField(
+            name=name,
+            amount=None if name is FieldName.TAX_YEAR else Decimal(values.get(name.value, "0")),
+            text_value=PROFILE_YEAR if name is FieldName.TAX_YEAR else None,
+            confidence=Confidence.HIGH,
+            user_edited=False,
+            confirmed=True,
+        )
+        for name in FIELDS_BY_TYPE[doc_type]
+    ]
+    document = Document(
+        user_id=user_id,
+        doc_type=doc_type,
+        tax_year=PROFILE_YEAR,
+        file_path="/data/uploads/synthetic.pdf",
+        media_type="application/pdf",
+        page_count=1,
+        status=DocStatus.CONFIRMED,
+        created_at=datetime.now(UTC),
+        confirmed_at=datetime.now(UTC),
+        fields=fields,
+    )
+    db.add(document)
+    await db.commit()  # to a savepoint the test still rolls back; survives refused requests
+    return document
