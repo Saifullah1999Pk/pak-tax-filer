@@ -25,6 +25,7 @@ export function HomePage() {
       {user && <p>Logged in as {user.email}</p>}
       <nav>
         <Link to="/documents">Documents</Link> <Link to="/tax">Tax</Link>{" "}
+        <Link to="/wealth">Wealth statement</Link>{" "}
         <Link to="/profile">Profile</Link> <LogoutButton />
       </nav>
     </main>

@@ -8,6 +8,7 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { ReviewPage } from "./pages/ReviewPage";
 import { SignupPage } from "./pages/SignupPage";
 import { TaxPage } from "./pages/TaxPage";
+import { WealthPage } from "./pages/WealthPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
 /**
@@ -53,6 +54,16 @@ export function AppRoutes() {
           <RequireAuth>
             <RequireProfile>
               <TaxPage />
+            </RequireProfile>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/wealth"
+        element={
+          <RequireAuth>
+            <RequireProfile>
+              <WealthPage />
             </RequireProfile>
           </RequireAuth>
         }
