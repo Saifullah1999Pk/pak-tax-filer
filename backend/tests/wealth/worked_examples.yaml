@@ -1,0 +1,441 @@
+# Worked examples for the TY2026 wealth reconciliation (feature 005, tasks T002-T003; research
+# R10; FR-015).
+#
+# Each example is worked by hand from FBR's own sources (docs/superpowers/specs/
+# 2026-11-03-wealth-statement-design.md, "Sources"). They become the reconciliation's tests
+# (T007, T013, T019), so they must be right BEFORE any reconciliation code exists.
+#
+# SIGN-OFF (T003, Saifullah): check every example by hand against the sources below. Correct any
+# error, then fill in signed_off_by and signed_off_date (YYYY-MM-DD) on each one. Anything that
+# disagrees with FBR's wording goes to the lead in the PR. test_sign_off.py fails until every
+# example is signed off.
+#
+# Sources:
+# - Formula: FBR IRIS FAQ (e.fbr.gov.pk/SOP/IRIS/Iris_FAQ_Urdu.pdf): the change in wealth
+#   (703003) between this year (703001) and last year (703002) must equal inflows minus outflows.
+# - Must be zero: FBR IRIS help (e.fbr.gov.pk/SOP/SideLinks/Iris_help.pdf): "If it is not 0,
+#   wealth is not reconciled".
+# - Form lines: SRO 1495(I)/2026 (2 Sep 2026), PDF p. 38 (total assets 7019, total liabilities
+#   7029, net assets 703001) and p. 40 "Reconciliation of Net Assets" (703002, 703003; inflows
+#   7049 = 7031 income subject to normal tax + 7032 exempt income + 7033 income subject to
+#   final/fixed tax + 7035 foreign remittance + 7036 inheritance + 7037 gift + 7088 contribution
+#   in expenses by family members; outflows 7099 = 7089 personal expenses + 7091 gift; 703000
+#   unreconciled amount).
+#
+# Conventions (spec FR-003 to FR-011; research R2, R5, R6):
+# - User entries are whole rupees. Certificate figures are summed per type across confirmed
+#   certificates, then each SUM is rounded to whole rupees, 50 paisa or more going up (s.219).
+# - net assets (703001)  = total assets (7019) - total liabilities (7029)
+# - increase (703003)    = net assets - previous net assets (703002)   [negative = decrease]
+# - 7031 = taxable salary; 7032 = (gross salary - taxable salary) + other exempt income;
+#   7033 = bank profit; inflows (7049) = 7031 + 7032 + 7033 + 7035 + 7036 + 7037 + 7088
+# - tax at source = tax deducted by employers + tax withheld by banks (an outflow with no line
+#   of its own; included in 7099)
+# - outflows (7099) = personal expenses (7089) + gifts given (7091) + tax at source
+# - unreconciled (703000) = inflows - outflows - increase.  0 -> reconciled;
+#   positive -> inflows_exceed_growth; negative -> growth_exceeds_inflows (the message states
+#   the amount without its sign).
+# - Not ready (no figures at all), checked in this order: needs_previous_net_assets,
+#   no_confirmed_salary_certificate, profit_over_limit (summed bank profit EXCEEDS Rs 5,000,000,
+#   the limit in 004's TY2026 rates), gross_below_taxable (names the certificate).
+#
+# Provisional rules (pending the lead; design doc): 1. tax at source is an outflow (income goes
+# in gross); 2. bank profit goes on 7033; 3. last year's net assets are typed by the user;
+# 4. gross minus taxable salary is exempt income on 7032.
+
+tax_year: "2025-26"
+
+examples:
+  # ---- Reconciled, and each direction of gap ------------------------------------------------
+
+  - id: reconciled
+    description: Salary and a bank account; every rupee is explained.
+    inputs:
+      previous_net_assets: "2100000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "1350000"}
+        - {category: motor_vehicle, description: "Car", amount: "1400000"}
+      liabilities:
+        - {description: "Car loan", creditor: "Bank", amount: "200000"}
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "2000000", taxable_salary: "1800000", tax_deducted: "72000"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "50000", tax_withheld: "10000"}
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "600000", electricity: "150000", other_household: "768000"}
+      gifts_given: "0"
+    working:
+      - "Total assets (7019) = 1,350,000 + 1,400,000 = 2,750,000."
+      - "Total liabilities (7029) = 200,000."
+      - "Net assets (703001) = 2,750,000 - 200,000 = 2,550,000."
+      - "Increase (703003) = 2,550,000 - 2,100,000 = 450,000."
+      - "7031 = 1,800,000; 7032 = 2,000,000 - 1,800,000 = 200,000; 7033 = 50,000."
+      - "Inflows (7049) = 1,800,000 + 200,000 + 50,000 = 2,050,000."
+      - "Personal expenses (7089) = 600,000 + 150,000 + 768,000 = 1,518,000."
+      - "Tax at source = 72,000 + 10,000 = 82,000."
+      - "Outflows (7099) = 1,518,000 + 0 + 82,000 = 1,600,000."
+      - "Unreconciled (703000) = 2,050,000 - 1,600,000 - 450,000 = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "2550000", increase: "450000",
+               inflows: "2050000", outflows: "1600000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: inflows-exceed-growth
+    description: The same, with Rs 100,000 of expenses left out.
+    inputs:
+      previous_net_assets: "2100000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "1350000"}
+        - {category: motor_vehicle, description: "Car", amount: "1400000"}
+      liabilities:
+        - {description: "Car loan", creditor: "Bank", amount: "200000"}
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "2000000", taxable_salary: "1800000", tax_deducted: "72000"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "50000", tax_withheld: "10000"}
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "600000", electricity: "150000", other_household: "668000"}
+      gifts_given: "0"
+    working:
+      - "Net assets 2,550,000; increase 450,000; inflows 2,050,000 (as in 'reconciled')."
+      - "Personal expenses (7089) = 600,000 + 150,000 + 668,000 = 1,418,000."
+      - "Outflows (7099) = 1,418,000 + 0 + 82,000 = 1,500,000."
+      - "Unreconciled = 2,050,000 - 1,500,000 - 450,000 = 100,000: positive, so inflows exceed
+        the growth in assets by Rs 100,000 (an expense or asset may be missing)."
+    expected: {not_ready_reason: null, net_assets: "2550000", increase: "450000",
+               inflows: "2050000", outflows: "1500000", unreconciled: "100000",
+               direction: inflows_exceed_growth}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: growth-exceeds-inflows
+    description: The 'reconciled' case plus Rs 50,000 cash nobody can explain.
+    inputs:
+      previous_net_assets: "2100000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "1350000"}
+        - {category: motor_vehicle, description: "Car", amount: "1400000"}
+        - {category: cash_in_hand, description: "Cash", amount: "50000"}
+      liabilities:
+        - {description: "Car loan", creditor: "Bank", amount: "200000"}
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "2000000", taxable_salary: "1800000", tax_deducted: "72000"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "50000", tax_withheld: "10000"}
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "600000", electricity: "150000", other_household: "768000"}
+      gifts_given: "0"
+    working:
+      - "Total assets (7019) = 1,350,000 + 1,400,000 + 50,000 = 2,800,000."
+      - "Net assets (703001) = 2,800,000 - 200,000 = 2,600,000."
+      - "Increase (703003) = 2,600,000 - 2,100,000 = 500,000."
+      - "Inflows 2,050,000 and outflows 1,600,000 (as in 'reconciled')."
+      - "Unreconciled = 2,050,000 - 1,600,000 - 500,000 = -50,000: negative, so assets grew
+        Rs 50,000 more than inflows explain (an inflow may be missing)."
+    expected: {not_ready_reason: null, net_assets: "2600000", increase: "500000",
+               inflows: "2050000", outflows: "1600000", unreconciled: "-50000",
+               direction: growth_exceeds_inflows}
+    signed_off_by: null
+    signed_off_date: null
+
+  # ---- A decrease, liabilities above assets, negative previous net assets --------------------
+
+  - id: decrease-no-bank-certificate
+    description: Net assets fell (a large gift given); no bank certificate at all.
+    inputs:
+      previous_net_assets: "3000000"
+      assets:
+        - {category: bank_account, description: "Current account", amount: "800000"}
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1200000", taxable_salary: "1200000", tax_deducted: "6000"}
+      bank_certificates: []
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {medical: "394000", other_household: "2000000"}
+      gifts_given: "1000000"
+    working:
+      - "Net assets (703001) = 800,000 - 0 = 800,000."
+      - "Increase (703003) = 800,000 - 3,000,000 = -2,200,000 (a decrease)."
+      - "7031 = 1,200,000; 7032 = 1,200,000 - 1,200,000 = 0; 7033 = 0 (no bank certificate)."
+      - "Inflows (7049) = 1,200,000."
+      - "Personal expenses (7089) = 394,000 + 2,000,000 = 2,394,000; gifts given (7091) =
+        1,000,000; tax at source = 6,000 + 0 = 6,000."
+      - "Outflows (7099) = 2,394,000 + 1,000,000 + 6,000 = 3,400,000."
+      - "Unreconciled = 1,200,000 - 3,400,000 - (-2,200,000) = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "800000", increase: "-2200000",
+               inflows: "1200000", outflows: "3400000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: liabilities-above-assets
+    description: Owes more than owns; the new loan paid for the year's spending.
+    inputs:
+      previous_net_assets: "100000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "300000"}
+      liabilities:
+        - {description: "Personal loan", creditor: "Bank", amount: "1000000"}
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "900000", taxable_salary: "900000", tax_deducted: "3000"}
+      bank_certificates: []
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "500000", other_household: "1197000"}
+      gifts_given: "0"
+    working:
+      - "Net assets (703001) = 300,000 - 1,000,000 = -700,000."
+      - "Increase (703003) = -700,000 - 100,000 = -800,000 (a decrease)."
+      - "Inflows (7049) = 900,000 + 0 + 0 = 900,000."
+      - "Personal expenses (7089) = 500,000 + 1,197,000 = 1,697,000; tax at source = 3,000."
+      - "Outflows (7099) = 1,697,000 + 0 + 3,000 = 1,700,000."
+      - "Unreconciled = 900,000 - 1,700,000 - (-800,000) = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "-700000", increase: "-800000",
+               inflows: "900000", outflows: "1700000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: negative-previous-net-assets
+    description: Last year's net assets were negative; this year they improved.
+    inputs:
+      previous_net_assets: "-700000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "400000"}
+      liabilities:
+        - {description: "Personal loan", creditor: "Bank", amount: "900000"}
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1000000", taxable_salary: "950000", tax_deducted: "3500"}
+      bank_certificates: []
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "400000", other_household: "396500"}
+      gifts_given: "0"
+    working:
+      - "Net assets (703001) = 400,000 - 900,000 = -500,000."
+      - "Increase (703003) = -500,000 - (-700,000) = 200,000."
+      - "7031 = 950,000; 7032 = 1,000,000 - 950,000 = 50,000. Inflows (7049) = 1,000,000."
+      - "Personal expenses (7089) = 400,000 + 396,500 = 796,500; tax at source = 3,500."
+      - "Outflows (7099) = 796,500 + 0 + 3,500 = 800,000."
+      - "Unreconciled = 1,000,000 - 800,000 - 200,000 = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "-500000", increase: "200000",
+               inflows: "1000000", outflows: "800000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  # ---- Several certificates, paisa rounding, every inflow line, the profit limit ------------
+
+  - id: several-certificates-paisa
+    description: Two employers and two banks, with paisa; each SUM is rounded (s.219).
+    inputs:
+      previous_net_assets: "1000000"
+      assets:
+        - {category: bank_account, description: "Savings account", amount: "1200000"}
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1250000.40", taxable_salary: "1100000.40", tax_deducted: "5000.30"}
+        - {file: salary-b.pdf, gross_salary: "400000.35", taxable_salary: "400000.35", tax_deducted: "0.25"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "30000.25", tax_withheld: "6000.05"}
+        - {file: bank-b.pdf, profit_amount: "20000.20", tax_withheld: "4000.04"}
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {rent: "700000", other_household: "785000"}
+      gifts_given: "0"
+    working:
+      - "Gross: 1,250,000.40 + 400,000.35 = 1,650,000.75, rounded 1,650,001."
+      - "Taxable: 1,100,000.40 + 400,000.35 = 1,500,000.75, rounded 1,500,001."
+      - "Tax deducted: 5,000.30 + 0.25 = 5,000.55, rounded 5,001."
+      - "Bank profit: 30,000.25 + 20,000.20 = 50,000.45, rounded 50,000."
+      - "Tax withheld: 6,000.05 + 4,000.04 = 10,000.09, rounded 10,000."
+      - "Net assets (703001) = 1,200,000; increase (703003) = 1,200,000 - 1,000,000 = 200,000."
+      - "7031 = 1,500,001; 7032 = 1,650,001 - 1,500,001 = 150,000; 7033 = 50,000."
+      - "Inflows (7049) = 1,500,001 + 150,000 + 50,000 = 1,700,001."
+      - "Personal expenses (7089) = 700,000 + 785,000 = 1,485,000; tax at source = 5,001 +
+        10,000 = 15,001."
+      - "Outflows (7099) = 1,485,000 + 0 + 15,001 = 1,500,001."
+      - "Unreconciled = 1,700,001 - 1,500,001 - 200,000 = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "1200000", increase: "200000",
+               inflows: "1700001", outflows: "1500001", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: every-inflow-and-outflow-line
+    description: Remittance, inheritance, gifts both ways, family contribution, other exempt income.
+    inputs:
+      previous_net_assets: "1000000"
+      assets:
+        - {category: immovable_property, description: "Plot", amount: "2500000"}
+        - {category: bank_account, description: "Savings account", amount: "500000"}
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1500000", taxable_salary: "1500000", tax_deducted: "39000"}
+      bank_certificates: []
+      other_exempt_income: "50000"
+      foreign_remittance: "300000"
+      inheritance: "500000"
+      gifts_received: "100000"
+      family_contribution: "200000"
+      personal_expenses: {rent: "300000", educational: "161000"}
+      gifts_given: "150000"
+    working:
+      - "Net assets (703001) = 2,500,000 + 500,000 = 3,000,000; increase (703003) = 3,000,000 -
+        1,000,000 = 2,000,000."
+      - "7031 = 1,500,000; 7032 = (1,500,000 - 1,500,000) + 50,000 = 50,000; 7033 = 0."
+      - "Inflows (7049) = 1,500,000 + 50,000 + 0 + 300,000 + 500,000 + 100,000 + 200,000 =
+        2,650,000."
+      - "Personal expenses (7089) = 300,000 + 161,000 = 461,000; gifts given (7091) = 150,000;
+        tax at source = 39,000."
+      - "Outflows (7099) = 461,000 + 150,000 + 39,000 = 650,000."
+      - "Unreconciled = 2,650,000 - 650,000 - 2,000,000 = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "3000000", increase: "2000000",
+               inflows: "2650000", outflows: "650000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: profit-exactly-at-limit
+    description: Bank profit of exactly Rs 5,000,000 is allowed ("exceeds" is the test).
+    inputs:
+      previous_net_assets: "10000000"
+      assets:
+        - {category: investments, description: "Term deposit", amount: "13000000"}
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1000000", taxable_salary: "1000000", tax_deducted: "4000"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "5000000", tax_withheld: "1000000"}
+      other_exempt_income: "0"
+      foreign_remittance: "0"
+      inheritance: "0"
+      gifts_received: "0"
+      family_contribution: "0"
+      personal_expenses: {other_household: "1996000"}
+      gifts_given: "0"
+    working:
+      - "5,000,000 does not exceed 5,000,000: ready."
+      - "Net assets (703001) = 13,000,000; increase (703003) = 13,000,000 - 10,000,000 =
+        3,000,000."
+      - "Inflows (7049) = 1,000,000 + 0 + 5,000,000 = 6,000,000."
+      - "Personal expenses (7089) = 1,996,000; tax at source = 4,000 + 1,000,000 = 1,004,000."
+      - "Outflows (7099) = 1,996,000 + 0 + 1,004,000 = 3,000,000."
+      - "Unreconciled = 6,000,000 - 3,000,000 - 3,000,000 = 0: reconciled."
+    expected: {not_ready_reason: null, net_assets: "13000000", increase: "3000000",
+               inflows: "6000000", outflows: "3000000", unreconciled: "0",
+               direction: reconciled}
+    signed_off_by: null
+    signed_off_date: null
+
+  # ---- Not ready: no figures at all ----------------------------------------------------------
+
+  - id: not-ready-no-previous-net-assets
+    description: Last year's net assets not entered.
+    inputs:
+      previous_net_assets: null
+      assets: [{category: bank_account, description: "Savings account", amount: "500000"}]
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1000000", taxable_salary: "1000000", tax_deducted: "4000"}
+      bank_certificates: []
+      personal_expenses: {}
+    working:
+      - "703002 is missing, so 703003 can't be worked out: not ready."
+    expected: {not_ready_reason: needs_previous_net_assets}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: not-ready-no-salary-certificate
+    description: No confirmed salary certificate.
+    inputs:
+      previous_net_assets: "500000"
+      assets: [{category: bank_account, description: "Savings account", amount: "500000"}]
+      liabilities: []
+      salary_certificates: []
+      bank_certificates: []
+      personal_expenses: {}
+    working:
+      - "No confirmed salary certificate, so 7031 isn't known: not ready."
+    expected: {not_ready_reason: no_confirmed_salary_certificate}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: not-ready-profit-over-limit
+    description: Two bank certificates summing to Rs 5,000,001.
+    inputs:
+      previous_net_assets: "500000"
+      assets: [{category: bank_account, description: "Savings account", amount: "500000"}]
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1000000", taxable_salary: "1000000", tax_deducted: "4000"}
+      bank_certificates:
+        - {file: bank-a.pdf, profit_amount: "3000000", tax_withheld: "600000"}
+        - {file: bank-b.pdf, profit_amount: "2000001", tax_withheld: "400000"}
+      personal_expenses: {}
+    working:
+      - "Bank profit 3,000,000 + 2,000,001 = 5,000,001 exceeds 5,000,000 (004's TY2026 limit):
+        7033 assumes s.7B applies, so not ready."
+    expected: {not_ready_reason: profit_over_limit}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: not-ready-gross-below-taxable
+    description: A certificate whose gross salary is below its taxable salary; it is named.
+    inputs:
+      previous_net_assets: "500000"
+      assets: [{category: bank_account, description: "Savings account", amount: "500000"}]
+      liabilities: []
+      salary_certificates:
+        - {file: salary-a.pdf, gross_salary: "1200000", taxable_salary: "1200000", tax_deducted: "6000"}
+        - {file: salary-b.pdf, gross_salary: "1000000", taxable_salary: "1100000", tax_deducted: "5000"}
+      bank_certificates: []
+      personal_expenses: {}
+    working:
+      - "salary-b.pdf: gross 1,000,000 is below taxable 1,100,000, so 7032 would be negative
+        (rule 4 doesn't fit): not ready, naming salary-b.pdf."
+    expected: {not_ready_reason: gross_below_taxable, certificate: salary-b.pdf}
+    signed_off_by: null
+    signed_off_date: null
+
+  - id: not-ready-order
+    description: Two problems at once; the first check in the order wins.
+    inputs:
+      previous_net_assets: null
+      assets: []
+      liabilities: []
+      salary_certificates: []
+      bank_certificates: []
+      personal_expenses: {}
+    working:
+      - "Both last year's net assets and a salary certificate are missing;
+        needs_previous_net_assets is checked first."
+    expected: {not_ready_reason: needs_previous_net_assets}
+    signed_off_by: null
+    signed_off_date: null
