@@ -202,11 +202,20 @@ def _wrong_type_reason(chosen: DocType, seen: str) -> str:
     return reason + " Check the file and the type you chose."
 
 
+def _error_reasons(exc: errors.APIError) -> set[str]:
+    """Google's structured ErrorInfo reasons (e.g. "API_KEY_INVALID"); never the message text."""
+    details = (
+        exc.details.get("error", {}).get("details", []) if isinstance(exc.details, dict) else []
+    )
+    return {d.get("reason", "") for d in details if isinstance(d, dict)}
+
+
 def _api_reason(exc: errors.APIError) -> str:
     """A short, safe reason for an API failure, told apart by status code, not message text."""
     if exc.code == 429:
         return "The free AI limit may be used up for now. Try again later."
-    if exc.code in (401, 403):
+    if exc.code in (401, 403) or "API_KEY_INVALID" in _error_reasons(exc):
+        # Gemini answers a bad key with 400 and the structured reason API_KEY_INVALID.
         return "The AI service didn't accept the app's key."
     if isinstance(exc, errors.ServerError):
         return "The AI service had a problem. Try again."
