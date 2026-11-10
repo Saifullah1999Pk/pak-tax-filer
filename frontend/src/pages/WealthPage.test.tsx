@@ -205,10 +205,38 @@ test("removing an asset removes it from what is saved", async () => {
 
   const own = screen.getByRole("region", { name: /what i own/i });
   fireEvent.click(within(own).getByRole("button", { name: "Remove asset 1" }));
+  expect(document.activeElement).toBe(
+    within(own).getByRole("button", { name: /add an asset/i }),
+  );
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
   await waitFor(() => expect(saved).toBeDefined());
   expect(saved?.assets).toEqual([]);
+});
+
+test("descriptions are required and sent trimmed", async () => {
+  let saved: Record<string, unknown> | undefined;
+  serve({}, (body) => {
+    saved = body as Record<string, unknown>;
+    return { status: 200, body: SAVED };
+  });
+  await open();
+
+  const asset = screen.getByRole("group", { name: "Asset 1" });
+  const description = within(asset).getByLabelText(/description/i);
+  expect(description).toHaveProperty("required", true);
+  const liability = screen.getByRole("group", { name: "Liability 1" });
+  expect(within(liability).getByLabelText(/description/i)).toHaveProperty(
+    "required",
+    true,
+  );
+  fireEvent.change(description, { target: { value: "  Savings account  " } });
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  await waitFor(() => expect(saved).toBeDefined());
+  expect((saved?.assets as { description: string }[])[0].description).toBe(
+    "Savings account",
+  );
 });
 
 test("empty fields are sent as not entered, zero or left out, and amounts trimmed", async () => {
@@ -243,8 +271,37 @@ test("last year's net assets can be negative, so its keypad isn't digits-only", 
 
   const previous = screen.getByLabelText(/net assets on 30 june 2025/i);
   expect(previous.getAttribute("inputmode")).toBeNull();
-  screen.getByText(/may be negative/i);
+  const hint = document.getElementById(
+    previous.getAttribute("aria-describedby") ?? "",
+  );
+  expect(hint?.textContent).toMatch(/may be negative/i);
   screen.getByText(/as on 30 june 2026/i);
+});
+
+test("the dates follow the profile's tax year", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": () => ({
+      status: 200,
+      body: {
+        profile: {
+          tax_year: "2024-25",
+          on_atl: true,
+          updated_at: "2026-11-05T10:00:00Z",
+        },
+        supported_tax_years: ["2024-25"],
+      },
+    }),
+    "GET /api/wealth/2024-25": () => ({
+      status: 200,
+      body: { ...SAVED, tax_year: "2024-25" },
+    }),
+  });
+  renderApp("/wealth");
+  await screen.findByText(LABEL);
+
+  screen.getByLabelText(/net assets on 30 june 2024/i);
+  screen.getByText(/as on 30 june 2025/i);
 });
 
 test("certificate lines are read-only, name their certificate and say how to correct it", async () => {
@@ -300,11 +357,29 @@ test("a save replaces the form and result with what the server saved, and says s
     "value",
     "Renamed",
   );
-  expect(screen.getByRole("status").textContent).toMatch(/saved/i);
+  screen.getByText("Saved.");
+  // Keyboard and screen-reader users stay where they were, not at the top of the page.
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: /^save$/i }),
+  );
+});
+
+test("there is one status region, so the save is announced, and the certificate notice isn't one", async () => {
+  serve({ certificates_changed: true });
+  await open();
+
+  const statuses = screen.getAllByRole("status");
+  expect(statuses).toHaveLength(1);
+  expect(statuses[0].textContent).toBe("");
+  expect(
+    screen
+      .getByText(/your confirmed certificates changed since you last saved/i)
+      .getAttribute("role"),
+  ).toBeNull();
 });
 
 test("while saving, nothing can be typed or saved twice", async () => {
-  serve({}, () => new Promise(() => {}) as never);
+  serve({}, () => new Promise<FakeReply>(() => {}));
   await open();
 
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -327,9 +402,9 @@ test("a save error is shown beside the save button", async () => {
 
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toContain("must not be negative");
-  expect(alert.previousElementSibling).toBe(
-    screen.getByRole("button", { name: /^save$/i }),
-  );
+  const save = screen.getByRole("button", { name: /^save$/i });
+  expect(save.getAttribute("aria-describedby")).toBe(alert.id);
+  expect(document.activeElement).toBe(save);
 });
 
 test("a statement that can't be loaded says so", async () => {

@@ -91,11 +91,11 @@ function toStatement(form: Form): StatementIn {
     previous_net_assets: form.previous_net_assets.trim() || null,
     assets: form.assets.map(({ category, description, amount }) => ({
       category,
-      description,
+      description: description.trim(),
       amount: zero(amount),
     })),
     liabilities: form.liabilities.map(({ description, creditor, amount }) => ({
-      description,
+      description: description.trim(),
       creditor: creditor.trim() || null,
       amount: zero(amount),
     })),
@@ -126,7 +126,23 @@ export function WealthPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveAttempts, setSaveAttempts] = useState(0);
   const [shownYear, setShownYear] = useState(taxYear);
+  const saveButton = useRef<HTMLButtonElement | null>(null);
+  // The year a save was sent for; a reply for another year is ignored.
+  const currentYear = useRef(taxYear);
+
+  useEffect(() => {
+    currentYear.current = taxYear;
+  }, [taxYear]);
+
+  // After a save, focus goes back to Save (disabling it while saving dropped focus to the
+  // page's top): keyboard and screen-reader users stay where they were.
+  useEffect(() => {
+    if (saveAttempts > 0 && !saving) {
+      saveButton.current?.focus();
+    }
+  }, [saveAttempts, saving]);
 
   // A different year: forget the previous one (React's reset-on-change pattern).
   if (taxYear !== shownYear) {
@@ -167,11 +183,15 @@ export function WealthPage() {
     if (form === null) {
       return;
     }
+    const year = taxYear;
     setSaving(true);
     setSaveError(null);
     setSaved(false);
     try {
-      const result = await saveWealth(taxYear, toStatement(form));
+      const result = await saveWealth(year, toStatement(form));
+      if (currentYear.current !== year) {
+        return;
+      }
       setWealth(result);
       setForm(toForm(result.statement));
       setSaved(true);
@@ -179,6 +199,7 @@ export function WealthPage() {
       setSaveError(message(caught, "Couldn't save. Try again."));
     } finally {
       setSaving(false);
+      setSaveAttempts((count) => count + 1);
     }
   }
 
@@ -197,7 +218,7 @@ export function WealthPage() {
       ) : (
         <>
           {wealth.certificates_changed && (
-            <p role="status">
+            <p className="notice">
               Your confirmed certificates changed since you last saved. Check
               the result below and save again.
             </p>
@@ -205,7 +226,7 @@ export function WealthPage() {
           <form onSubmit={handleSave}>
             {/* Disabled while saving: the saved statement then replaces the form, so
                 anything typed meanwhile would be lost. */}
-            <fieldset disabled={saving}>
+            <fieldset disabled={saving} aria-label="Your statement">
               <Assets form={form} update={update} asOn={dates.now} />
               <Liabilities form={form} update={update} />
               <MoneyInAndOut
@@ -215,11 +236,23 @@ export function WealthPage() {
                 previousDate={dates.before}
               />
             </fieldset>
-            <button type="submit" disabled={saving}>
+            <button
+              type="submit"
+              ref={saveButton}
+              disabled={saving}
+              aria-describedby={
+                saveError !== null ? "wealth-save-error" : undefined
+              }
+            >
               {saving ? "Saving…" : "Save"}
             </button>
-            {saveError !== null && <p role="alert">{saveError}</p>}
-            {saved && <p role="status">Saved.</p>}
+            {saveError !== null && (
+              <p id="wealth-save-error" role="alert">
+                {saveError}
+              </p>
+            )}
+            {/* One live region, always present, so "Saved." is announced when it appears. */}
+            <p role="status">{saved ? "Saved." : ""}</p>
           </form>
           <Result result={wealth.result} label={wealth.label} />
         </>
