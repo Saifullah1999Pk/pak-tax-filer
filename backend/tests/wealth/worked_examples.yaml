@@ -43,6 +43,13 @@
 # in gross); 2. bank profit goes on 7033; 3. last year's net assets are typed by the user;
 # 4. gross minus taxable salary is exempt income on 7032.
 
+# SIGNED OFF 2026-11-10 by Saifullah Khan, against FBR's sources: the formula (IRIS FAQ: the
+# change in wealth equals inflows minus outflows; zero means reconciled), the form lines in
+# SRO 1495(I)/2026 (PDF p. 38: 7019, 7029, 703001; p. 40: 703002, 703003, 7049 with 7031, 7032,
+# 7033, 7035, 7036, 7037, 7088, 7099 with 7089, 7091, and 703000), the four provisional readings
+# above, rounding each certificate sum (s.219), and "exceeds" for the Rs 5,000,000 limit. The
+# arithmetic of all 14 was also recomputed from the inputs by a separate script when written.
+
 tax_year: "2025-26"
 
 examples:
@@ -82,8 +89,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "2550000", increase: "450000",
                inflows: "2050000", outflows: "1600000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: inflows-exceed-growth
     description: The same, with Rs 100,000 of expenses left out.
@@ -114,8 +121,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "2550000", increase: "450000",
                inflows: "2050000", outflows: "1500000", unreconciled: "100000",
                direction: inflows_exceed_growth}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: growth-exceeds-inflows
     description: The 'reconciled' case plus Rs 50,000 cash nobody can explain.
@@ -148,8 +155,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "2600000", increase: "500000",
                inflows: "2050000", outflows: "1600000", unreconciled: "-50000",
                direction: growth_exceeds_inflows}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   # ---- A decrease, liabilities above assets, negative previous net assets --------------------
 
@@ -182,8 +189,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "800000", increase: "-2200000",
                inflows: "1200000", outflows: "3400000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: liabilities-above-assets
     description: Owes more than owns; the new loan paid for the year's spending.
@@ -213,8 +220,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "-700000", increase: "-800000",
                inflows: "900000", outflows: "1700000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: negative-previous-net-assets
     description: Last year's net assets were negative; this year they improved.
@@ -244,8 +251,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "-500000", increase: "200000",
                inflows: "1000000", outflows: "800000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   # ---- Several certificates, paisa rounding, every inflow line, the profit limit ------------
 
@@ -285,8 +292,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "1200000", increase: "200000",
                inflows: "1700001", outflows: "1500001", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: every-inflow-and-outflow-line
     description: Remittance, inheritance, gifts both ways, family contribution, other exempt income.
@@ -319,8 +326,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "3000000", increase: "2000000",
                inflows: "2650000", outflows: "650000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: profit-exactly-at-limit
     description: Bank profit of exactly Rs 5,000,000 is allowed ("exceeds" is the test).
@@ -351,8 +358,8 @@ examples:
     expected: {not_ready_reason: null, net_assets: "13000000", increase: "3000000",
                inflows: "6000000", outflows: "3000000", unreconciled: "0",
                direction: reconciled}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   # ---- Not ready: no figures at all ----------------------------------------------------------
 
@@ -369,8 +376,8 @@ examples:
     working:
       - "703002 is missing, so 703003 can't be worked out: not ready."
     expected: {not_ready_reason: needs_previous_net_assets}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: not-ready-no-salary-certificate
     description: No confirmed salary certificate.
@@ -384,8 +391,8 @@ examples:
     working:
       - "No confirmed salary certificate, so 7031 isn't known: not ready."
     expected: {not_ready_reason: no_confirmed_salary_certificate}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: not-ready-profit-over-limit
     description: Two bank certificates summing to Rs 5,000,001.
@@ -403,8 +410,8 @@ examples:
       - "Bank profit 3,000,000 + 2,000,001 = 5,000,001 exceeds 5,000,000 (004's TY2026 limit):
         7033 assumes s.7B applies, so not ready."
     expected: {not_ready_reason: profit_over_limit}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: not-ready-gross-below-taxable
     description: A certificate whose gross salary is below its taxable salary; it is named.
@@ -421,8 +428,8 @@ examples:
       - "salary-b.pdf: gross 1,000,000 is below taxable 1,100,000, so 7032 would be negative
         (rule 4 doesn't fit): not ready, naming salary-b.pdf."
     expected: {not_ready_reason: gross_below_taxable, certificate: salary-b.pdf}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
 
   - id: not-ready-order
     description: Two problems at once; the first check in the order wins.
@@ -437,5 +444,5 @@ examples:
       - "Both last year's net assets and a salary certificate are missing;
         needs_previous_net_assets is checked first."
     expected: {not_ready_reason: needs_previous_net_assets}
-    signed_off_by: null
-    signed_off_date: null
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-10"
