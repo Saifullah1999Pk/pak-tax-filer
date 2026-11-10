@@ -24,16 +24,27 @@ def summariser(handler: Handler, api_key: str | None = FAKE_KEY) -> GeminiSummar
     )
 
 
-def reply(text: str) -> httpx2.Response:
+def reply(text: str, finish: str = "STOP") -> httpx2.Response:
     """A generateContent reply with one text part."""
     return httpx2.Response(
         200,
         json={
             "candidates": [
-                {"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": "STOP"}
+                {"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": finish}
             ]
         },
     )
+
+
+async def test_an_answer_cut_short_is_no_summary() -> None:
+    """Fails if a reply that hit the token limit ("For tax year 2025", seen in quickstart 2.2 on
+    2026-11-10) is used: every number in it is in the breakdown, so the check alone passes it."""
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        del request
+        return reply("For tax year 2025", finish="MAX_TOKENS")
+
+    assert await summariser(handle).write("Tax year 2025-26.") is None
 
 
 async def test_without_a_key_nothing_is_sent() -> None:

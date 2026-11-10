@@ -133,6 +133,11 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
         except (errors.APIError, httpx2.HTTPError) as exc:
             logger.warning("Summary failed: %s", type(exc).__name__)
             return None
+        candidates = response.candidates or []
+        if not candidates or candidates[0].finish_reason != types.FinishReason.STOP:
+            # Cut short (e.g. MAX_TOKENS) or blocked: a fragment like "For tax year 2025" passes
+            # the number check, so it must never be used (004 quickstart 2.2, 2026-11-10).
+            return None
         return response.text or None
 
 

@@ -68,7 +68,7 @@ Each decision: what was chosen, why, and what else was considered. Legal sources
 ## R8. AI summary and the number check
 
 - **Decision:** after a successful calculation, call Gemini (free tier; same pattern as 003: official `google-genai` SDK,
-  `SUMMARY_MODEL` setting defaulting to `gemini-3.5-flash-lite`, effort `low`, short output; first `claude-opus-5-5`) with the
+  `SUMMARY_MODEL` setting defaulting to `gemini-3.5-flash-lite`, effort `minimal` (amended 2026-11-10: `low` thinking used the token budget, cutting answers short, and often missed the 4 s limit; a reply that did not finish normally is now dropped), short output; first `claude-opus-5-5`) with the
   breakdown as data and an instruction to summarise in 2–3 plain sentences using only numbers
   from it. Then a plain-code check:
   - collect the **allowed set**: every number appearing in the rendered breakdown (amounts,

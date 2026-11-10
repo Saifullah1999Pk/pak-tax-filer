@@ -35,7 +35,7 @@ class Settings:  # pylint: disable=too-many-instance-attributes  # one field per
     upload_dir: Path = Path("/data/uploads")
     # Feature 004, research R8: the model that writes the tax summary (never the figures).
     summary_model: str = "gemini-3.5-flash-lite"
-    summary_effort: str = "low"
+    summary_effort: str = "minimal"
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -53,7 +53,9 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         raise ValueError(f"COOKIE_SECURE must be true or false, not {raw!r}.")
 
     effort = _effort(environ, "EXTRACTION_EFFORT")
-    summary_effort = _effort(environ, "SUMMARY_EFFORT")
+    # Minimal: "low" thinking used up the token budget (answers cut short) and often missed the
+    # 4-second limit; minimal answers in about 2.5 s (004 quickstart 2.2, 2026-11-10).
+    summary_effort = _effort(environ, "SUMMARY_EFFORT", default="minimal")
 
     return Settings(
         database_url=database_url,
@@ -67,9 +69,9 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
     )
 
 
-def _effort(environ: Mapping[str, str], name: str) -> str:
-    """An effort setting, defaulting to low; anything the API wouldn't accept is refused."""
-    effort = environ.get(name, "low").strip().lower()
+def _effort(environ: Mapping[str, str], name: str, default: str = "low") -> str:
+    """An effort setting; anything the API wouldn't accept is refused."""
+    effort = environ.get(name, default).strip().lower()
     if effort not in _EFFORTS:
         raise ValueError(f"{name} must be one of {', '.join(_EFFORTS)}, not {effort!r}.")
     return effort
