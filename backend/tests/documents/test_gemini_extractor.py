@@ -188,6 +188,26 @@ async def test_api_errors_become_short_reasons(
     assert result.limit_reached is limit_reached
 
 
+async def test_an_invalid_key_is_reported_as_the_key_not_the_file() -> None:
+    """Fails if Gemini's 400 for a bad key (found in quickstart 3.1, 2026-11-10) tells the user
+    their file couldn't be read. Told apart by Google's structured reason, never message text."""
+    error = {
+        "error": {
+            "code": 400,
+            "message": "secret details",
+            "status": "INVALID_ARGUMENT",
+            "details": [
+                {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "API_KEY_INVALID"}
+            ],
+        }
+    }
+    gemini = extractor(replying(error, status=400))
+
+    result = await gemini.extract(DocType.SALARY_CERTIFICATE, PDF, "application/pdf")
+
+    assert result.failure_reason == "The AI service didn't accept the app's key."
+
+
 @pytest.mark.parametrize(
     ("network_error", "expected"),
     [(httpx2.ReadTimeout("slow"), "too long"), (httpx2.ConnectError("down"), "reach")],
