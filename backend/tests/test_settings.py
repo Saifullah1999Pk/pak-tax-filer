@@ -123,7 +123,9 @@ def test_summary_defaults() -> None:
     settings = load_settings({"DATABASE_URL": DB})
 
     assert settings.summary_model == "gemini-3.5-flash-lite"
-    assert settings.summary_effort == "low"
+    # Minimal: with "low", thinking used the token budget, cutting answers short, and took up
+    # to 7.6 s against the 4 s limit (quickstart 2.2, 2026-11-10); minimal answered in ~2.5 s.
+    assert settings.summary_effort == "minimal"
 
 
 def test_summary_settings_are_read() -> None:
