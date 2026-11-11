@@ -35,8 +35,13 @@ mismatch error. Revert.
 docker compose exec backend python -m evals.retrieval.run
 ```
 
-Expected: hit@5 and refusal rate printed and at or above `thresholds.yaml`. Replace the search
-with random passages locally: the run exits non-zero. Revert.
+Expected: hit@5 and refusal rate printed and at or above `thresholds.yaml` (exit code 0).
+`pytest tests/evals/test_retrieval_gate.py` shows a search returning random passages makes
+the run exit non-zero.
+
+To see what users would get (local only; calls Gemini for each question that passes the
+cut-off): `docker compose exec backend python -m evals.answers.run`. The report says which step
+refused each question: not English, the cut-off, the model, or the checks.
 
 ## 4. MCP tools (User Story 4; amended 2026-11-11)
 

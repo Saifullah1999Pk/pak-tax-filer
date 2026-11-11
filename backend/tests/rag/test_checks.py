@@ -105,3 +105,31 @@ def test_only_questions_in_english_letters_are_searched(question: str, english: 
     Gemini's embeddings match Urdu to English passages, so the cut-off alone doesn't refuse it
     (eval run, 2026-11-11: 0.691, above most in-scope questions)."""
     assert written_in_english(question) is english
+
+
+PENSION = [
+    passage(
+        "§12(2A)",
+        "Pension exceeding Rs. 10 million in a tax year is charged at 5%. Loans not exceeding "
+        "one million rupees are excluded.",
+    )
+]
+
+
+@pytest.mark.parametrize(
+    ("text", "passes"),
+    [
+        ("Pension above Rs. 10 million is charged at 5%.", True),  # quoted as the law writes it
+        ("Loans up to one million rupees are excluded.", True),
+        ("Pension above Rs. 12 million is charged at 5%.", False),  # 12 isn't in the passage
+        ("Loans up to two million rupees are excluded.", False),  # a phrase the law doesn't use
+        ("Pension above 10 lakh is charged at 5%.", False),
+        ("Pension above Rs. 10,000,000 is charged at 5%.", False),  # converted, not quoted
+    ],
+)
+def test_a_number_in_words_passes_only_as_a_cited_passage_writes_it(
+    text: str, passes: bool
+) -> None:
+    """Fails if the law's own "Rs. 10 million" is refused (eval run, 2026-11-11: 2 of 30
+    answers), or if a number phrase the cited passage doesn't contain can slip through."""
+    assert (checked_citations(answer(text, ["P1"]), PENSION) is not None) is passes

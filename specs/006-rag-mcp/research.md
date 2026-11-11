@@ -123,3 +123,10 @@ the [design doc](../../docs/superpowers/specs/2026-11-03-rag-mcp-design.md).
   Gemini CLI and Claude Code, with setup for each in `docs/`.
 - **R10 Retrieval eval and CI:** runs where the Gemini key is available, like the extraction
   eval; fork PRs attach a local report.
+- **R6 Checks** (amended 2026-11-11, from the answers eval): a number in words passes only if a
+  cited passage contains the very same phrase ("Rs. 10 million", as §12(2A) writes it); any
+  other number word is still rejected. Refusing all number words refused 2 of 30 faithful
+  answers that quoted the law. 004/005's summaries keep rejecting every number word. Also: a
+  question mostly in non-Latin letters is refused before it is searched (spec: English only;
+  Gemini embeds Urdu close to English passages), and the Tax page line is added to a
+  `not_covered` reply too when `asks_own_tax_figure` is set.

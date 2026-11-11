@@ -1,0 +1,80 @@
+# The retrieval eval (feature 006, task T023; research R10, FR-011 amended). It embeds the eval
+# questions with the real Gemini API (free tier), so it needs the GEMINI_API_KEY repository
+# secret, and it builds the corpus from FBR's own files, cached by the checksums in sources.yaml.
+#
+# It runs on every push to main and on pull requests, and fails below the pass marks in
+# evals/retrieval/thresholds.yaml. GitHub doesn't give secrets to pull requests from forks, so
+# there it skips with a notice, and the pull request attaches a local run's report instead
+# (`python -m evals.retrieval.run`). It never uses pull_request_target, which would run
+# untrusted pull-request code with the key.
+name: Retrieval eval
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  retrieval-eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pak_tax_filer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d pak_tax_filer"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # CI-only database in the service container above; not a secret.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/pak_tax_filer
+    steps:
+      - name: Check for the Gemini key
+        id: key
+        run: |
+          if [ -n "$GEMINI_API_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No GEMINI_API_KEY (a pull request from a fork): attach a local retrieval eval report to the pull request."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v7
+        if: steps.key.outputs.present == 'true'
+      - uses: astral-sh/setup-uv@v10.3.3
+        if: steps.key.outputs.present == 'true'
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen
+        if: steps.key.outputs.present == 'true'
+      - name: Cache FBR's source files (keyed by their checksums)
+        if: steps.key.outputs.present == 'true'
+        uses: actions/cache@v6.1.0
+        with:
+          path: backend/data/corpus-cache
+          key: corpus-${{ hashFiles('backend/app/rag/sources.yaml') }}
+      - name: Migrate
+        if: steps.key.outputs.present == 'true'
+        run: uv run alembic upgrade head
+      - name: Build the corpus (fails if FBR is unreachable and nothing is cached)
+        if: steps.key.outputs.present == 'true'
+        run: uv run python -m app.rag.build
+      - name: Run the eval (fails below a pass mark)
+        if: steps.key.outputs.present == 'true'
+        run: uv run python -m evals.retrieval.run
+      - name: Report
+        if: always() && steps.key.outputs.present == 'true'
+        run: cat evals/retrieval/report.md >> "$GITHUB_STEP_SUMMARY" || true

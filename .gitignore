@@ -20,6 +20,7 @@ dist/
 backend/evals/extraction/cases/
 backend/evals/extraction/report*.md
 backend/evals/retrieval/report*.md
+backend/evals/answers/report*.md
 
 # RAG corpus (feature 006): FBR source files are downloaded, never committed (FR-002)
 backend/data/corpus-cache/
