@@ -1,0 +1,478 @@
+# Worked examples for the TY2026 tax engine (feature 004, tasks T002-T003; research R9; FR-015).
+#
+# Each example is worked by hand from the Income Tax Ordinance, 2001 as amended up to
+# 31.07.2025 (FBR), using the rows in docs/superpowers/specs/2026-11-03-tax-engine-design.md.
+# They become the engine's tests (T009, T015, T021), so they must be right BEFORE any engine
+# code exists.
+#
+# SIGN-OFF (T003, Saifullah): check every example by hand against the Ordinance. Correct any
+# error, then fill in signed_off_by and signed_off_date (YYYY-MM-DD) on each one. Anything that
+# disagrees with the Ordinance's wording goes to the lead in the PR. test_sign_off.py fails
+# until every example is signed off.
+#
+# Conventions used throughout (from the spec and research R3-R4):
+# - "Tax year 2026" (TY2026) is the year 1 July 2025 to 30 June 2026, written "2025-26".
+# - Amounts are exact decimals. Nothing is rounded until the final amounts: salary tax,
+#   surcharge, profit tax and each balance are each rounded to the nearest rupee, 50 paisa or
+#   more going up (section 219). A balance is worked out from the unrounded tax figures.
+# - Band upper limits use "does not exceed"; the Rs 10 million surcharge and Rs 5 million profit
+#   limits use "exceeds" (the Ordinance's words).
+# - salary_balance = salary tax + surcharge - tax deducted by employers. Positive: payable.
+#   Negative: over-deducted.
+# - profit_balance = profit tax - tax withheld by banks (positive: payable, negative:
+#   over-withheld). For a user NOT on the ATL (provisional rule 2), withholding above the
+#   profit tax is not a balance: it goes in non_atl_extra_withheld ("whether it can be reclaimed
+#   needs confirmation"), and the profit balance counts only the withholding up to the tax.
+#   non_atl_extra_withheld is null for users on the ATL.
+# - Salary and profit balances are never added together (FR-005).
+# - Blocked cases (provisional rules 1 and 3, and missing inputs) give a blocked_reason and no
+#   figures at all. They are checked in this order: needs_atl_answer,
+#   no_confirmed_salary_certificate, profit_over_limit, salary_share_ambiguous,
+#   surcharge_ambiguous.
+# - Taxable income = summed taxable salary + summed bank profit. The salaried table applies
+#   where salary EXCEEDS 75% of taxable income; this is checked with and without the bank
+#   profit, and so is the Rs 10 million surcharge limit (provisional rule 3).
+#
+# Rows of the salaried table (First Schedule, Part I, Division I, clause (2)):
+#   row 1: does not exceed 600,000                     -> 0
+#   row 2: exceeds 600,000, not 1,200,000              -> 1% of the amount over 600,000
+#   row 3: exceeds 1,200,000, not 2,200,000            -> 6,000 + 11% over 1,200,000
+#   row 4: exceeds 2,200,000, not 3,200,000            -> 116,000 + 23% over 2,200,000
+#   row 5: exceeds 3,200,000, not 4,100,000            -> 346,000 + 30% over 3,200,000
+#   row 6: exceeds 4,100,000                           -> 616,000 + 35% over 4,100,000
+
+# SIGNED OFF 2026-11-09 by Saifullah Khan, against the Ordinance (FBR PDF, amended up to
+# 31.07.2025): the salaried table (PDF page 493; all six rows), the 9% salaried surcharge above
+# Rs 10 million (s.4AB, page 34), tax on the gross profit on debt (s.7B(2), page 41) and its
+# Rs 5 million limit (s.7B(3)(b), page 41), the 20% bank rate (Division IIIA(a), page 501) and
+# rounding (s.219, page 437); and he agreed with three readings: (A) each balance is rounded from
+# the unrounded tax figures, (B) exactly 75% is not "more than 75%", so it is blocked, (C) a
+# non-ATL user's withholding above the profit tax is "to be confirmed", never a refund. The
+# arithmetic was checked with a calculator when the examples were written.
+
+tax_year: "2025-26"
+
+examples:
+  # ---- Every band: a value inside it, and its upper limit exactly ----------------------------
+
+  - id: band-1-inside
+    description: Salary inside row 1 is not taxed.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "500000", tax_deducted: "0"}]
+      bank_certificates: []
+    working:
+      - "Taxable salary 500,000 does not exceed 600,000: row 1, tax 0."
+      - "No bank certificates: profit tax 0, profit balance 0."
+      - "Salary balance = 0 - 0 = 0."
+    expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-1-limit
+    description: Exactly 600,000 stays in row 1 ("does not exceed").
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "600000", tax_deducted: "0"}]
+      bank_certificates: []
+    working:
+      - "600,000 does not exceed 600,000: row 1, tax 0."
+      - "Salary balance = 0 - 0 = 0."
+    expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-2-inside
+    description: Inside row 2.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "900000", tax_deducted: "2500"}]
+      bank_certificates: []
+    working:
+      - "900,000 exceeds 600,000 and does not exceed 1,200,000: row 2."
+      - "Tax = 1% x (900,000 - 600,000) = 1% x 300,000 = 3,000."
+      - "Salary balance = 3,000 - 2,500 = 500 payable."
+    expected: {blocked_reason: null, salary_tax: "3000", surcharge: "0", profit_tax: "0",
+               salary_balance: "500", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-2-limit
+    description: Exactly 1,200,000 stays in row 2.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "1200000", tax_deducted: "6000"}]
+      bank_certificates: []
+    working:
+      - "1,200,000 does not exceed 1,200,000: row 2."
+      - "Tax = 1% x (1,200,000 - 600,000) = 6,000."
+      - "Salary balance = 6,000 - 6,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "6000", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-3-inside
+    description: Inside row 3; also the "no bank certificates" case (profit side zero).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "1800000", tax_deducted: "60000"}]
+      bank_certificates: []
+    working:
+      - "1,800,000 exceeds 1,200,000 and does not exceed 2,200,000: row 3."
+      - "Tax = 6,000 + 11% x (1,800,000 - 1,200,000) = 6,000 + 66,000 = 72,000."
+      - "Salary balance = 72,000 - 60,000 = 12,000 payable."
+      - "No bank certificates: profit tax 0, profit balance 0."
+    expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "0",
+               salary_balance: "12000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-3-limit
+    description: Exactly 2,200,000 stays in row 3; more deducted than due.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "2200000", tax_deducted: "120000"}]
+      bank_certificates: []
+    working:
+      - "2,200,000 does not exceed 2,200,000: row 3."
+      - "Tax = 6,000 + 11% x (2,200,000 - 1,200,000) = 6,000 + 110,000 = 116,000."
+      - "Salary balance = 116,000 - 120,000 = -4,000 (over-deducted)."
+    expected: {blocked_reason: null, salary_tax: "116000", surcharge: "0", profit_tax: "0",
+               salary_balance: "-4000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-4-inside-deducted-equals-due
+    description: Inside row 4; tax deducted exactly equals tax due, so the balance is zero.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "2700000", tax_deducted: "231000"}]
+      bank_certificates: []
+    working:
+      - "2,700,000 exceeds 2,200,000 and does not exceed 3,200,000: row 4."
+      - "Tax = 116,000 + 23% x (2,700,000 - 2,200,000) = 116,000 + 115,000 = 231,000."
+      - "Salary balance = 231,000 - 231,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "231000", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-4-limit
+    description: Exactly 3,200,000 stays in row 4.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "3200000", tax_deducted: "340000"}]
+      bank_certificates: []
+    working:
+      - "3,200,000 does not exceed 3,200,000: row 4."
+      - "Tax = 116,000 + 23% x (3,200,000 - 2,200,000) = 116,000 + 230,000 = 346,000."
+      - "Salary balance = 346,000 - 340,000 = 6,000 payable."
+    expected: {blocked_reason: null, salary_tax: "346000", surcharge: "0", profit_tax: "0",
+               salary_balance: "6000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-5-inside
+    description: Inside row 5.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "3650000", tax_deducted: "470000"}]
+      bank_certificates: []
+    working:
+      - "3,650,000 exceeds 3,200,000 and does not exceed 4,100,000: row 5."
+      - "Tax = 346,000 + 30% x (3,650,000 - 3,200,000) = 346,000 + 135,000 = 481,000."
+      - "Salary balance = 481,000 - 470,000 = 11,000 payable."
+    expected: {blocked_reason: null, salary_tax: "481000", surcharge: "0", profit_tax: "0",
+               salary_balance: "11000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-5-limit
+    description: Exactly 4,100,000 stays in row 5.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "4100000", tax_deducted: "616000"}]
+      bank_certificates: []
+    working:
+      - "4,100,000 does not exceed 4,100,000: row 5."
+      - "Tax = 346,000 + 30% x (4,100,000 - 3,200,000) = 346,000 + 270,000 = 616,000."
+      - "Salary balance = 616,000 - 616,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "616000", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: band-6-inside
+    description: Row 6 (no upper limit), below the surcharge limit; over-deducted.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "6000000", tax_deducted: "1300000"}]
+      bank_certificates: []
+    working:
+      - "6,000,000 exceeds 4,100,000: row 6."
+      - "Tax = 616,000 + 35% x (6,000,000 - 4,100,000) = 616,000 + 665,000 = 1,281,000."
+      - "Taxable income 6,000,000 does not exceed 10,000,000: no surcharge."
+      - "Salary balance = 1,281,000 - 1,300,000 = -19,000 (over-deducted)."
+    expected: {blocked_reason: null, salary_tax: "1281000", surcharge: "0", profit_tax: "0",
+               salary_balance: "-19000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  # ---- The Rs 10 million surcharge limit (section 4AB) ---------------------------------------
+
+  - id: surcharge-at-10-million
+    description: Taxable income exactly 10,000,000 does not "exceed" the limit, so no surcharge.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "10000000", tax_deducted: "2681000"}]
+      bank_certificates: []
+    working:
+      - "10,000,000 exceeds 4,100,000: row 6."
+      - "Tax = 616,000 + 35% x (10,000,000 - 4,100,000) = 616,000 + 2,065,000 = 2,681,000."
+      - "Taxable income 10,000,000 does not exceed 10,000,000: no surcharge (section 4AB)."
+      - "Salary balance = 2,681,000 - 2,681,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "2681000", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: surcharge-above-10-million
+    description: One rupee over 10,000,000 brings the 9% surcharge; shows rounding of each part.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "10000001", tax_deducted: "2900000"}]
+      bank_certificates: []
+    working:
+      - "10,000,001 exceeds 4,100,000: row 6."
+      - "Tax = 616,000 + 35% x (10,000,001 - 4,100,000) = 616,000 + 2,065,000.35 = 2,681,000.35;
+        rounded (section 219): 2,681,000."
+      - "Taxable income 10,000,001 exceeds 10,000,000: surcharge = 9% x 2,681,000.35 =
+        241,290.0315; rounded: 241,290 (section 4AB)."
+      - "Salary balance = 2,681,000.35 + 241,290.0315 - 2,900,000 = 22,290.3815; rounded:
+        22,290 payable."
+    expected: {blocked_reason: null, salary_tax: "2681000", surcharge: "241290", profit_tax: "0",
+               salary_balance: "22290", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  # ---- Rounding (section 219) ----------------------------------------------------------------
+
+  - id: rounding-exactly-50-paisa
+    description: Tax of exactly 50 paisa rounds up to 1 rupee.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "600050", tax_deducted: "0"}]
+      bank_certificates: []
+    working:
+      - "600,050 exceeds 600,000: row 2."
+      - "Tax = 1% x 50 = 0.50; 50 paisa rounds up (section 219): 1."
+      - "Salary balance = 0.50 - 0 = 0.50; rounded: 1 payable."
+    expected: {blocked_reason: null, salary_tax: "1", surcharge: "0", profit_tax: "0",
+               salary_balance: "1", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: rounding-49-paisa
+    description: Tax of 49 paisa rounds down to 0.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "600049", tax_deducted: "0"}]
+      bank_certificates: []
+    working:
+      - "600,049 exceeds 600,000: row 2."
+      - "Tax = 1% x 49 = 0.49; under 50 paisa is dropped (section 219): 0."
+      - "Salary balance = 0.49; rounded: 0."
+    expected: {blocked_reason: null, salary_tax: "0", surcharge: "0", profit_tax: "0",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: profit-tax-rounding
+    description: Profit tax with paisa is rounded; salary is just over 75% of taxable income.
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "1200000", tax_deducted: "6000"}]
+      bank_certificates: [{profit_amount: "399999", tax_withheld: "79999.80"}]
+    working:
+      - "Taxable income = 1,200,000 + 399,999 = 1,599,999. 75% of it is 1,199,999.25; salary
+        1,200,000 exceeds that, and without the profit salary is 100%: both say the salaried
+        table applies."
+      - "Taxable income 1,599,999 (or 1,200,000 without profit) does not exceed 10,000,000: no
+        surcharge either way."
+      - "Salary: 1,200,000 does not exceed 1,200,000, row 2: 1% x 600,000 = 6,000. Balance 6,000
+        - 6,000 = 0."
+      - "Profit tax = 20% x 399,999 = 79,999.80; rounded: 80,000 (section 7B, Division IIIA(a);
+        section 219)."
+      - "Profit balance = 79,999.80 - 79,999.80 = 0."
+    expected: {blocked_reason: null, salary_tax: "6000", surcharge: "0", profit_tax: "80000",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  # ---- Bank profit and the Rs 5 million limit (section 7B) -----------------------------------
+
+  - id: profit-exactly-5-million
+    description: Profit of exactly 5,000,000 is still under section 7B ("exceeds" sets the limit).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "16000000", tax_deducted: "5200000"}]
+      bank_certificates: [{profit_amount: "5000000", tax_withheld: "1000000"}]
+    working:
+      - "Profit 5,000,000 does not exceed 5,000,000: section 7B applies (7B(3)(b))."
+      - "Taxable income = 16,000,000 + 5,000,000 = 21,000,000. Salary is 76.19% of it (and 100%
+        without the profit): over 75% both ways, the salaried table applies."
+      - "Taxable income exceeds 10,000,000 both with (21,000,000) and without (16,000,000) the
+        profit: the surcharge applies."
+      - "Salary tax: row 6, 616,000 + 35% x (16,000,000 - 4,100,000) = 616,000 + 4,165,000 =
+        4,781,000."
+      - "Surcharge = 9% x 4,781,000 = 430,290."
+      - "Salary balance = 4,781,000 + 430,290 - 5,200,000 = 11,290 payable."
+      - "Profit tax = 20% x 5,000,000 = 1,000,000. Profit balance = 1,000,000 - 1,000,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "4781000", surcharge: "430290",
+               profit_tax: "1000000", salary_balance: "11290", profit_balance: "0",
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: two-salary-and-two-bank-certificates
+    description: Two employers and two banks, summed per type before calculating.
+    inputs:
+      atl: true
+      salary_certificates:
+        - {taxable_salary: "1000000", tax_deducted: "30000"}
+        - {taxable_salary: "800000", tax_deducted: "39000"}
+      bank_certificates:
+        - {profit_amount: "60000", tax_withheld: "12000"}
+        - {profit_amount: "40000", tax_withheld: "8000"}
+    working:
+      - "Summed: taxable salary 1,000,000 + 800,000 = 1,800,000; tax deducted 30,000 + 39,000 =
+        69,000; profit 60,000 + 40,000 = 100,000; withheld 12,000 + 8,000 = 20,000."
+      - "Taxable income 1,900,000: salary is 94.7% of it, over 75% both ways; under 10,000,000
+        both ways, no surcharge."
+      - "Salary tax: row 3, 6,000 + 11% x 600,000 = 72,000. Balance 72,000 - 69,000 = 3,000
+        payable."
+      - "Profit tax = 20% x 100,000 = 20,000. Balance 20,000 - 20,000 = 0."
+    expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "20000",
+               salary_balance: "3000", profit_balance: "0", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: non-atl-40-percent-withheld
+    description: Not on the ATL, the bank withheld 40%; the extra is "to be confirmed", not a
+      refund (provisional rule 2).
+    inputs:
+      atl: false
+      salary_certificates: [{taxable_salary: "3000000", tax_deducted: "300000"}]
+      bank_certificates: [{profit_amount: "200000", tax_withheld: "80000"}]
+    working:
+      - "Taxable income 3,200,000: salary is 93.75% of it, over 75% both ways; no surcharge."
+      - "Salary tax: row 4, 116,000 + 23% x (3,000,000 - 2,200,000) = 116,000 + 184,000 =
+        300,000. Balance 300,000 - 300,000 = 0."
+      - "Profit tax = 20% x 200,000 = 40,000 (the section 7B rate is the same for everyone)."
+      - "Withheld 80,000 (40%, the non-ATL rate). Up to the tax: 40,000, so profit balance =
+        40,000 - 40,000 = 0. The other 80,000 - 40,000 = 40,000 is extra tax withheld, whose
+        reclaim needs confirmation."
+    expected: {blocked_reason: null, salary_tax: "300000", surcharge: "0", profit_tax: "40000",
+               salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: "40000"}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: salary-payable-profit-over-withheld
+    description: The salary side is payable while the profit side is over-withheld; the two are
+      shown separately, never combined (FR-005).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "1800000", tax_deducted: "60000"}]
+      bank_certificates: [{profit_amount: "100000", tax_withheld: "25000"}]
+    working:
+      - "Taxable income 1,900,000: salary 94.7%, over 75% both ways; no surcharge."
+      - "Salary tax: row 3, 72,000. Balance 72,000 - 60,000 = 12,000 payable."
+      - "Profit tax = 20% x 100,000 = 20,000. Balance 20,000 - 25,000 = -5,000 (over-withheld;
+        on the ATL, so this is a profit balance)."
+    expected: {blocked_reason: null, salary_tax: "72000", surcharge: "0", profit_tax: "20000",
+               salary_balance: "12000", profit_balance: "-5000", non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  # ---- Blocked: no figures at all (one example per blocked_reason) ---------------------------
+
+  - id: blocked-needs-atl-answer
+    description: No taxpayer profile, so the ATL status is unknown.
+    inputs:
+      atl: null
+      salary_certificates: [{taxable_salary: "1800000", tax_deducted: "60000"}]
+      bank_certificates: []
+    working:
+      - "ATL status unknown (no profile): needs_atl_answer, no figures."
+    expected: {blocked_reason: needs_atl_answer, salary_tax: null, surcharge: null,
+               profit_tax: null, salary_balance: null, profit_balance: null,
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: blocked-no-salary-certificate
+    description: Only a bank certificate is confirmed.
+    inputs:
+      atl: true
+      salary_certificates: []
+      bank_certificates: [{profit_amount: "100000", tax_withheld: "20000"}]
+    working:
+      - "No confirmed salary certificate: no_confirmed_salary_certificate, no figures."
+    expected: {blocked_reason: no_confirmed_salary_certificate, salary_tax: null,
+               surcharge: null, profit_tax: null, salary_balance: null, profit_balance: null,
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: blocked-profit-over-5-million
+    description: One rupee over 5,000,000 of profit; section 7B no longer applies (provisional
+      rule 1).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "16000000", tax_deducted: "5200000"}]
+      bank_certificates: [{profit_amount: "5000001", tax_withheld: "1000000.20"}]
+    working:
+      - "Profit 5,000,001 exceeds 5,000,000: section 7B does not apply (7B(3)(b));
+        profit_over_limit, no figures."
+    expected: {blocked_reason: profit_over_limit, salary_tax: null, surcharge: null,
+               profit_tax: null, salary_balance: null, profit_balance: null,
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: blocked-salary-share-ambiguous
+    description: Salary is exactly 75% of taxable income with the profit included (not "more
+      than"), but 100% without it (provisional rule 3).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "1200000", tax_deducted: "6000"}]
+      bank_certificates: [{profit_amount: "400000", tax_withheld: "80000"}]
+    working:
+      - "With profit: taxable income 1,600,000; 75% of it is 1,200,000; salary 1,200,000 does
+        not exceed it, so the salaried table would not apply."
+      - "Without profit: salary is 100% of taxable income, so it would apply."
+      - "The two disagree: salary_share_ambiguous, no figures."
+    expected: {blocked_reason: salary_share_ambiguous, salary_tax: null, surcharge: null,
+               profit_tax: null, salary_balance: null, profit_balance: null,
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"
+
+  - id: blocked-surcharge-ambiguous
+    description: Over 10,000,000 only when the profit is counted (provisional rule 3).
+    inputs:
+      atl: true
+      salary_certificates: [{taxable_salary: "9900000", tax_deducted: "2400000"}]
+      bank_certificates: [{profit_amount: "200000", tax_withheld: "40000"}]
+    working:
+      - "Salary share: 9,900,000 of 10,100,000 is 98%, over 75% both ways (no ambiguity there)."
+      - "Without profit: 9,900,000 does not exceed 10,000,000, no surcharge. With profit:
+        10,100,000 exceeds it, surcharge. They disagree: surcharge_ambiguous, no figures."
+    expected: {blocked_reason: surcharge_ambiguous, salary_tax: null, surcharge: null,
+               profit_tax: null, salary_balance: null, profit_balance: null,
+               non_atl_extra_withheld: null}
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-09"

@@ -58,7 +58,7 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
 | Backend tests | `docker compose exec backend pytest` |
 | Frontend tests | `docker compose exec frontend npm test` |
 | Hook tests (need bash and `jq`) | `uv run --no-project --with pytest pytest .claude/hooks/tests` |
-| Lint | `uv run --project backend pylint --recursive=y backend/app backend/alembic backend/tests`; `npm run lint` in `frontend/` |
+| Lint | `uv run --project backend pylint --recursive=y backend/app backend/alembic backend/evals backend/tests`; `npm run lint` in `frontend/` |
 | Format | `uv run --project backend ruff format backend`; `npx prettier --write src` in `frontend/` |
 
 ## Conventions

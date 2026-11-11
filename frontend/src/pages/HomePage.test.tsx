@@ -25,6 +25,9 @@ test("a logged-in user sees their email and a logout button", async () => {
 
   await screen.findByText(/logged in as demo@example\.com/i);
   screen.getByRole("button", { name: /log out/i });
+  expect(screen.getByRole("link", { name: "Tax" }).getAttribute("href")).toBe(
+    "/tax",
+  );
 });
 
 test("logging out returns to the login page", async () => {

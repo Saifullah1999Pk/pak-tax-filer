@@ -3,10 +3,14 @@ import { vi } from "vitest";
 /** A fake backend reply: status and JSON body (204 replies have no body). */
 export type FakeReply = { status: number; body?: unknown };
 
-/** Handlers keyed by "METHOD /path", e.g. "POST /api/auth/login". */
+/**
+ * Handlers keyed by "METHOD /path", e.g. "POST /api/auth/login". A handler may return a
+ * promise, e.g. one that never settles to keep a request "in progress". The body is the
+ * parsed JSON, or the FormData itself for a file upload.
+ */
 export type FakeRoutes = Record<
   string,
-  (request: { body: unknown }) => FakeReply
+  (request: { body: unknown }) => FakeReply | Promise<FakeReply>
 >;
 
 /**
@@ -21,8 +25,13 @@ export function mockFetch(routes: FakeRoutes) {
     if (!handler) {
       throw new Error(`Unexpected request in test: ${method} ${path}`);
     }
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    const reply = handler({ body });
+    const body =
+      init?.body instanceof FormData
+        ? init.body
+        : init?.body
+          ? JSON.parse(String(init.body))
+          : undefined;
+    const reply = await handler({ body });
     return new Response(
       reply.status === 204 ? null : JSON.stringify(reply.body ?? {}),
       {

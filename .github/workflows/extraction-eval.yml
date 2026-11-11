@@ -1,0 +1,53 @@
+# The document extraction eval (feature 003, research R7, contracts/eval.md). It calls the real
+# Gemini API (free tier), so it needs the GEMINI_API_KEY repository secret.
+#
+# GitHub doesn't give secrets to workflows run for pull requests from forks, so it runs on
+# pushes to main that change extraction, and by hand ("Run workflow"). It never uses
+# pull_request_target, which would run untrusted pull-request code with the key. Pull requests
+# that change extraction paste a local eval report instead (.github/pull_request_template.md).
+name: Extraction eval
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/app/documents/extraction/**"
+      # The eval also uses the app's field building and field list.
+      - "backend/app/documents/service.py"
+      - "backend/app/documents/models.py"
+      - "backend/evals/**"
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model to evaluate (empty: EXTRACTION_MODEL's default)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  extraction-eval:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # The eval needs no database, but the app's settings require a URL; this one is unused.
+      DATABASE_URL: postgresql+asyncpg://unused:unused@localhost:5432/unused
+      # Passed through the environment, never pasted into the script (script injection).
+      MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen
+      - name: Generate the synthetic cases
+        run: uv run python -m evals.extraction.generate
+      - name: Run the eval (fails if a bar is missed)
+        run: uv run python -m evals.extraction.run ${MODEL:+--model "$MODEL"}
+      - name: Report
+        if: always()
+        run: cat evals/extraction/report.md >> "$GITHUB_STEP_SUMMARY" || true

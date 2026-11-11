@@ -10,3 +10,43 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* Feature 003: the original document beside its figures, stacked on narrow screens. */
+.review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .review {
+    grid-template-columns: 1fr;
+  }
+}
+
+.original {
+  width: 100%;
+  min-height: 70vh;
+  border: 1px solid #ccc;
+}
+
+img.original {
+  min-height: 0;
+  height: auto;
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+/* Low confidence is marked by the text "Low confidence" too, never by colour alone. */
+.low-confidence {
+  border-left: 4px solid #b45309;
+  background: #fff7ed;
+}
+
+.notice {
+  border: 1px solid #b45309;
+  padding: 0.5rem 0.75rem;
+}

@@ -1,13 +1,16 @@
 import { Route, Routes } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
+import { DocumentsPage } from "./pages/DocumentsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { ReviewPage } from "./pages/ReviewPage";
+import { TaxPage } from "./pages/TaxPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
 /**
- * The app's pages (tasks T029, T041). Every logged-in page except /profile also needs the
+ * The app's pages (feature 002 tasks T029, T041; feature 003 tasks T015, T019; feature 004 task T013). Every logged-in page except /profile also needs the
  * taxpayer profile. main.tsx provides the router, AuthProvider and ProfileProvider.
  */
 export function AppRoutes() {
@@ -19,6 +22,36 @@ export function AppRoutes() {
         element={
           <RequireAuth>
             <ProfilePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <RequireAuth>
+            <RequireProfile>
+              <DocumentsPage />
+            </RequireProfile>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/documents/:id"
+        element={
+          <RequireAuth>
+            <RequireProfile>
+              <ReviewPage />
+            </RequireProfile>
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tax"
+        element={
+          <RequireAuth>
+            <RequireProfile>
+              <TaxPage />
+            </RequireProfile>
           </RequireAuth>
         }
       />

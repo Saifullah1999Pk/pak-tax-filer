@@ -1,7 +1,7 @@
 # Quickstart: validating the Deterministic Tax Engine (004)
 
 **Prerequisites:** features 001–003; a demo user with confirmed synthetic certificates;
-`ANTHROPIC_API_KEY` only for the summary check in section 2.
+`GEMINI_API_KEY` (free, from Google AI Studio) only for the live summary check in section 2.
 
 ## 0. Worked examples signed off (before any engine code)
 

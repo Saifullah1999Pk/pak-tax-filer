@@ -1,6 +1,6 @@
 # Quickstart: validating Document Upload + AI Extraction (003)
 
-**Prerequisites:** features 001 and 002 running; a demo user; `ANTHROPIC_API_KEY` in the local
+**Prerequisites:** features 001 and 002 running; a demo user; `GEMINI_API_KEY` (free, from AI Studio) in the local
 `.env` (only for sections 1, 2 and 4); eval cases generated ([contracts/eval.md](contracts/eval.md)).
 
 ```bash
@@ -37,8 +37,8 @@ docker compose exec backend python -m evals.extraction.generate
 ## 4. Eval (User Story 4)
 
 ```bash
-docker compose exec backend python -m evals.extraction.run --model claude-opus-5-5
-docker compose exec backend python -m evals.extraction.run --model claude-haiku-5-5
+docker compose exec backend python -m evals.extraction.run --model gemini-3.8-flash
+docker compose exec backend python -m evals.extraction.run --model gemini-3.5-flash-lite
 ```
 
 Each prints the report and exits `0` or `1` against the bar. Record the cheapest passing model

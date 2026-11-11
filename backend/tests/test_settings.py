@@ -1,5 +1,7 @@
 """app.settings: configuration from the environment (feature 002, task T004, research R2)."""
 
+from pathlib import Path
+
 import pytest
 
 from app.settings import load_settings
@@ -39,3 +41,104 @@ def test_missing_database_url_is_refused() -> None:
     """Fails if the app could start without knowing where its database is."""
     with pytest.raises(ValueError, match="DATABASE_URL"):
         load_settings({})
+
+
+# Feature 003, task T002: document extraction settings (research R1, R4).
+
+
+def test_extraction_defaults() -> None:
+    """Fails if the defaults differ from research R1/R4 (model, effort, upload folder)."""
+    settings = load_settings({"DATABASE_URL": DB})
+
+    assert settings.gemini_api_key is None
+    assert settings.extraction_model == "gemini-3.5-flash-lite"
+    assert settings.extraction_effort == "low"
+    assert settings.upload_dir == Path("/data/uploads")
+
+
+def test_extraction_settings_are_read() -> None:
+    """Fails if the environment can't change the key, model, effort or upload folder."""
+    settings = load_settings(
+        {
+            "DATABASE_URL": DB,
+            "GEMINI_API_KEY": "test-key-not-real",
+            "EXTRACTION_MODEL": "gemini-3.5-flash-lite",
+            "EXTRACTION_EFFORT": "medium",
+            "UPLOAD_DIR": "/tmp/uploads",
+        }
+    )
+
+    assert settings.gemini_api_key == "test-key-not-real"
+    assert settings.extraction_model == "gemini-3.5-flash-lite"
+    assert settings.extraction_effort == "medium"
+    assert settings.upload_dir == Path("/tmp/uploads")
+
+
+def test_empty_api_key_counts_as_missing() -> None:
+    """Fails if .env.example's blank `GEMINI_API_KEY=` would be sent as a key."""
+    assert load_settings({"DATABASE_URL": DB, "GEMINI_API_KEY": "  "}).gemini_api_key is None
+
+
+def test_unrecognised_effort_is_refused() -> None:
+    """Fails if a typo like 'lwo' would only surface later as a failed extraction."""
+    with pytest.raises(ValueError, match="EXTRACTION_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": "lwo"})
+
+
+def test_api_key_never_appears_when_settings_are_printed() -> None:
+    """Fails if logging or printing the settings would reveal the API key (security rule)."""
+    settings = load_settings({"DATABASE_URL": DB, "GEMINI_API_KEY": "test-key-not-real"})
+
+    assert "test-key-not-real" not in repr(settings)
+    assert "test-key-not-real" not in str(settings)
+
+
+@pytest.mark.parametrize("level", ["minimal", "low", "medium", "high"])
+def test_every_gemini_thinking_level_is_accepted(level: str) -> None:
+    """Fails if a thinking level Gemini accepts is refused (switch to Gemini, task T034)."""
+    assert (
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": level}).extraction_effort == level
+    )
+
+
+@pytest.mark.parametrize("level", ["xhigh", "max"])
+def test_claude_only_effort_levels_are_refused(level: str) -> None:
+    """Fails if a Claude-only effort level slips through and fails every extraction later."""
+    with pytest.raises(ValueError, match="EXTRACTION_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "EXTRACTION_EFFORT": level})
+
+
+def test_the_old_anthropic_key_is_ignored() -> None:
+    """Fails if a leftover ANTHROPIC_API_KEY were mistaken for the Gemini key."""
+    settings = load_settings({"DATABASE_URL": DB, "ANTHROPIC_API_KEY": "old-key-not-real"})
+
+    assert settings.gemini_api_key is None
+
+
+# Feature 004, task T001: the tax summary's model and effort (research R8).
+
+
+def test_summary_defaults() -> None:
+    """Fails if the summary's defaults differ from feature 004's plan."""
+    settings = load_settings({"DATABASE_URL": DB})
+
+    assert settings.summary_model == "gemini-3.5-flash-lite"
+    # Minimal: with "low", thinking used the token budget, cutting answers short, and took up
+    # to 7.6 s against the 4 s limit (quickstart 2.2, 2026-11-10); minimal answered in ~2.5 s.
+    assert settings.summary_effort == "minimal"
+
+
+def test_summary_settings_are_read() -> None:
+    """Fails if the environment can't change the summary's model or effort."""
+    settings = load_settings(
+        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-test-model", "SUMMARY_EFFORT": "medium"}
+    )
+
+    assert settings.summary_model == "gemini-test-model"
+    assert settings.summary_effort == "medium"
+
+
+def test_unrecognised_summary_effort_is_refused() -> None:
+    """Fails if a typo in SUMMARY_EFFORT is only found when a summary is requested."""
+    with pytest.raises(ValueError, match="SUMMARY_EFFORT"):
+        load_settings({"DATABASE_URL": DB, "SUMMARY_EFFORT": "lwo"})
