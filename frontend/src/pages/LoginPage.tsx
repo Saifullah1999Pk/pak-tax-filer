@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { safeNext } from "../navigation";
@@ -80,6 +80,9 @@ export function LoginPage() {
           Log in
         </button>
       </form>
+      <p>
+        New here? <Link to="/signup">Create an account</Link>
+      </p>
       <p>
         Password reset isn't available yet: this is a demo, so ask the developer
         for help.

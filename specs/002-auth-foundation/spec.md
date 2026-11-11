@@ -19,6 +19,12 @@
 - Q: README milestone 2 is "Taxpayer profile + auth"; where does the taxpayer profile go? → A: Into this feature as User Stories 4 and 5 (FR-016 to FR-023). The 8 README milestones are the 8 features; the profile is not a separate feature.
 - Q: Can a user save the profile without answering ATL status? → A: No. ATL status is a required yes/no with no "not sure"; a link to FBR's "Check Active Taxpayer Status" page helps people find out.
 
+### Session 2026-11-09
+
+- Q: The lead asked to add sign-up ("signup bhe kar do, spec modify kar kay"); what does it include? → A: Self-service sign-up with email and password only (User Story 6, FR-024 to FR-027). Email verification, forgot password and password reset stay later increments: they need an email service the app doesn't have.
+- Q: The app is now public; who can sign up? → A: Anyone with the link. Because each upload spends the free AI quota, extraction is limited per user per day (feature 003, FR-017).
+- Q: Can sign-up avoid revealing that an email is registered? → A: No, not without verification emails; it says so plainly. Accepted for a demo with synthetic data (research R15).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Log in and log out (Priority: P1)
@@ -154,9 +160,38 @@ new answer is shown and nothing else the user saved changed.
 3. **Given** a change is saved, **When** the user looks at anything else they have saved,
    **Then** nothing has been deleted or altered.
 
+### User Story 6 - Sign up (Priority: P6, added 2026-11-09)
+
+A visitor creates their own account with an email and a password, is logged in straight away,
+and continues to the profile setup step, without a developer creating the account for them.
+
+**Why this priority**: Added after deployment at the lead's request, so testers can make their
+own accounts. Builds on User Stories 1, 3 and 4.
+
+**Independent Test**: From the login page, follow "Create an account", sign up with a new email
+and an 8-character password, and land on the profile setup step, logged in.
+
+**Acceptance Scenarios**:
+
+1. **Given** a visitor on the login page, **When** they choose "Create an account", **Then** a
+   sign-up page with email, password and "confirm password" fields and the "demo data only"
+   notice is shown.
+2. **Given** a new email and a password of at least 8 characters entered twice, **When** they
+   sign up, **Then** the account is created, they are logged in, and they are taken to the
+   profile setup step.
+3. **Given** an email that already has an account (any letter case or surrounding spaces),
+   **When** they sign up, **Then** no account is created and they are told an account exists
+   and to log in instead.
+4. **Given** a password under 8 characters, or two passwords that don't match, **When** they
+   sign up, **Then** no account is created and the problem is shown.
+5. **Given** a logged-in user, **When** they open the sign-up page, **Then** they are taken to
+   the home page.
+
 ### Edge Cases
 
 - Leading or trailing spaces around an email are ignored when creating users and logging in.
+- Two sign-ups for the same email arrive at the same moment: exactly one account is created; the
+  other is told the account exists.
 - A user logs in on two devices: both sessions work until each is logged out or expires;
   logging out on one does not log out the other.
 - A user forgets their password: there is no reset yet; the login page says this is a demo and
@@ -176,8 +211,8 @@ new answer is shown and nothing else the user saved changed.
   to letter case and ignoring surrounding spaces, and a protected password.
 - **FR-002**: Passwords MUST be at least 8 characters long; no other composition rules apply.
 - **FR-003**: Passwords MUST never be stored or written to logs in readable form.
-- **FR-004**: Developers MUST be able to create demo users with a command; there is no
-  self-service sign-up in this feature.
+- **FR-004**: Developers MUST be able to create demo users with a command. (Self-service sign-up
+  was added on 2026-11-09: FR-024 to FR-027.)
 - **FR-005**: Users MUST be able to log in with email and password, and log out.
 - **FR-006**: A failed login MUST show the same message whether the email is unknown or the
   password is wrong.
@@ -197,8 +232,9 @@ new answer is shown and nothing else the user saved changed.
   on their next action that needs login.
 - **FR-014**: The login page MUST show a clear notice that the app is a demo and real personal
   information must not be entered.
-- **FR-015**: The feature MUST NOT include sign-up, email verification, forgot password,
-  password reset, or any external identity provider.
+- **FR-015**: The feature MUST NOT include email verification, forgot password, password reset,
+  or any external identity provider. (Sign-up was removed from this list on 2026-11-09, at the
+  lead's request.)
 - **FR-016**: Each account MUST have at most one taxpayer profile, holding exactly two required
   answers: tax year and ATL status (yes or no). There MUST be no "not sure" option.
 - **FR-017**: The only tax year offered and accepted MUST be 2025-26 (TY2026), taken from one list
@@ -216,6 +252,15 @@ new answer is shown and nothing else the user saved changed.
   endpoint the user's profile (or none), and one that refuses requests from a user without a
   profile with "Set up your profile first."
 - **FR-023**: A profile MUST be visible and changeable only by its own account.
+- **FR-024**: Visitors MUST be able to create an account with an email and a password, under the
+  same rules as FR-001 to FR-003 (unique email compared trimmed and case-insensitively; at least
+  8 characters; never stored or logged readably).
+- **FR-025**: A successful sign-up MUST log the new user in, exactly as a login does (FR-005,
+  FR-009), and the frontend MUST take them to the profile setup step.
+- **FR-026**: Signing up with an email that already has an account MUST NOT create or change any
+  account, and MUST tell the visitor to log in instead.
+- **FR-027**: The sign-up page MUST ask for the password twice, show the "demo data only" notice
+  (FR-014), and link to the login page; the login page MUST link to sign-up.
 
 ### Key Entities
 
@@ -245,13 +290,16 @@ new answer is shown and nothing else the user saved changed.
 - **SC-009**: Saving or changing a profile leaves every other saved record unchanged (test).
 - **SC-010**: The stored profile contains no identity or residency data (data model review and a
   test).
+- **SC-011**: A visitor can sign up and reach the profile setup step in under 1 minute.
+- **SC-012**: In tests, 100% of sign-ups with an existing email (any case or spacing) or an
+  invalid password create no account.
 
 ## Assumptions
 
 - Builds on feature 001's running backend, frontend and database.
 - Demo data only (constitution, Principle V); users have no identity fields.
-- Sign-up, email verification, forgot password and password reset are later increments, per the
-  lead.
+- Sign-up was added on 2026-11-09 at the lead's request (User Story 6). Email verification,
+  forgot password and password reset remain later increments.
 - The taxpayer profile is part of this feature (README milestone 2). Features 003–006 read the
   tax year and ATL status from it; their specs say so.
 - Only people who live in Pakistan and earn a salary are in scope (README), so residency is a

@@ -101,7 +101,8 @@ docker compose up -d        # starts db (Postgres + pgvector), backend, frontend
 docker compose exec backend alembic upgrade head
 ```
 
-Create a demo user to log in with (synthetic data only; you're asked for the password twice):
+Open http://localhost:5173 and choose **Create an account**, or create a demo user from the
+command line (synthetic data only; you're asked for the password twice):
 
 ```bash
 docker compose exec backend python -m app.cli create-user --email demo@example.com

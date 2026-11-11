@@ -2,7 +2,8 @@
 # Differs from docker-compose.yml (local development): no code mounts or live reload, the
 # frontend is built once and served by Caddy with automatic HTTPS, and the database is not
 # reachable from outside. Every secret comes from the server's own uncommitted .env:
-# POSTGRES_PASSWORD, GEMINI_API_KEY and SITE_ADDRESS (the site's hostname, for the certificate).
+# POSTGRES_PASSWORD, GEMINI_API_KEY and SITE_ADDRESS (the site's hostname, for the certificate);
+# also UPLOAD_BUCKET, the private bucket for uploads (not a secret; empty keeps them on disk).
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -29,10 +30,14 @@ services:
       # The session cookie is HTTPS-only (Caddy provides HTTPS).
       COOKIE_SECURE: "true"
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # The private Cloud Storage bucket for uploads (feature 003, FR-018), reached with the
+      # VM's own Google identity, so no key. Empty keeps uploads on the disk volume below.
+      UPLOAD_BUCKET: ${UPLOAD_BUCKET:-}
     depends_on:
       db:
         condition: service_healthy
     volumes:
+      # Files uploaded before UPLOAD_BUCKET was set stay here and keep working.
       - uploads:/data/uploads
 
   web:

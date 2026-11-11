@@ -82,5 +82,9 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
   without refusing, use `get_profile`. Never add identity fields (name, CNIC, NTN) to the profile.
 - State-changing endpoints depend on `require_json` (JSON only, research R3 of feature 002).
 - Never log, return or store a password or session token; only their hashes are stored.
-- Demo user: `docker compose exec backend python -m app.cli create-user --email demo@example.com`
+- Accounts: visitors sign up at `/signup` (`POST /api/auth/signup`, reusing `create_user`). For
+  scripts: `docker compose exec backend python -m app.cli create-user --email demo@example.com`
   (prompts for the password twice).
+- Extraction is limited to 10 per user and 100 for the app per 24 hours (feature 003 FR-017,
+  `use_extraction` in `app/documents/service.py`); call it, then commit, before any new path
+  that calls the AI for a document.

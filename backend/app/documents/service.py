@@ -7,12 +7,11 @@ figures only through confirmed_documents() (Principle III).
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from pathlib import Path
 
-import anyio
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.documents.extraction.client import Extractor
@@ -26,8 +25,10 @@ from app.documents.models import (
     DocType,
     Document,
     ExtractedField,
+    ExtractionAttempt,
     FieldName,
 )
+from app.documents.storage import Storage
 from app.documents.uploads import CheckedFile
 
 # Reasons starting with this come from reading the printed value, not from a rule.
@@ -44,6 +45,46 @@ class WrongDocumentType(Exception):
 
 class FieldNotOnDocument(LookupError):
     """The document's type has no field with that name (HTTP 404)."""
+
+
+# FR-017 (added 2026-11-09): with open sign-up, no one user, and no number of new accounts,
+# may use up the free AI quota.
+DAILY_EXTRACTIONS = 10
+APP_DAILY_EXTRACTIONS = 100
+DAILY_WINDOW = timedelta(hours=24)
+USER_LIMIT_REACHED = (
+    f"Daily limit reached: {DAILY_EXTRACTIONS} extractions per 24 hours. Try again later."
+)
+APP_LIMIT_REACHED = "The app's daily extraction limit has been reached. Try again later."
+
+
+class DailyLimitReached(Exception):
+    """The user's or the whole app's extractions for the last 24 hours are used (HTTP 429)."""
+
+
+async def use_extraction(db: AsyncSession, user_id: uuid.UUID) -> ExtractionAttempt:
+    """Count one AI call for the user, or raise DailyLimitReached if a daily limit is used.
+
+    One app-wide lock (held until the transaction ends) stops requests sent together from all
+    reading the counts before any records an attempt, as with login throttling (002 R4). Callers
+    commit soon after, before calling the AI, so the lock is held only for these two counts.
+    """
+    await db.execute(
+        sql_text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": "extraction-attempts"},
+    )
+    since = datetime.now(UTC) - DAILY_WINDOW
+    recent = select(func.count()).select_from(ExtractionAttempt)
+    recent = recent.where(ExtractionAttempt.attempted_at > since)
+    if (await db.execute(recent)).scalar_one() >= APP_DAILY_EXTRACTIONS:
+        raise DailyLimitReached(APP_LIMIT_REACHED)
+    mine = recent.where(ExtractionAttempt.user_id == user_id)
+    if (await db.execute(mine)).scalar_one() >= DAILY_EXTRACTIONS:
+        raise DailyLimitReached(USER_LIMIT_REACHED)
+    attempt = ExtractionAttempt(user_id=user_id, attempted_at=datetime.now(UTC))
+    db.add(attempt)
+    await db.flush()
+    return attempt
 
 
 class IncompleteDocument(Exception):
@@ -70,14 +111,14 @@ async def create_document(  # pylint: disable=too-many-arguments  # all keyword-
     tax_year: str,
     doc_type: DocType,
     checked: CheckedFile,
-    file_path: Path,
+    file_path: str,
 ) -> Document:
     """Record an uploaded, checked and stored file."""
     document = Document(
         user_id=user_id,
         doc_type=doc_type,
         tax_year=tax_year,
-        file_path=str(file_path),
+        file_path=file_path,
         media_type=checked.media_type,
         page_count=checked.page_count,
         status=DocStatus.UPLOADED,
@@ -318,28 +359,33 @@ async def list_documents(db: AsyncSession, user_id: uuid.UUID) -> list[Document]
     return list(documents)
 
 
-async def retry_extraction(db: AsyncSession, document: Document, extractor: Extractor) -> Document:
-    """Re-run a failed extraction on the stored file."""
+async def retry_extraction(
+    db: AsyncSession, document: Document, extractor: Extractor, storage: Storage
+) -> Document:
+    """Re-run a failed extraction on the stored file (bucket or disk, FR-018)."""
     if document.status is not DocStatus.FAILED:
         raise DocumentLocked("Only a failed extraction can be retried.")
-    path = anyio.Path(document.file_path)
-    if not await path.exists():
+    content = await storage.read(document.file_path)
+    if content is None:
         document.failure_reason = (
             "The stored file is missing. Delete this document and upload it again."
         )
         await db.flush()
         return document
-    return await extract_document(db, document, extractor, await path.read_bytes())
+    # Counted only now that the AI will be called, and committed first so neither the limit's
+    # lock nor this row's is held during the call (002 review M2, M3); then the row is locked
+    # again and rechecked, since an edit or delete could have come in between.
+    await use_extraction(db, document.user_id)
+    await db.commit()
+    await db.refresh(document, with_for_update=True)
+    if document.status is not DocStatus.FAILED:
+        raise DocumentLocked("Only a failed extraction can be retried.")
+    return await extract_document(db, document, extractor, content)
 
 
-async def delete_document(db: AsyncSession, document: Document) -> Path:
-    """Delete the document and its fields; returns the stored file to remove after commit."""
-    path = Path(document.file_path)
+async def delete_document(db: AsyncSession, document: Document) -> str:
+    """Delete the document and its fields; returns where its file is, to remove after commit."""
+    location = document.file_path
     await db.delete(document)
     await db.flush()
-    return path
-
-
-async def remove_stored_file(path: Path) -> None:
-    """Remove a deleted document's file (after the database change is committed)."""
-    await anyio.Path(path).unlink(missing_ok=True)
+    return location

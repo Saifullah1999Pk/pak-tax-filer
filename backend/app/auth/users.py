@@ -1,13 +1,21 @@
-"""User lookup and creation, shared by the login endpoint and the create-user command."""
+"""User lookup and creation, shared by login, sign-up and the create-user command."""
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.auth.passwords import hash_password
+from app.auth.passwords import hash_password_async
 
 MIN_PASSWORD_LENGTH = 8  # FR-002: at least 8 characters, no other composition rules
+
+
+class PasswordTooShort(ValueError):
+    """The password is under MIN_PASSWORD_LENGTH characters."""
+
+
+class EmailTaken(ValueError):
+    """An account with this email already exists (any letter case or surrounding spaces)."""
 
 
 def normalize_email(email: str) -> str:
@@ -25,10 +33,11 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def create_user(db: AsyncSession, email: str, password: str) -> User:
     """Create a user; raises ValueError if the email is taken or the password too short."""
     if len(password) < MIN_PASSWORD_LENGTH:
-        raise ValueError(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
+        raise PasswordTooShort(f"Password must be at least {MIN_PASSWORD_LENGTH} characters.")
     if await get_user_by_email(db, email) is not None:
-        raise ValueError("A user with that email already exists.")
-    user = User(email=normalize_email(email), password_hash=hash_password(password))
+        raise EmailTaken("A user with that email already exists.")
+    password_hash = await hash_password_async(password)
+    user = User(email=normalize_email(email), password_hash=password_hash)
     try:
         # A savepoint, so losing a race keeps the rest of the transaction usable.
         async with db.begin_nested():
@@ -36,5 +45,5 @@ async def create_user(db: AsyncSession, email: str, password: str) -> User:
     except IntegrityError as error:
         # Another run created the same email between the check above and this insert; the
         # database's unique constraint is the real guard (review L6).
-        raise ValueError("A user with that email already exists.") from error
+        raise EmailTaken("A user with that email already exists.") from error
     return user

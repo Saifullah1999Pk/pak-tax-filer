@@ -10,7 +10,7 @@ Created by Alembic migration `0004_documents`. Timestamps are UTC.
 | `user_id` | UUID | required; references `users.id`, deleted with the user |
 | `doc_type` | enum | `salary_certificate` or `bank_profit_certificate` |
 | `tax_year` | text | the uploader's profile tax year at upload (`2025-26`; feature 002) |
-| `file_path` | text | required; random name under `/data/uploads/<user_id>/` |
+| `file_path` | text | required; where the file is stored: a random name under `/data/uploads/<user_id>/`, or `gs://<bucket>/<user_id>/<random uuid>.<ext>` in the deployed app (FR-018) |
 | `media_type` | text | `application/pdf`, `image/jpeg` or `image/png` |
 | `page_count` | int | 1–5 |
 | `status` | enum | `uploaded`, `extracting`, `needs_review`, `confirmed`, `failed` |
@@ -41,3 +41,17 @@ fields and the file. Several confirmed documents per type and tax year are allow
 
 Unique on (`document_id`, `name`). A document can be confirmed only when all its fields are
 confirmed and none is still "not found" (the user enters a value or zero).
+
+## extraction_attempts (added 2026-11-09, migration `0005_extraction_attempts`)
+
+| Column | Type | Rules |
+|---|---|---|
+| `id` | bigint | primary key |
+| `user_id` | UUID | required; references `users.id`, deleted with the user |
+| `attempted_at` | timestamptz | defaults to now |
+
+Indexed on (`user_id`, `attempted_at`). One row per AI call for a user's document (upload or
+retry that reaches the AI), kept even if the document is later deleted, so deleting can't
+reset the limit. A user with 10 rows in the last 24 hours, or an app with 100, is refused
+(FR-017). Counted and written under one app-wide lock, committed before the AI call, so
+requests sent together can't pass a limit and no lock is held while the AI answers.

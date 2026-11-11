@@ -18,6 +18,7 @@ docker compose exec backend python -m app.cli create-user --email demo@example.c
 |---|---|---|
 | `/login` | everyone | Email + password form; "demo data only" notice (FR-014); a note that password reset isn't available yet. If already logged in, goes to `/`. After login, goes to `next` or `/`. |
 | `/` | logged-in users | Home page showing "Logged in as <email>" and the logout button |
+| `/signup` (added 2026-11-09) | everyone | Email, password and "confirm password"; "demo data only" notice; link "Already have an account? Log in". Passwords that don't match are refused on the page. On success the user is logged in and goes to `/profile` (setup). If already logged in, goes to `/`. The login page links here with "Create an account". Covers FR-025, FR-027. |
 
 Any page wrapped in `RequireAuth` redirects logged-out users to `/login?next=<path>`. Any API
 `401` sends the user to `/login` with "Your session has ended, please log in again." The logout

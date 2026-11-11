@@ -445,3 +445,44 @@ test("a wrong-type refusal keeps the chosen type so the user can fix it and uplo
     false,
   );
 });
+
+// Feature 003 FR-017 (002 task T050): the daily extraction limit.
+const DAILY_LIMIT =
+  "Daily limit reached: 10 extractions per 24 hours. Try again later.";
+
+test("an upload over the daily limit shows why", async () => {
+  mockFetch(
+    routes({
+      "POST /api/documents": () => ({
+        status: 429,
+        body: { detail: DAILY_LIMIT },
+      }),
+    }),
+  );
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  chooseFile();
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe(DAILY_LIMIT);
+});
+
+test("a retry over the daily limit shows why", async () => {
+  mockFetch(
+    routes({
+      "GET /api/documents": () => ({ status: 200, body: [FAILED] }),
+      "POST /api/documents/d2/retry": () => ({
+        status: 429,
+        body: { detail: DAILY_LIMIT },
+      }),
+    }),
+  );
+  renderApp("/documents");
+
+  const row = await screen.findByRole("row", { name: /bank profit/i });
+  fireEvent.click(within(row).getByRole("button", { name: /retry/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe(DAILY_LIMIT);
+});

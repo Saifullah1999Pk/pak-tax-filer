@@ -6,11 +6,10 @@ owner's only: other users' documents are 404, never 403 (docs/api-conventions.md
 
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Annotated
 
+import anyio
 from fastapi import APIRouter, Depends, Form, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,12 +24,15 @@ from app.documents.models import (
     DocType,
     Document,
     ExtractedField,
+    ExtractionAttempt,
     FieldName,
 )
 from app.documents.service import (
+    DailyLimitReached,
     DocumentLocked,
     FieldNotOnDocument,
     IncompleteDocument,
+    WrongDocumentType,
     confirm_document,
     create_document,
     delete_document,
@@ -39,11 +41,11 @@ from app.documents.service import (
     field_value,
     get_document,
     list_documents,
-    remove_stored_file,
     retry_extraction,
-    WrongDocumentType,
+    use_extraction,
 )
-from app.documents.uploads import MAX_BYTES, UploadRefused, check_file, save_file
+from app.documents.storage import Storage, StorageUnavailable
+from app.documents.uploads import MAX_BYTES, UploadRefused, check_file
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
 from app.settings import get_settings
@@ -63,9 +65,14 @@ def get_extractor() -> Extractor:
     )
 
 
-def get_upload_dir() -> Path:
-    """Where uploaded files are stored (tests use a temporary folder)."""
-    return get_settings().upload_dir
+def get_storage() -> Storage:
+    """Where uploaded files are kept: the private bucket if configured, else the disk (FR-018).
+    Tests use a temporary folder."""
+    settings = get_settings()
+    return Storage(settings.upload_dir, settings.upload_bucket)
+
+
+StorageDep = Annotated[Storage, Depends(get_storage)]
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
@@ -174,6 +181,29 @@ def _summary(document: Document) -> DocumentSummary:
     return DocumentSummary.model_validate(document_out(document).model_dump(exclude={"fields"}))
 
 
+async def _use_extraction(db: AsyncSession, user_id: uuid.UUID) -> ExtractionAttempt:
+    """Count one AI call for the user, or answer 429 once the day's are used (FR-017)."""
+    try:
+        return await use_extraction(db, user_id)
+    except DailyLimitReached as limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
+
+
+def _unavailable(error: StorageUnavailable) -> HTTPException:
+    """Google Cloud Storage refused or failed: 503, saying only "try again later" (FR-018)."""
+    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error))
+
+
+async def _remove_quietly(storage: Storage, location: str) -> None:
+    """Remove a file that nothing records any more. Shielded, so a cancelled request still
+    removes it, and never raising, so the original error is the one reported (storage review)."""
+    with anyio.CancelScope(shield=True):
+        try:
+            await storage.delete(location)
+        except StorageUnavailable:
+            pass  # already logged by type; the file stays, unrecorded, in the private bucket
+
+
 @router.get("")
 async def read_documents(user: CurrentUser, db: DbSession) -> list[DocumentSummary]:
     """The caller's documents, newest first, without their figures."""
@@ -186,7 +216,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
     profile: Annotated[TaxpayerProfile, Depends(require_profile)],
     db: DbSession,
     extractor: ExtractorDep,
-    upload_dir: Annotated[Path, Depends(get_upload_dir)],
+    storage: StorageDep,
     file: UploadFile,
     doc_type: Annotated[DocType, Form()],
 ) -> DocumentOut:
@@ -196,7 +226,16 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         checked = check_file(file.filename or "", content)
     except UploadRefused as refused:
         raise HTTPException(refused.status_code, refused.detail) from refused
-    path = await save_file(upload_dir, user.id, content, checked.extension)
+    attempt = await _use_extraction(db, user.id)
+    # Committed now, so the attempt counts even if extraction is refused below (FR-017).
+    await db.commit()
+    try:
+        location = await storage.save(user.id, content, checked.extension, checked.media_type)
+    except StorageUnavailable as unavailable:
+        # The AI was never called, so this mustn't cost one of the day's extractions.
+        await db.delete(attempt)
+        await db.commit()
+        raise _unavailable(unavailable) from unavailable
     try:
         document = await create_document(
             db,
@@ -204,7 +243,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
             tax_year=profile.tax_year,
             doc_type=doc_type,
             checked=checked,
-            file_path=path,
+            file_path=location,
         )
         try:
             await extract_document(db, document, extractor, content)
@@ -216,7 +255,7 @@ async def upload_document(  # pylint: disable=too-many-arguments,too-many-positi
         await db.commit()
     except BaseException:
         # Nothing records the file now, so delete could never remove it: remove it here.
-        await remove_stored_file(path)
+        await _remove_quietly(storage, location)
         raise
     return document_out(document)
 
@@ -228,11 +267,16 @@ async def read_document(document: OwnedDocument) -> DocumentOut:
 
 
 @router.get("/{document_id}/file")
-async def read_document_file(document: OwnedDocument) -> FileResponse:
-    """The original file, for the review page."""
-    if not Path(document.file_path).is_file():
+async def read_document_file(document: OwnedDocument, storage: StorageDep) -> Response:
+    """The original file, for the review page: only through this owner check, never a public
+    link to the bucket (FR-018)."""
+    try:
+        content = await storage.read(document.file_path)
+    except StorageUnavailable as unavailable:
+        raise _unavailable(unavailable) from unavailable
+    if content is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "The stored file is missing.")
-    return FileResponse(document.file_path, media_type=document.media_type)
+    return Response(content, media_type=document.media_type)
 
 
 @router.patch("/{document_id}/fields/{name}", dependencies=[Depends(require_json)])
@@ -273,10 +317,16 @@ async def confirm(document: LockedDocument, db: DbSession) -> DocumentOut:
 
 
 @router.post("/{document_id}/retry", dependencies=[Depends(require_json)])
-async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep) -> DocumentOut:
-    """Re-run a failed extraction."""
+async def retry(
+    document: LockedDocument, db: DbSession, extractor: ExtractorDep, storage: StorageDep
+) -> DocumentOut:
+    """Re-run a failed extraction (counted towards the daily limits, FR-017)."""
     try:
-        await retry_extraction(db, document, extractor)
+        await retry_extraction(db, document, extractor, storage)
+    except DailyLimitReached as limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, str(limit)) from limit
+    except StorageUnavailable as unavailable:
+        raise _unavailable(unavailable) from unavailable
     except DocumentLocked as locked:
         raise HTTPException(status.HTTP_409_CONFLICT, str(locked)) from locked
     except WrongDocumentType:
@@ -290,9 +340,10 @@ async def retry(document: LockedDocument, db: DbSession, extractor: ExtractorDep
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_json)],
 )
-async def delete(document: LockedDocument, db: DbSession) -> Response:
+async def delete(document: LockedDocument, db: DbSession, storage: StorageDep) -> Response:
     """Delete the document, its fields and its stored file."""
-    path = await delete_document(db, document)
+    location = await delete_document(db, document)
     await db.commit()
-    await remove_stored_file(path)
+    # The document is gone; a file that can't be removed now mustn't turn that into an error.
+    await _remove_quietly(storage, location)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
