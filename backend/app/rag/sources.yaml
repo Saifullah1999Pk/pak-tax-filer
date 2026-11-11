@@ -1,0 +1,56 @@
+# FBR's own texts for the tax assistant, and only these (feature 006, task T004; research R1;
+# FR-001, FR-002; constitution Principle II). The files are never committed: the build
+# (`python -m app.rag.build`) downloads each into data/corpus-cache/ and stops if its SHA-256
+# differs from the one here, so a silent change on FBR's side can't slip into the corpus.
+#
+# Pages are 1-based pages of the PDF file (inclusive). A section or chapter may share a page with
+# its neighbour; the splitter keeps only the named part. Checksums and pages were taken from files
+# downloaded on 2026-11-11.
+
+documents:
+  - id: ito-2001-2025-07-31
+    title: Income Tax Ordinance, 2001 (amended up to 31.07.2025)
+    kind: law
+    url: https://download1.fbr.gov.pk/Docs/2025881983148210Income-Tax-Ordinance,-2001-Amended-upto-31.07.2025.pdf
+    sha256: 87e66ffa92d678229ff5fc55dcf322c39df2487cb0a411aac165aa721039df74
+    # The five sections the spec names (FR-001). Headings may carry an amendment marker, e.g.
+    # "5[7B.  Tax on profit on debt.".
+    sections:
+      - section: "7B"
+        title: Tax on profit on debt
+        pages: [58, 59]
+      - section: "12"
+        title: Salary
+        pages: [67, 69]
+      - section: "13"
+        title: Value of perquisites
+        pages: [69, 73]
+      - section: "149"
+        title: Salary
+        pages: [327, 329]
+      - section: "151"
+        title: Profit on debt
+        pages: [329, 331]
+
+  - id: pral-itr-manual-2026
+    title: Normal Income Tax Return User Manual v1.1 (PRAL, 2026), hosted by FBR
+    kind: guidance
+    # English, despite the file name; linked from FBR's IRIS help page. It may not be reproduced
+    # outside its intended organisations without PRAL's permission (design, "Licensing"), which
+    # is why only this link, its checksum and the pages used are stored.
+    url: https://e.fbr.gov.pk/SOP/IRIS/Iris_UGD_ITR_Urdu.pdf
+    sha256: e6aa062bbd9932cc7fb15000a05750f08736edbf90b0a4ef4251b7742af590d5
+    # The manual's own page numbers are one less than the PDF's ("Page 1 of 128" is PDF page 2).
+    chapters:
+      - chapter: "4"
+        title: Voluntarily Return Filing Process
+        pages: [5, 11]
+      - chapter: "5"
+        title: Data
+        pages: [11, 11]
+      - chapter: "6"
+        title: Employment (salary and tax deduction)
+        pages: [11, 18]
+      - chapter: "14"
+        title: Wealth Statement (part (a); part (b), non-residents' property, is left out)
+        pages: [80, 115]
