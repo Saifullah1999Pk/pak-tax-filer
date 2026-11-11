@@ -1,7 +1,13 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { AskResult } from "../api/ask";
-import { hasProfile, mockFetch } from "../test/mockFetch";
+import { hasProfile, mockFetch, noProfile } from "../test/mockFetch";
 import type { FakeReply } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
 
@@ -92,39 +98,113 @@ test("the practitioner label is visible before and after asking", async () => {
   expect(screen.getByText(LABEL)).toBeDefined();
 });
 
-test("while waiting it shows its progress", async () => {
-  showAsk("pending");
+test("while waiting it shows its progress, and Ask can't be pressed again", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const fetch = showAsk("pending");
   renderApp("/ask");
 
   await ask("Does my employer deduct tax?");
 
-  expect(screen.getByRole("status").textContent).toContain(
-    "Searching the FBR texts…",
+  const status = screen.getByRole("status");
+  expect(status.textContent).toContain("Searching the FBR texts…");
+  act(() => {
+    vi.advanceTimersByTime(1500);
+  });
+  expect(status.textContent).toContain("Writing a cited answer…");
+  const button = screen.getByRole("button", { name: "Ask" });
+  expect(button.getAttribute("aria-disabled")).toBe("true");
+  fireEvent.click(button);
+  expect(fetch.mock.calls.filter(([path]) => path === "/api/ask")).toHaveLength(
+    1,
   );
-  await waitFor(
-    () =>
-      expect(screen.getByRole("status").textContent).toContain(
-        "Writing a cited answer…",
-      ),
-    { timeout: 3000 },
-  );
-  expect(
-    screen.getByRole<HTMLButtonElement>("button", { name: "Ask" }).disabled,
-  ).toBe(true);
+  vi.useRealTimers();
 });
 
-test("a second question replaces the first answer", async () => {
-  showAsk({}, { answer: "Profit on debt is taxed at the scheduled rate." });
+test("once the answer arrives the progress clears and Ask works again", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  showAsk({});
+  renderApp("/ask");
+
+  await ask("Does my employer deduct tax?");
+  await screen.findByText(ANSWERED.answer);
+  act(() => {
+    vi.advanceTimersByTime(3000);
+  });
+
+  expect(screen.getByRole("status").textContent).toBe("");
+  expect(
+    screen.getByRole("button", { name: "Ask" }).getAttribute("aria-disabled"),
+  ).toBe("false");
+  vi.useRealTimers();
+});
+
+test("focus moves to the answer when it arrives", async () => {
+  showAsk({});
+  renderApp("/ask");
+
+  await ask("Does my employer deduct tax?");
+
+  const heading = await screen.findByRole("heading", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(heading));
+});
+
+test("a second question clears the first answer while it waits", async () => {
+  showAsk({}, "pending");
   renderApp("/ask");
 
   await ask("Does my employer deduct tax?");
   await screen.findByText(ANSWERED.answer);
   await ask("How is bank profit taxed?");
 
+  await waitFor(() => expect(screen.queryByText(ANSWERED.answer)).toBeNull());
+});
+
+test("without a profile, Ask sends the user to set one up first", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": noProfile,
+  });
+  renderApp("/ask", { showLocation: true });
+
   expect(
-    await screen.findByText("Profit on debt is taxed at the scheduled rate."),
+    await screen.findByText("Location: /profile?next=%2Fask"),
   ).toBeDefined();
-  expect(screen.queryByText(ANSWERED.answer)).toBeNull();
+});
+
+test("a network failure says so", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "POST /api/ask": () => Promise.reject(new TypeError("Failed to fetch")),
+  });
+  renderApp("/ask");
+
+  await ask("Does my employer deduct tax?");
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Couldn't reach the tax assistant",
+  );
+});
+
+test("the label shows even if a reply's label is empty", async () => {
+  showAsk({ label: "" });
+  renderApp("/ask");
+
+  await ask("Does my employer deduct tax?");
+  await screen.findByText(ANSWERED.answer);
+
+  expect(screen.getByText(LABEL)).toBeDefined();
+});
+
+test("a blank question isn't sent", async () => {
+  const fetch = showAsk({});
+  renderApp("/ask");
+
+  await ask("   ");
+
+  expect(fetch.mock.calls.filter(([path]) => path === "/api/ask")).toHaveLength(
+    0,
+  );
 });
 
 test.each([

@@ -9,7 +9,7 @@ import { ApiError } from "../api/client";
 // are checked by the backend before they arrive; this page shows them, their sources and the
 // practitioner label, and writes no answer text of its own (constitution, Principle IV).
 
-/** Shown whether or not a question has been asked (FR-008). */
+/** Shown whether or not a question has been asked, even if a reply lacks it (FR-008). */
 const LABEL = "Not yet reviewed by a tax practitioner. Not tax advice.";
 const MAX_LENGTH = 1000;
 /** Searching takes about a second; after that the wait is for the written answer (FR-017). */
@@ -24,11 +24,32 @@ export function AskPage() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress>(null);
   const timer = useRef<number | undefined>(undefined);
+  // The latest request; a reply to an older one (or after leaving the page) is ignored.
+  const latest = useRef(0);
+  const answerHeading = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => () => window.clearTimeout(timer.current), []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(timer.current);
+      latest.current += 1;
+    },
+    [],
+  );
+
+  // Screen readers and keyboards follow the answer when it arrives.
+  useEffect(() => {
+    if (result !== null) {
+      answerHeading.current?.focus();
+    }
+  }, [result]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const asked = question.trim();
+    if (progress !== null || asked === "") {
+      return;
+    }
+    const request = ++latest.current;
     // A new question replaces the last answer.
     setResult(null);
     setError(null);
@@ -38,19 +59,27 @@ export function AskPage() {
       SEARCH_STEP_MS,
     );
     try {
-      setResult(await askQuestion(question));
+      const reply = await askQuestion(asked);
+      if (request === latest.current) {
+        setResult(reply);
+      }
     } catch (caught: unknown) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Couldn't reach the tax assistant. Check your connection and try again.",
-      );
+      if (request === latest.current) {
+        setError(
+          caught instanceof ApiError
+            ? caught.message
+            : "Couldn't reach the tax assistant. Check your connection and try again.",
+        );
+      }
     } finally {
-      window.clearTimeout(timer.current);
-      setProgress(null);
+      if (request === latest.current) {
+        window.clearTimeout(timer.current);
+        setProgress(null);
+      }
     }
   }
 
+  const busy = progress !== null;
   return (
     <main>
       <h1>Ask about your tax</h1>
@@ -68,7 +97,8 @@ export function AskPage() {
           required
           onChange={(event) => setQuestion(event.target.value)}
         />
-        <button type="submit" disabled={progress !== null}>
+        {/* aria-disabled, not disabled, so the button keeps keyboard focus while it waits. */}
+        <button type="submit" aria-disabled={busy}>
           Ask
         </button>
       </form>
@@ -77,15 +107,24 @@ export function AskPage() {
         {progress === "writing" && "Writing a cited answer…"}
       </p>
       {error !== null && <p role="alert">{error}</p>}
-      {result !== null && <Answer result={result} />}
-      <p className="notice">{result?.label ?? LABEL}</p>
+      {result !== null && <Answer result={result} heading={answerHeading} />}
+      <p className="notice">{result?.label || LABEL}</p>
     </main>
   );
 }
 
-function Answer({ result }: { result: AskResult }) {
+function Answer({
+  result,
+  heading,
+}: {
+  result: AskResult;
+  heading: React.RefObject<HTMLHeadingElement | null>;
+}) {
   return (
-    <section className="panel ask-answer" aria-label="Answer">
+    <section className="panel ask-answer" aria-labelledby="answer-heading">
+      <h2 id="answer-heading" ref={heading} tabIndex={-1}>
+        Answer
+      </h2>
       <p>{result.answer}</p>
       {result.uncovered_part !== null && <p>{result.uncovered_part}</p>}
       {result.tax_page_line !== null && (
@@ -93,11 +132,11 @@ function Answer({ result }: { result: AskResult }) {
       )}
       {result.citations.length > 0 && (
         <>
-          <h2 id="sources-heading">Sources</h2>
+          <h3 id="sources-heading">Sources</h3>
           <ul aria-labelledby="sources-heading" className="sources">
             {result.citations.map((citation) => (
               <Source
-                key={`${citation.title} ${citation.location}`}
+                key={`${citation.title} ${citation.location} ${citation.page}`}
                 citation={citation}
               />
             ))}
@@ -108,13 +147,16 @@ function Answer({ result }: { result: AskResult }) {
   );
 }
 
-/** The backend's fixed line, with its "open the Tax page" words made a link. */
+/**
+ * The backend's fixed line, with its "open the Tax page" words made a link. If the wording ever
+ * changes, the line is shown as sent, with a separate link that adds no words to the answer.
+ */
 function TaxPageLine({ line }: { line: string }) {
   const at = line.indexOf(TAX_PAGE_WORDS);
   if (at === -1) {
     return (
       <p>
-        {line} <Link to="/tax">{TAX_PAGE_WORDS}</Link>
+        {line} <Link to="/tax">Tax page</Link>
       </p>
     );
   }

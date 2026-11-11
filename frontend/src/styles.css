@@ -366,7 +366,8 @@ button[type="submit"]:hover,
   color: var(--accent-ink);
 }
 
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1627,12 +1628,12 @@ button,
     box-shadow 150ms ease;
 }
 
-button:not(:disabled):active,
+button:not(:disabled, [aria-disabled="true"]):active,
 .button:active {
   transform: translateY(1px);
 }
 
-button[type="submit"]:not(:disabled):hover,
+button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
 .button-primary:hover {
   box-shadow: var(--lift);
 }
