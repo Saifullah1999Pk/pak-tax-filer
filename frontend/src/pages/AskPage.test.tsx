@@ -195,3 +195,20 @@ test("an error reply shows the server's message", async () => {
     "Ask a question of up to 1,000 characters.",
   );
 });
+
+test("a refused question about one's own tax still links to the Tax page", async () => {
+  showAsk({
+    status: "not_covered",
+    answer:
+      "I can only answer from the Income Tax Ordinance and FBR's return-filing manual, and they don't cover this.",
+    citations: [],
+    tax_page_line: "To see your own calculated tax, open the Tax page.",
+  });
+  renderApp("/ask");
+
+  await ask("How much tax do I owe?");
+
+  expect(
+    await screen.findByRole("link", { name: "open the Tax page" }),
+  ).toBeDefined();
+});

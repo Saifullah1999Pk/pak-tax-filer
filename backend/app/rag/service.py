@@ -8,6 +8,7 @@ asked and when (FR-009). Every result carries the practitioner label (FR-008).
 """
 
 import asyncio
+import logging
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
@@ -24,6 +25,8 @@ from app.rag.embed import Embedder, EmbeddingError
 from app.rag.models import AskRequest, Passage
 from app.rag.search import RetrievedPassage, search
 from app.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
 SOURCES = "the Income Tax Ordinance and FBR's return-filing manual"
@@ -106,22 +109,29 @@ async def ask(
         if not found.covered:
             return _refusal("not_covered")
         reply = await asyncio.wait_for(answerer.answer(question, found.passages), ANSWER_SECONDS)
-    except (EmbeddingError, AnswerError, TimeoutError):
+    except (EmbeddingError, AnswerError, TimeoutError) as exc:
+        # The error type only (e.g. ServerError for Gemini's 503 "high demand"): never the
+        # question, which isn't kept (FR-009).
+        logger.warning("Ask unavailable: %s %s", type(exc).__name__, exc)
         return _refusal("unavailable")
     return _checked(reply, found.passages)
 
 
 def _checked(reply: ModelAnswer, retrieved: Sequence[RetrievedPassage]) -> AskResult:
     """The answer, if the model gave one and it passes every check; otherwise not covered."""
+    tax_page_line = TAX_PAGE_LINE if reply.asks_own_tax_figure else None
     cited = None if reply.not_covered else checked_citations(reply, retrieved)
     if cited is None:
-        return _refusal("not_covered")
+        # Still pointed to the Tax page when they asked for their own figure (FR-007).
+        return AskResult(
+            status="not_covered", answer=NOT_COVERED_MESSAGE, tax_page_line=tax_page_line
+        )
     return AskResult(
         status="answered",
         answer=reply.answer,
         citations=[Citation(p.title, p.kind.value, p.location, p.page) for p in cited],
         uncovered_part=reply.uncovered_part,
-        tax_page_line=TAX_PAGE_LINE if reply.asks_own_tax_figure else None,
+        tax_page_line=tax_page_line,
     )
 
 

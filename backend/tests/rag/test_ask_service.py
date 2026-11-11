@@ -5,6 +5,7 @@ database; nothing reaches the network.
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -214,3 +215,32 @@ async def test_records_older_than_a_day_are_deleted(db: AsyncSession) -> None:
     await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(reply()))
 
     assert await questions_recorded(db) == 1
+
+
+async def test_an_ai_failure_is_logged_without_the_question(
+    db: AsyncSession, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Fails if a Gemini failure leaves no trace for whoever runs the app, or if the log
+    holds the question (only who asked and when may be kept, FR-009)."""
+    await a_corpus(db)
+    user = await a_user(db)
+
+    with caplog.at_level(logging.WARNING, logger="app.rag.service"):
+        await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(AnswerError("ServerError")))
+
+    assert "ServerError" in caplog.text
+    assert QUESTION not in caplog.text
+
+
+async def test_a_refused_own_tax_question_still_points_to_the_tax_page(db: AsyncSession) -> None:
+    """Fails if "How much tax do I owe?" gets only the not-covered message when the model says
+    the passages don't cover it (seen live on 2026-11-11): the user must still be pointed to
+    the Tax page, where their figure is (FR-007)."""
+    await a_corpus(db)
+    user = await a_user(db)
+    model_reply = reply(not_covered=True, citations=[], answer="", asks_own_tax_figure=True)
+
+    result = await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(model_reply))
+
+    assert result.status == "not_covered" and result.answer == NOT_COVERED_MESSAGE
+    assert result.tax_page_line == TAX_PAGE_LINE

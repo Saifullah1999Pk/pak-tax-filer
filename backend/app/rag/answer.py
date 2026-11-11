@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 
 # Google's own deadline (Gemini refuses under 10 s); the service waits at most 15 s in all.
 GOOGLE_DEADLINE_MS = 14_000
+# Gemini's 503 "high demand" (2 of 10 real questions on 2026-11-11) comes back in about 2 s, so
+# one more try, a second later, still fits the 15 s; nothing else is retried.
+RETRY = types.HttpRetryOptions(
+    attempts=2, initial_delay=1.0, max_delay=1.0, http_status_codes=[503]
+)
 
 INSTRUCTIONS = """\
 You answer a question from a salaried taxpayer in Pakistan, using ONLY the numbered passages you \
@@ -101,7 +106,7 @@ class GeminiAnswerer:  # pylint: disable=too-few-public-methods
         client = genai.Client(
             api_key=self._api_key,
             http_options=types.HttpOptions(
-                retry_options=types.HttpRetryOptions(attempts=1),
+                retry_options=RETRY,
                 httpx_async_client=self._http_client,
             ),
         )
