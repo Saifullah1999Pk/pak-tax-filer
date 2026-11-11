@@ -1,0 +1,25 @@
+# Production web server (docs/deployment.md). SITE_ADDRESS is the site's hostname, e.g.
+# 34-123-45-67.sslip.io; Caddy gets and renews its HTTPS certificate automatically.
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# The API stays on the same origin as the pages, so the session cookie works as in
+	# development (feature 002, research R8).
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# The React app: unknown paths get index.html, and the router shows the page.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		X-Frame-Options "DENY"
+	}
+}
