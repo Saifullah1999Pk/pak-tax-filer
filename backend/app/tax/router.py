@@ -56,6 +56,8 @@ class TaxOut(BaseModel):
     salary_balance: str | None
     profit_balance: str | None
     non_atl_extra_withheld: str | None
+    salary_credit: str | None
+    profit_credit: str | None
     steps: list[StepOut]
     summary: str | None
     label: str
@@ -77,6 +79,8 @@ def tax_out(result: TaxResult, summary: str | None = None) -> TaxOut:
         salary_balance=_text(result.salary_balance),
         profit_balance=_text(result.profit_balance),
         non_atl_extra_withheld=_text(result.non_atl_extra_withheld),
+        salary_credit=_text(result.salary_credit),
+        profit_credit=_text(result.profit_credit),
         steps=[
             StepOut(description=s.description, rule_location=s.rule_location, result=str(s.result))
             for s in result.steps

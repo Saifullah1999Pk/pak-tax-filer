@@ -119,6 +119,9 @@ async def test_confirmed_certificates_are_summed_and_calculated(
     assert body["salary_balance"] == "3000"
     assert body["profit_balance"] == "0"
     assert body["non_atl_extra_withheld"] is None
+    # What was taken off each side, so the page can show tax - credit = balance (001 US6).
+    assert body["salary_credit"] == "69000"
+    assert body["profit_credit"] == "20000"
     assert len(body["steps"]) == 5
     assert set(body["steps"][0]) == {"description", "rule_location", "result"}
     assert body["steps"][0]["result"] == "72000"
@@ -157,6 +160,8 @@ async def test_atl_status_comes_from_the_profile_not_the_query(
 
     assert body["non_atl_extra_withheld"] == "40000"
     assert body["profit_balance"] == "0"
+    # Off the ATL only withholding up to the profit tax counts; the rest is the extra above.
+    assert body["profit_credit"] == "40000"
 
 
 async def test_without_a_profile_it_asks_for_the_atl_status(
@@ -169,7 +174,15 @@ async def test_without_a_profile_it_asks_for_the_atl_status(
 
     assert body["blocked_reason"] == "needs_atl_answer"
     assert body["message"] == "Set your ATL status in your profile."
-    money = ["salary_tax", "surcharge", "profit_tax", "salary_balance", "profit_balance"]
+    money = [
+        "salary_tax",
+        "surcharge",
+        "profit_tax",
+        "salary_balance",
+        "profit_balance",
+        "salary_credit",
+        "profit_credit",
+    ]
     assert all(body[name] is None for name in [*money, "non_atl_extra_withheld", "summary"])
     assert body["steps"] == []
     assert body["label"] == LABEL

@@ -16,12 +16,18 @@ Every response has **all** the fields below; a field that doesn't apply is `null
 | `salary_balance` | positive payable, negative over-deducted | `null` |
 | `profit_balance` | positive payable, negative over-withheld | `null` |
 | `non_atl_extra_withheld` | non-ATL only, else `null` | `null` |
+| `salary_credit` | tax deducted by employers, rounded (s.219) | `null` |
+| `profit_credit` | tax withheld by banks as counted against the profit tax (non-ATL: up to the profit tax), rounded | `null` |
 | `steps` | the breakdown, in order | `[]` |
 | `summary` | checked AI summary, or `null` | `null` |
 | `label` | always | always |
 
 Credits (tax deducted by employers, tax withheld by banks) appear in the salary-side and
-profit-side steps of the breakdown (FR-005).
+profit-side steps of the breakdown (FR-005), and, since 2026-11-11, also as `salary_credit` and
+`profit_credit`, so a page can show "tax + surcharge − credit = balance" without doing sums
+(feature 001, User Story 6; the frontend never calculates). Each is rounded on its own, so on
+rare occasions the shown lines can differ from the balance by Rs 1; the balance is the figure
+that counts.
 
 ## 200: calculated
 
@@ -30,6 +36,7 @@ profit-side steps of the breakdown (FR-005).
   "tax_year": "2025-26", "blocked_reason": null, "message": null,
   "salary_tax": "72000", "surcharge": "0", "profit_tax": "10000",
   "salary_balance": "-3000", "profit_balance": "0", "non_atl_extra_withheld": null,
+  "salary_credit": "75000", "profit_credit": "10000",
   "steps": [
     { "description": "Salary tax: Rs 1,800,000 falls in the Rs 1,200,001 to Rs 2,200,000 band: Rs 6,000 + 11% of Rs 600,000",
       "rule_location": "Income Tax Ordinance 2001 (amended up to 31.07.2025), First Schedule, Part I, Division I, clause (2), row 3",
@@ -48,6 +55,7 @@ profit-side steps of the breakdown (FR-005).
   "message": "Set your ATL status in your profile.",
   "salary_tax": null, "surcharge": null, "profit_tax": null,
   "salary_balance": null, "profit_balance": null, "non_atl_extra_withheld": null,
+  "salary_credit": null, "profit_credit": null,
   "steps": [], "summary": null,
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }

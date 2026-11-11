@@ -50,6 +50,11 @@ class TaxResult:  # pylint: disable=too-many-instance-attributes  # one field pe
     profit_balance: Decimal | None = None
     # Non-ATL only: withholding above the profit tax, "to be confirmed", never a refund.
     non_atl_extra_withheld: Decimal | None = None
+    # What was taken off each side: tax deducted by employers, and tax withheld by banks as
+    # counted against the profit tax (non-ATL: up to the profit tax). Shown so a reader sees
+    # tax - credit = balance without doing sums (feature 001, User Story 6).
+    salary_credit: Decimal | None = None
+    profit_credit: Decimal | None = None
     steps: tuple[Step, ...] = field(default_factory=tuple)
 
 
@@ -125,6 +130,8 @@ def calculate(inputs: TaxInputs, rates: TaxYearRates) -> TaxResult:
         "profit_tax": rupees(profit_tax),
         "salary_balance": rupees(salary_balance),
         "profit_balance": rupees(profit_balance),
+        "salary_credit": rupees(inputs.tax_deducted),
+        "profit_credit": rupees(credited),
     }
     steps = _steps(inputs, rates, row, (salary_tax, surcharge, profit_tax, salary_balance), rounded)
     steps.append(_profit_side(inputs, rates, profit_tax, credited, extra, profit_balance, rounded))
@@ -136,6 +143,8 @@ def calculate(inputs: TaxInputs, rates: TaxYearRates) -> TaxResult:
         salary_balance=rounded["salary_balance"],
         profit_balance=rounded["profit_balance"],
         non_atl_extra_withheld=extra,
+        salary_credit=rounded["salary_credit"],
+        profit_credit=rounded["profit_credit"],
         steps=tuple(steps),
     )
 
