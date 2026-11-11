@@ -128,7 +128,7 @@ for the eval gate.
 
 ## Phase 7: Polish
 
-- [ ] T033 [P] Add "RAG and MCP" sections to `backend/CLAUDE.md`: the corpus is fixed (changes need an approved spec); never commit FBR source files; never let an answer through without the checks; `PAKTAX_TOKEN` only from the environment
+- [x] T033 [P] Add "RAG and MCP" sections to `backend/CLAUDE.md`: the corpus is fixed (changes need an approved spec); never commit FBR source files; never let an answer through without the checks; `PAKTAX_TOKEN` only from the environment
 - [ ] T034 Run Ruff, mypy, pylint, Prettier, lint and `tsc`, both test suites and the retrieval eval; list in the PR description the lead's open questions (the manual as "the guides", the pass mark, the First Schedule, the manual's licensing) and that the eval can't block fork PRs any more
 
 ---

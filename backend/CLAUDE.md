@@ -90,3 +90,16 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
 - FBR source files are never committed: `python -m app.rag.build` downloads them into
   `data/corpus-cache/` (git- and docker-ignored) and checks each against its SHA-256 in
   `app/rag/sources.yaml` (FR-002).
+- The corpus is fixed by the spec: adding or changing a source needs an approved spec change, a
+  new SHA-256 in `sources.yaml`, and a retrieval eval run (`python -m evals.retrieval.run`;
+  the CI job fails below `evals/retrieval/thresholds.yaml`).
+- Never show an answer that skipped `app/rag/checks.py`: every citation a retrieved passage,
+  every number (in digits, or a number phrase copied exactly) from a cited passage. The model
+  never writes the refusal messages or the Tax page line; code does (`app/rag/service.py`).
+- Tests use `FakeEmbedder` and `FakeAnswerer` (faked for every test by `no_real_ai`); the real
+  Gemini classes are tested through the SDK with an httpx2 `MockTransport`.
+- Only who asked and when is stored for a question (`ask_requests`, deleted after a day); never
+  log the question text.
+- MCP: the token comes only from `PAKTAX_TOKEN` in the developer's environment, never a file;
+  tools call the app's own functions (search, 004's engine, 003's rules) and refuse an invalid
+  token on every call. Setup: `docs/mcp.md`.
