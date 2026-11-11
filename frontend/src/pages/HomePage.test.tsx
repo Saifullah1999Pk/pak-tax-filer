@@ -4,6 +4,7 @@ import type { DocumentSummary } from "../api/documents";
 import { hasProfile, mockFetch } from "../test/mockFetch";
 import type { FakeRoutes } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
+import { logOut } from "../test/screen";
 
 // Protected home page and logout (task T024, FR-012, FR-013), and its filing checklist
 // (feature 001, User Story 6, task T052; FR-028).
@@ -50,7 +51,8 @@ test("a logged-in user sees their email and a logout button", async () => {
   renderApp("/");
 
   await screen.findByText(/logged in as demo@example\.com/i);
-  screen.getByRole("button", { name: /log out/i });
+  // Log out sits in the Account menu (006, task T035).
+  screen.getByRole("button", { name: "Account" });
   expect(screen.getByRole("link", { name: "Tax" }).getAttribute("href")).toBe(
     "/tax",
   );
@@ -69,7 +71,7 @@ test("logging out returns to the login page", async () => {
   });
   renderApp("/");
 
-  fireEvent.click(await screen.findByRole("button", { name: /log out/i }));
+  await logOut();
 
   await screen.findByRole("heading", { name: /log in/i });
 });
@@ -99,7 +101,7 @@ test("logging out really ends the session on the server", async () => {
   });
   renderApp("/");
 
-  fireEvent.click(await screen.findByRole("button", { name: /log out/i }));
+  await logOut();
   await screen.findByRole("heading", { name: /log in/i });
 
   const logouts = fake.mock.calls.filter(
@@ -118,7 +120,7 @@ test("a failed logout says so instead of pretending it worked", async () => {
   });
   renderApp("/");
 
-  fireEvent.click(await screen.findByRole("button", { name: /log out/i }));
+  await logOut();
 
   expect(await screen.findByRole("alert")).toHaveProperty(
     "textContent",

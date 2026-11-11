@@ -48,6 +48,19 @@ export const WealthIcon = () => (
   </Icon>
 );
 
+export const AskIcon = () => (
+  <Icon>
+    <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+    <path d="M10 9.2a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6.9v.4M12 14h.01" />
+  </Icon>
+);
+
+export const FilingIcon = () => (
+  <Icon>
+    <path d="M3.5 7a1 1 0 0 1 1-1h4.6l2 2h8.4a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z" />
+  </Icon>
+);
+
 export const ProfileIcon = () => (
   <Icon>
     <circle cx="12" cy="8.5" r="3.5" />

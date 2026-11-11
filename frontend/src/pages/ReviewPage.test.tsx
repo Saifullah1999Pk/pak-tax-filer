@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { hasProfile, mockFetch } from "../test/mockFetch";
 import type { FakeRoutes } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
+import { screenIsWide } from "../test/screen";
 
 // Review, correct and confirm, per specs/003-document-extraction/contracts/documents-api.md
 // (task T019; spec User Story 2, constitution Principle III).
@@ -361,13 +362,6 @@ test("a not-found field shows no confidence, only that it wasn't found (task T04
 
 // Feature 001, User Story 6 (frontend review M5): on a narrow screen the original starts folded
 // away, so the figures aren't pushed far down; on a wide one it is open beside them.
-
-function screenIsWide(wide: boolean) {
-  vi.stubGlobal(
-    "matchMedia",
-    (query: string) => ({ matches: wide, media: query }) as MediaQueryList,
-  );
-}
 
 const originalPanel = () =>
   screen.getByText("Original document", { selector: "summary" })
