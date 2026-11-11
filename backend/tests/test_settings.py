@@ -155,3 +155,25 @@ def test_the_upload_bucket_is_read() -> None:
     settings = load_settings({"DATABASE_URL": DB, "UPLOAD_BUCKET": " pak-tax-filer-uploads "})
 
     assert settings.upload_bucket == "pak-tax-filer-uploads"
+
+
+# Feature 006: the answer model and the whole-app daily cap on questions (FR-009b).
+
+
+def test_the_assistant_defaults_to_flash_lite_and_200_questions_a_day() -> None:
+    """Fails if the assistant's model or daily cap has no sensible default."""
+    settings = load_settings({"DATABASE_URL": "postgresql+asyncpg://x"})
+
+    assert settings.answer_model == "gemini-3.5-flash-lite"
+    assert settings.answer_effort == "minimal"
+    assert settings.ask_daily_limit == 200
+
+
+def test_the_daily_cap_can_be_set_and_must_be_a_positive_whole_number() -> None:
+    """Fails if a typo in ASK_DAILY_LIMIT silently removes the cap or crashes later."""
+    env = {"DATABASE_URL": "postgresql+asyncpg://x"}
+
+    assert load_settings({**env, "ASK_DAILY_LIMIT": "50"}).ask_daily_limit == 50
+    for bad in ("0", "-5", "lots", "1.5"):
+        with pytest.raises(ValueError, match="ASK_DAILY_LIMIT"):
+            load_settings({**env, "ASK_DAILY_LIMIT": bad})

@@ -39,6 +39,11 @@ class Settings:  # pylint: disable=too-many-instance-attributes  # one field per
     # Feature 004, research R8: the model that writes the tax summary (never the figures).
     summary_model: str = "gemini-3.5-flash-lite"
     summary_effort: str = "minimal"
+    # Feature 006, research R5 (amended): the model that answers from the cited passages.
+    answer_model: str = "gemini-3.5-flash-lite"
+    answer_effort: str = "minimal"
+    # Feature 006, FR-009b: questions a day for the whole app (the free Gemini quota is shared).
+    ask_daily_limit: int = 200
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -70,7 +75,20 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         upload_bucket=environ.get("UPLOAD_BUCKET", "").strip() or None,
         summary_model=environ.get("SUMMARY_MODEL", "").strip() or "gemini-3.5-flash-lite",
         summary_effort=summary_effort,
+        answer_model=environ.get("ANSWER_MODEL", "").strip() or "gemini-3.5-flash-lite",
+        answer_effort=_effort(environ, "ANSWER_EFFORT", default="minimal"),
+        ask_daily_limit=_positive_int(environ, "ASK_DAILY_LIMIT", default=200),
     )
+
+
+def _positive_int(environ: Mapping[str, str], name: str, default: int) -> int:
+    """A whole number above zero; anything else is refused."""
+    raw = environ.get(name, "").strip()
+    if not raw:
+        return default
+    if not raw.isdigit() or int(raw) < 1:
+        raise ValueError(f"{name} must be a whole number above 0, not {raw!r}.")
+    return int(raw)
 
 
 def _effort(environ: Mapping[str, str], name: str, default: str = "low") -> str:

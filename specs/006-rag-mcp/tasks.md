@@ -51,14 +51,14 @@ for the eval gate.
 
 ### Tests for User Story 1 (write first, confirm they fail)
 
-- [ ] T009 [P] [US1] Write `backend/tests/rag/test_checks.py` per research R6: an answer citing only retrieved passages with numbers from them passes; a citation outside the retrieved set fails; a number not in a cited passage fails; "§149" passes only if in a cited passage or its location; "5 million" fails (number word)
-- [ ] T010 [P] [US1] Write `backend/tests/rag/test_ask_service.py` with a fake Gemini client: an answered response has citations with title, kind (`law`/`guidance`), location and page, plus the practitioner label; nothing about the question is stored except an `ask_requests` row
+- [x] T009 [P] [US1] Write `backend/tests/rag/test_checks.py` per research R6: an answer citing only retrieved passages with numbers from them passes; a citation outside the retrieved set fails; a number not in a cited passage fails; "§149" passes only if in a cited passage or its location; "5 million" fails (number word)
+- [x] T010 [P] [US1] Write `backend/tests/rag/test_ask_service.py` with a fake Gemini client: an answered response has citations with title, kind (`law`/`guidance`), location and page, plus the practitioner label; nothing about the question is stored except an `ask_requests` row
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Create `backend/app/rag/answer.py` per research R5 (amended): Gemini through `google-genai` as 003/004 call it, a model setting, structured output (`answer`, `citations`, `not_covered`, `asks_own_figure`), a 15 s limit (SC-004 amended), and a fake client for tests
-- [ ] T012 [US1] Create `backend/app/rag/checks.py` using `app.explain.number_check` (from 005) with the cited passages' text and locations as the allowed set; T009 passes
-- [ ] T013 [US1] Create `backend/app/rag/service.py` (`ask()`: search → answer → checks) and `backend/app/rag/router.py` (`POST /api/ask` per [contracts/ask-and-tokens-api.md](contracts/ask-and-tokens-api.md)); write `backend/tests/rag/test_ask_api.py` (`401` not logged in; `422` empty or over 1,000 characters); include the router in `backend/app/main.py`; T010 passes
+- [x] T011 [US1] Create `backend/app/rag/answer.py` per research R5 (amended): Gemini through `google-genai` as 003/004 call it, a model setting, structured output (`answer`, `citations`, `not_covered`, `asks_own_figure`), a 15 s limit (SC-004 amended), and a fake client for tests
+- [x] T012 [US1] Create `backend/app/rag/checks.py` using `app.explain.number_check` (from 005) with the cited passages' text and locations as the allowed set; T009 passes
+- [x] T013 [US1] Create `backend/app/rag/service.py` (`ask()`: search → answer → checks) and `backend/app/rag/router.py` (`POST /api/ask` per [contracts/ask-and-tokens-api.md](contracts/ask-and-tokens-api.md)); write `backend/tests/rag/test_ask_api.py` (`401` not logged in; `422` empty or over 1,000 characters); include the router in `backend/app/main.py`; T010 passes
 - [ ] T014 [P] [US1] Write `frontend/src/pages/AskPage.test.tsx` (question box; answer with citations showing law vs guidance; label always visible; a second question replaces the first; while waiting it shows "Searching the FBR texts…" then "Writing a cited answer…" (FR-017); the page sits in the app frame like the others, under `RequireAuth` and `RequireProfile`), then create `frontend/src/pages/AskPage.tsx` and its route
 - [ ] T015 [US1] Run [quickstart.md](quickstart.md) section 2, steps 1 and 5, including the timing check (an answer within 15 seconds with progress shown, SC-004 amended)
 
@@ -74,11 +74,11 @@ for the eval gate.
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T016 [P] [US2] Extend `backend/tests/rag/test_ask_service.py`: below the cut-off → `not_covered` without calling Gemini; a question in Urdu → `not_covered`; Gemini's `not_covered` → refusal; failed checks → refusal; `uncovered_part` returned with a partial answer; `asks_own_tax_figure` → the fixed `tax_page_line` and no number outside cited passages; API error or timeout → `unavailable`; the 31st question within an hour → `limited` with no Gemini call; rows older than a day are deleted; with the whole-app count at today's cap → `daily_limit` with no embedding or Gemini call (FR-009b), counting MCP searches; with no corpus built yet → `not_ready`
+- [x] T016 [P] [US2] Extend `backend/tests/rag/test_ask_service.py`: below the cut-off → `not_covered` without calling Gemini; a question in Urdu → `not_covered`; Gemini's `not_covered` → refusal; failed checks → refusal; `uncovered_part` returned with a partial answer; `asks_own_tax_figure` → the fixed `tax_page_line` and no number outside cited passages; API error or timeout → `unavailable`; the 31st question within an hour → `limited` with no Gemini call; rows older than a day are deleted; with the whole-app count at today's cap → `daily_limit` with no embedding or Gemini call (FR-009b), counting MCP searches; with no corpus built yet → `not_ready`
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Add the refusal paths, the fixed Tax page line, the per-hour limit (research R7) and the whole-app daily cap of 200 with its `daily_limit` status and the `not_ready` status before the first build (FR-009b) to `backend/app/rag/service.py`, counted and locked like 003's `use_extraction`; T016 passes
+- [x] T017 [US2] Add the refusal paths, the fixed Tax page line, the per-hour limit (research R7) and the whole-app daily cap of 200 with its `daily_limit` status and the `not_ready` status before the first build (FR-009b) to `backend/app/rag/service.py`, counted and locked like 003's `use_extraction`; T016 passes
 - [ ] T018 [US2] Show each `status` message, the uncovered part and the Tax page line (linking to the Tax page) on `frontend/src/pages/AskPage.tsx`; extend its test
 - [ ] T019 [US2] Run [quickstart.md](quickstart.md) section 2, steps 2–4 and 6
 
