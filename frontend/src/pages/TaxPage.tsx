@@ -58,7 +58,16 @@ export function TaxPage() {
     <main>
       <h1>Your tax for {taxYear}</h1>
       {error !== null && <p role="alert">{error}</p>}
-      {result === null && error === null && <p role="status">Calculating…</p>}
+      {result === null && error === null && (
+        <>
+          <p role="status">Calculating…</p>
+          {/* The shape of the result while it loads (task T062). */}
+          <div className="headline-pair" aria-hidden="true">
+            <div className="skeleton skeleton-card" />
+            <div className="skeleton skeleton-card" />
+          </div>
+        </>
+      )}
       {result !== null && <Result result={result} />}
     </main>
   );
@@ -87,14 +96,23 @@ function Result({ result }: { result: TaxResult }) {
 }
 
 /** One figure as the API gave it; left out when the API sent none (never shown as Rs 0). */
-function Row({ term, amount }: { term: string; amount: string | null }) {
+function Row({
+  term,
+  amount,
+  less = false,
+}: {
+  term: string;
+  amount: string | null;
+  /** Taken off: shown with a minus sign, as the API's figure (nothing is calculated here). */
+  less?: boolean;
+}) {
   if (amount === null) {
     return null;
   }
   return (
     <>
       <dt>{term}</dt>
-      <dd>{rupees(amount)}</dd>
+      <dd>{less ? `− ${rupees(amount)}` : rupees(amount)}</dd>
     </>
   );
 }
@@ -131,6 +149,11 @@ function Figures({ result }: { result: TaxResult }) {
           <dl className="figures">
             <Row term="Salary tax" amount={result.salary_tax} />
             <Row term="Surcharge" amount={result.surcharge} />
+            <Row
+              term="Less tax deducted by employers"
+              amount={result.salary_credit}
+              less
+            />
           </dl>
         </section>
         <section aria-labelledby="profit-heading" className="panel">
@@ -141,6 +164,11 @@ function Figures({ result }: { result: TaxResult }) {
           />
           <dl className="figures">
             <Row term="Tax on bank profit" amount={result.profit_tax} />
+            <Row
+              term="Less tax withheld by banks"
+              amount={result.profit_credit}
+              less
+            />
           </dl>
           {result.non_atl_extra_withheld !== null && (
             <p className="notice">

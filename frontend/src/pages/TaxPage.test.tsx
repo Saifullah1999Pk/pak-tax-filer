@@ -21,6 +21,8 @@ const CALCULATED: TaxResult = {
   salary_balance: "12000",
   profit_balance: "-4000",
   non_atl_extra_withheld: null,
+  salary_credit: "60000",
+  profit_credit: "24000",
   steps: [
     {
       description:
@@ -268,5 +270,34 @@ test("the label comes first, then each side's balance as its headline, then the 
       screen.getByRole("list", { name: /how it was worked out/i }),
     ),
   ).toBe(true);
+  expect(screen.queryByText(/total/i)).toBeNull();
+});
+
+test("while the tax is worked out, 'Calculating…' is announced (task T062)", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/tax/2025-26": () => new Promise(() => {}),
+  });
+  renderApp("/tax");
+
+  // The page's own heading first: the profile's loading message is also a status.
+  await screen.findByRole("heading", { name: /your tax for 2025-26/i });
+  expect(screen.getByRole("status").textContent).toBe("Calculating…");
+});
+
+// Feature 001, User Story 6: each side reads as a sum (tax, less what was already taken, then
+// the balance), with the credits as the API gives them; the page adds nothing up itself.
+
+test("each side shows what was already taken off, so it reads as a sum", async () => {
+  showTax({});
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  within(salary).getByText("Less tax deducted by employers");
+  within(salary).getByText("− Rs 60,000");
+  const profit = screen.getByRole("region", { name: /bank profit/i });
+  within(profit).getByText("Less tax withheld by banks");
+  within(profit).getByText("− Rs 24,000");
   expect(screen.queryByText(/total/i)).toBeNull();
 });

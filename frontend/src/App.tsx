@@ -1,6 +1,11 @@
 import { Route, Routes } from "react-router";
 import { RequireAuth } from "./auth/RequireAuth";
-import { AppFrame, PlainFrame, ProfileFrame } from "./components/AppFrame";
+import {
+  AppFrame,
+  AuthFrame,
+  PlainFrame,
+  ProfileFrame,
+} from "./components/AppFrame";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -21,7 +26,7 @@ import { RequireProfile } from "./profile/RequireProfile";
 export function AppRoutes() {
   return (
     <Routes>
-      <Route element={<PlainFrame />}>
+      <Route element={<AuthFrame />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
       </Route>

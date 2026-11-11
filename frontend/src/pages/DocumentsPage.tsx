@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { ApiError } from "../api/client";
@@ -10,6 +10,7 @@ import {
   uploadDocument,
 } from "../api/documents";
 import type { DocStatus, DocType, DocumentSummary } from "../api/documents";
+import { EmptyDocumentsIcon, UploadIcon } from "../components/NavIcons";
 
 // Upload a certificate and manage uploaded ones (feature 003, tasks T015 and T023; research
 // R10). The backend checks every limit again; nothing here is trusted.
@@ -35,6 +36,19 @@ function describe(doc: DocumentSummary): string {
 export function DocumentsPage() {
   const navigate = useNavigate();
   const [docs, setDocs] = useState<DocumentSummary[] | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
+
+  // A file dropped beside the drop area would make the browser open it and leave the app.
+  useEffect(() => {
+    const stay = (event: DragEvent) => event.preventDefault();
+    document.addEventListener("dragover", stay);
+    document.addEventListener("drop", stay);
+    return () => {
+      document.removeEventListener("dragover", stay);
+      document.removeEventListener("drop", stay);
+    };
+  }, []);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Kept apart from loadError, so refreshing the list never hides why an action failed.
   const [actionError, setActionError] = useState<string | null>(null);
@@ -139,13 +153,38 @@ export function DocumentsPage() {
             </option>
           </select>
         </label>
-        <label>
-          File (PDF, JPG or PNG; up to 10&nbsp;MB and 5 pages)
+        {/* A drop area: click to choose, or drag a file in (task T061). The input keeps the
+            label's name; the hint and file name are visual (the input announces its file). */}
+        <label
+          className={dragging ? "drop-area dragging" : "drop-area"}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            setFile(event.dataTransfer.files[0] ?? null);
+            // Forget a file chosen earlier, so the field never disagrees with the drop
+            // (review M2): choosing that same file again then still counts.
+            if (fileInput.current) {
+              fileInput.current.value = "";
+            }
+          }}
+        >
+          <span>File (PDF, JPG or PNG; up to 10&nbsp;MB and 5 pages)</span>
           <input
             type="file"
+            className="visually-hidden"
+            ref={fileInput}
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
+          <span className="drop-hint" aria-hidden="true">
+            <UploadIcon />
+            {file ? file.name : "Choose a file, or drag one here"}
+          </span>
         </label>
         {uploadError && <p role="alert">{uploadError}</p>}
         <button type="submit" disabled={uploading}>
@@ -169,7 +208,11 @@ export function DocumentsPage() {
       {docs === null ? (
         !loadError && <p>Loading…</p>
       ) : docs.length === 0 ? (
-        <p>No documents yet.</p>
+        <div className="empty-state">
+          <EmptyDocumentsIcon />
+          <p>No documents yet.</p>
+          <p className="hint">Upload your salary certificate to begin.</p>
+        </div>
       ) : (
         // Explicit roles: below 720 px the rows are restyled as blocks, which makes some
         // browsers forget they are a table.
@@ -200,8 +243,14 @@ export function DocumentsPage() {
                   {new Date(doc.created_at).toLocaleString()}
                 </td>
                 <td role="cell" data-label="Status">
-                  {STATUS_LABELS[doc.status]}
-                  {doc.failure_reason && `: ${doc.failure_reason}`}
+                  {/* The word carries the meaning; the colour only adds to it. One wrapper,
+                      so on phones the reason stays beside the badge (review M1). */}
+                  <span>
+                    <span className="badge" data-status={doc.status}>
+                      {STATUS_LABELS[doc.status]}
+                    </span>
+                    {doc.failure_reason && `: ${doc.failure_reason}`}
+                  </span>
                 </td>
                 <td role="cell" data-label="Actions">
                   <div className="row-actions">

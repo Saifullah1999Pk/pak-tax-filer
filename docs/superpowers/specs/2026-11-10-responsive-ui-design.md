@@ -227,3 +227,72 @@ setup plus keeping "Logged in as" on Home.
 - How the layout component is split into files, and the CSS file organisation (one file or a
   few), as long as tests find things by role and text.
 - Breakpoints other than the 720 px navigation switch.
+
+## Addendum 2026-11-11: personality (direction B)
+
+**Why:** after the first pass (PR #34, now a draft) the user found it "a bit barebones", and
+said what they meant: it **looks plain**. The pages, their content and how they work stay as
+they are; this round gives the app a look of its own.
+
+### Approaches considered
+
+| | Direction | Trade-off |
+|---|---|---|
+| A | Calm modern fintech (warmer neutrals, gradients, line illustrations) | Safe, but could be any finance app |
+| **B (chosen)** | Modern with a Pakistani touch: deep green and warm gold, and a subtle geometric pattern (eight-pointed star lattice, after Mughal tile work and ajrak prints) in two places only | Distinctive and specific to this app; kept restrained so it doesn't turn kitschy |
+| C | Tax ledger (ruled lines, stamp badges, ink blue and red) | Memorable, but reads old-fashioned |
+
+The user picked B.
+
+### Decided
+
+1. **Palette** (replaces the colour tokens; same names, same contrast rules: text 4.5:1, field
+   edges 3:1):
+
+   | Token | Light | Dark | Use |
+   |---|---|---|---|
+   | `--ink` | `#13201b` | `#e5ece8` | Text (a green-black, not grey) |
+   | `--page` | `#f3f5f4` | `#0c1411` | Background, cool with a hint of green (not cream) |
+   | `--accent` | `#0f5c3f` | `#5cc795` | Buttons, links, current step |
+   | `--gold` | `#b8862b` | `#e3b65c` | Decorative only: the pattern, the "Next" tag's edge, the logo's star; never text on white |
+   | `--brand` | `#0b4a33` | `#0f2a1f` | The patterned panels' background |
+
+2. **The pattern:** one small SVG tile (an eight-pointed star in a lattice), thin gold lines at
+   low opacity on `--brand`, inline in the CSS (no image request). Used in exactly two places:
+   - **Login and sign-up:** a split screen on computers. On the left, a patterned brand panel
+     with the logo, one line saying what the app does, and three short steps (upload your
+     certificates, check every figure, see your tax and wealth statement); the form on the
+     right. On phones, a short patterned band with the logo above the form.
+   - **Home:** a patterned band at the top holding the title, "Logged in as", and the next step
+     ("Next step: See your tax"). It first had a "2 of 4 steps done" bar, but Tax and Wealth are
+     never marked done, so the bar could never pass 2 of 4 (review M3). Options considered: name
+     the next step (chosen), count only the steps the app can know, keep the bar, count Tax as
+     done once ready, or a cheap progress endpoint on the backend (no AI) that knows whether a
+     wealth statement is saved and reconciled. The last is a good later idea but backend and
+     contract work beyond this redesign.
+3. **Logo mark:** an eight-pointed star (two overlapping squares) in gold with a green tick
+   inside, beside "PakTaxFiler". It replaces the page-with-a-tick icon.
+4. **Polish everywhere:**
+   - "Rs" shown inside money fields (Wealth amounts and the review page's amount fields), as a
+     visual prefix only; values and labels unchanged;
+   - Documents: the upload becomes a dashed drop area (click or drag a file in), and statuses
+     become coloured badges with a dot (the words stay; colour is never the only signal);
+   - empty states with a small icon and the next step, e.g. "No documents yet" plus "Upload your
+     salary certificate to begin";
+   - placeholder shapes while loading (the existing "Loading…" text stays for screen readers);
+   - motion: hover and press feedback on buttons, links and cards (colour and a 1 px press),
+     and one entrance on Home (the steps appear in turn). Everything is off under "reduce
+     motion".
+5. **Unchanged:** Public Sans as the only font; layout, navigation and page order; every error,
+   refusal and result wording (FR-030); no new dependencies.
+
+### Constraints
+
+The first design's constraints still hold: no money maths, the practitioner label with every
+result, tests that find things by role, label and text, keyboard and screen-reader use, and
+Lighthouse at least 90 for performance and 95 for accessibility (SC-010).
+
+### Left to the builder
+
+The exact pattern drawing and its opacity, the brand panel's copy within the three points above,
+icon drawings, and animation timing (short: about 150-300 ms).

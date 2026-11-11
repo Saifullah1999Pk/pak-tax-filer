@@ -7,23 +7,34 @@
 :root {
   color-scheme: light dark;
 
-  /* Colour */
-  --ink: #16202c;
-  --muted: #5b6675;
-  --page: #f5f7f9;
+  /* Colour: deep green and warm gold (design addendum 2026-11-11, direction B). Gold is
+     decorative only, never text on a light background. */
+  --ink: #13201b;
+  --muted: #55635c;
+  --page: #f3f5f4;
   --surface: #ffffff;
-  --sunken: #eef1f4;
-  --line: #dce1e7;
-  --line-strong: #7b8594; /* 3:1 or more against white: field edges (WCAG 1.4.11) */
-  --accent: #0b6e5f;
-  --accent-hover: #095a4e;
+  --sunken: #eaefec;
+  --line: #d6ddd9;
+  --line-strong: #77857e; /* 3:1 or more against white: field edges (WCAG 1.4.11) */
+  --accent: #0f5c3f;
+  --accent-hover: #0b4a33;
   --accent-ink: #ffffff;
-  --accent-soft: #e2f1ed;
+  --accent-soft: #e1efe7;
+  --gold: #b8862b;
+  --gold-soft: #f6ecd6;
+  --brand: #0b4a33;
+  --brand-ink: #f3f5f4;
+  --brand-muted: #c9dcd2;
+  --gold-on-brand: #e3b65c; /* the lighter gold reads better on the dark green */
   --warn: #9a5806;
   --warn-soft: #fdf3e4;
   --danger: #b42318;
   --danger-soft: #fdecea;
-  --shadow: 0 -1px 0 var(--line), 0 -4px 16px rgb(22 32 44 / 6%);
+  --shadow: 0 -1px 0 var(--line), 0 -4px 16px rgb(19 32 27 / 6%);
+  --lift: 0 1px 2px rgb(19 32 27 / 6%), 0 4px 12px rgb(19 32 27 / 6%);
+  /* An eight-pointed star lattice, after Mughal tile work and ajrak prints: thin gold lines.
+     Used only on the login and sign-up brand panel and Home's top band. */
+  --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23e3b65c' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M10 10h20v20H10z'/%3E%3Cpath d='M20 5.86 34.14 20 20 34.14 5.86 20z'/%3E%3Cpath d='M20 0v5.86M20 34.14V40M0 20h5.86M34.14 20H40M0 0l10 10M40 0 30 10M0 40l10-10M40 40 30 30'/%3E%3C/g%3E%3C/svg%3E");
 
   /* Type: one family; a short scale (12 is for phone tab labels only) */
   --font:
@@ -57,17 +68,24 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #e6ebf0;
-    --muted: #9fabb8;
-    --page: #0f151c;
-    --surface: #161e27;
-    --sunken: #1d2732;
-    --line: #2a3542;
-    --line-strong: #6b7a8c;
-    --accent: #4cc2ac;
-    --accent-hover: #6fd3c0;
-    --accent-ink: #06221d;
-    --accent-soft: #11302a;
+    --ink: #e5ece8;
+    --muted: #9cada4;
+    --page: #0c1411;
+    --surface: #131e19;
+    --sunken: #1a2721;
+    --line: #26352e;
+    --line-strong: #66786f;
+    --accent: #5cc795;
+    --accent-hover: #7fd6ab;
+    --accent-ink: #062015;
+    --accent-soft: #12301f;
+    --gold: #e3b65c;
+    --gold-soft: #2d2512;
+    --brand: #0f2a1f;
+    --brand-ink: #e5ece8;
+    --brand-muted: #a9c3b6;
+    --gold-on-brand: #e3b65c;
+    --lift: 0 1px 2px rgb(0 0 0 / 30%), 0 4px 12px rgb(0 0 0 / 30%);
     --warn: #f0b45c;
     --warn-soft: #2d2414;
     --danger: #ff8a80;
@@ -174,8 +192,11 @@ a:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     transition: none !important;
+    animation: none !important;
     scroll-behavior: auto !important;
   }
 }
@@ -634,7 +655,7 @@ tbody tr:last-child td {
 }
 
 .wordmark svg {
-  color: var(--accent);
+  flex: none;
 }
 
 .tax-year {
@@ -660,6 +681,7 @@ tbody tr:last-child td {
 }
 
 .logout > button {
+  white-space: nowrap;
   min-height: var(--tap);
   padding: 0 var(--s-3);
   font-size: var(--fs-1);
@@ -870,10 +892,6 @@ tbody tr:last-child td {
 
 .lede {
   color: var(--muted);
-}
-
-.page-intro {
-  margin-bottom: var(--s-5);
 }
 
 /* ---------- Home: the filing checklist ---------- */
@@ -1232,4 +1250,397 @@ ul.panel {
   display: inline-flex;
   align-items: center;
   min-height: var(--tap);
+}
+
+/* ---------- Login and sign-up: the brand panel (task T058, FR-032) ---------- */
+
+.auth-layout {
+  display: grid;
+  grid-template-rows: auto 1fr; /* phones: the band stays short */
+  /* The login header is always one row (3.5rem), even on tablets. */
+  min-height: calc(100vh - 3.5rem);
+  min-height: calc(100dvh - 3.5rem);
+}
+
+.brand-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--s-5) var(--s-4);
+  background-color: var(--brand);
+  /* The pattern shows at the edges and fades out behind the text, which stays easy to read. */
+  background-image:
+    linear-gradient(90deg, var(--brand) 45%, transparent), var(--pattern);
+  color: var(--brand-ink);
+}
+
+.brand-title {
+  margin: 0;
+  max-width: 18ch;
+  font-size: var(--fs-4);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.brand-steps {
+  margin: var(--s-6) 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: brand-step;
+}
+
+.brand-steps li {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: center;
+  counter-increment: brand-step;
+  font-weight: 600;
+}
+
+.brand-steps li + li {
+  margin-top: var(--s-4);
+}
+
+.brand-steps li::before {
+  content: counter(brand-step);
+  content: counter(brand-step) / ""; /* the list already numbers it for screen readers */
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--gold-on-brand);
+  border-radius: 50%;
+  color: var(--brand-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.brand-note {
+  margin: 0;
+  max-width: 40ch;
+  color: var(--brand-muted);
+  font-size: var(--fs-1);
+}
+
+.auth-layout > main {
+  align-self: center;
+  justify-self: center;
+  width: calc(100% - 2 * var(--s-4));
+  max-width: 28rem;
+  margin: var(--s-5) var(--s-4) var(--s-7);
+  padding: var(--s-6) var(--s-5);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--lift);
+}
+
+.auth-layout form {
+  margin-bottom: var(--s-5);
+}
+
+/* Phones: a short band with the one line; the steps wait for a wider screen. */
+@media (max-width: 899px) {
+  .brand-steps,
+  .brand-note {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) {
+  .auth-layout {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+
+  .brand-panel {
+    padding: var(--s-7) clamp(var(--s-6), 5vw, 5rem);
+    background-image:
+      radial-gradient(
+        ellipse 70% 55% at 35% 50%,
+        var(--brand) 40%,
+        transparent 100%
+      ),
+      var(--pattern);
+  }
+
+  .brand-title {
+    font-size: var(--fs-6);
+  }
+}
+
+/* ---------- Home's top band (task T059, FR-032) ---------- */
+
+.home-band {
+  margin: 0 0 var(--s-5);
+  padding: var(--s-5);
+  border-radius: var(--r-2);
+  background-color: var(--brand);
+  background-image:
+    linear-gradient(90deg, var(--brand) 40%, transparent 90%), var(--pattern);
+  color: var(--brand-ink);
+}
+
+.home-band h1 {
+  margin-bottom: var(--s-2);
+}
+
+.band-lede {
+  margin: 0;
+  color: var(--brand-muted);
+}
+
+/* The next step: a gold-edged line on the band. */
+.band-next {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-2);
+  margin: var(--s-5) 0 0;
+  padding: var(--s-2) var(--s-4);
+  border-left: 3px solid var(--gold-on-brand);
+  border-radius: var(--r-1);
+  background: rgb(255 255 255 / 8%);
+  font-weight: 650;
+}
+
+.band-next-label {
+  color: var(--brand-muted);
+  font-weight: 600;
+}
+
+@media (min-width: 720px) {
+  .home-band {
+    padding: var(--s-6);
+  }
+}
+
+/* ---------- "Rs" inside amount fields (task T060, FR-032) ---------- */
+
+.money-field {
+  position: relative;
+  display: block;
+}
+
+.money-field::before {
+  /* Visual only: the "/ ''" alternative text keeps it out of the field's spoken name (browsers
+     without that syntax use the plain line). */
+  content: "Rs";
+  content: "Rs" / "";
+  position: absolute;
+  top: 50%;
+  left: var(--s-3);
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.money-field > input {
+  display: block;
+  padding-left: 2.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Documents: drop area, badges, empty state (task T061, FR-032) ---------- */
+
+.drop-area {
+  position: relative;
+  gap: var(--s-3);
+  cursor: pointer;
+}
+
+.drop-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 8rem;
+  padding: var(--s-5) var(--s-4);
+  border: 2px dashed var(--line-strong);
+  border-radius: var(--r-2);
+  background: var(--sunken);
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+  overflow-wrap: anywhere;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.drop-area:hover .drop-hint,
+.drop-area.dragging .drop-hint {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.drop-area:has(input:focus-visible) .drop-hint {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Children don't fire their own drag-leave, so the highlight doesn't flicker. */
+.drop-hint * {
+  pointer-events: none;
+}
+
+.big-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-2);
+  border-radius: 999px;
+  background: var(--sunken);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.badge[data-status="confirmed"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge[data-status="confirmed"]::before {
+  background: var(--accent);
+}
+
+.badge[data-status="needs_review"] {
+  background: var(--gold-soft);
+}
+
+.badge[data-status="needs_review"]::before {
+  background: var(--gold);
+}
+
+.badge[data-status="failed"] {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge[data-status="failed"]::before {
+  background: var(--danger);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-6) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+}
+
+.empty-state > p {
+  margin: var(--s-2) 0 0;
+}
+
+.empty-state > p:first-of-type {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ---------- Motion and loading placeholders (task T062, FR-032) ---------- */
+
+button,
+.button,
+.app-nav a,
+.section-bar a,
+.wordmark {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+button:not(:disabled):active,
+.button:active {
+  transform: translateY(1px);
+}
+
+button[type="submit"]:not(:disabled):hover,
+.button-primary:hover {
+  box-shadow: var(--lift);
+}
+
+/* Home: the steps appear in turn, once. */
+.step {
+  animation: rise 240ms ease both;
+  animation-delay: calc(var(--i, 0) * 50ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.skeleton {
+  display: block;
+  border-radius: var(--r-1);
+  background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(255 255 255 / 45%) 50%,
+      transparent 100%
+    )
+    var(--sunken);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skeleton-line {
+  width: 12rem;
+  max-width: 100%;
+  height: 1rem;
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.skeleton-card {
+  height: 9rem;
+  margin-bottom: var(--s-4);
+  border-radius: var(--r-2);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(255 255 255 / 6%) 50%,
+      transparent 100%
+    );
+  }
 }

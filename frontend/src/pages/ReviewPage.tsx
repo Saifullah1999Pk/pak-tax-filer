@@ -10,6 +10,7 @@ import {
   updateField,
 } from "../api/documents";
 import type { DocumentDetail, ExtractedField } from "../api/documents";
+import { MoneyInput } from "../components/MoneyInput";
 
 // Check each figure against the original, correct it, confirm it (feature 003, task T019;
 // research R10). Only confirmed documents reach other features; the backend enforces that
@@ -22,6 +23,15 @@ function message(caught: unknown, fallback: string): string {
 }
 
 const labelOf = (name: string) => FIELD_LABELS[name] ?? name;
+
+/** The fields that are amounts in rupees (task T060; review L5): only these show "Rs". */
+const MONEY_FIELDS = new Set([
+  "gross_salary",
+  "taxable_salary",
+  "tax_deducted",
+  "profit_amount",
+  "tax_withheld",
+]);
 
 /** Wide screens show the original beside the figures; phones start with it folded away. */
 const wideScreen = () =>
@@ -213,6 +223,7 @@ function FieldRow({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const label = labelOf(field.name);
+  const Field = MONEY_FIELDS.has(field.name) ? MoneyInput : "input";
   const changed = !readOnly && draft !== null && draft !== (field.value ?? "");
   // A confidence for an empty field only means the model is sure it's absent, which reads as
   // noise; an unreadable amount still shows its reason (task T043).
@@ -252,7 +263,8 @@ function FieldRow({
       className={field.confidence === "low" ? "field low-confidence" : "field"}
     >
       <legend>{label}</legend>
-      <input
+      {/* Amounts show "Rs" inside the field (task T060); other fields don't. */}
+      <Field
         type="text"
         aria-label={label}
         aria-describedby={[

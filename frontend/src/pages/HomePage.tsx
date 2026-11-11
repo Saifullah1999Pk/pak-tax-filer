@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router";
 import { apiFetch } from "../api/client";
 import { listDocuments } from "../api/documents";
@@ -47,13 +48,23 @@ export function HomePage() {
   if (profile === null) {
     return null;
   }
-  const steps = filingSteps(profile, failed ? null : documents);
+  const known = !failed && documents !== null;
+  const steps = filingSteps(profile, known ? documents : null);
+  // The band names the next step (task T059). No count: Tax and Wealth are never "done" (see
+  // home/steps.ts), so a count could never reach the end.
+  const next = steps.find((step) => step.state === "next");
 
   return (
     <main>
-      <div className="page-intro">
+      <div className="home-band">
         <h1>Your tax return for {profile.tax_year}</h1>
-        {user && <p className="lede">Logged in as {user.email}</p>}
+        {user && <p className="band-lede">Logged in as {user.email}</p>}
+        {known && next && (
+          <p className="band-next">
+            <span className="band-next-label">Next step:</span>{" "}
+            {next.action.text}
+          </p>
+        )}
       </div>
       {failed && (
         <div role="alert">
@@ -75,7 +86,12 @@ export function HomePage() {
       {/* role="list": Safari drops the list role when list-style is none. */}
       <ol className="steps" aria-labelledby="steps-heading" role="list">
         {steps.map((step, index) => (
-          <Step key={step.key} step={step} number={index + 1} />
+          <Step
+            key={step.key}
+            step={step}
+            number={index + 1}
+            loading={!failed && documents === null}
+          />
         ))}
       </ol>
     </main>
@@ -84,11 +100,15 @@ export function HomePage() {
 
 const TAGS = { done: "Done", next: "Next", todo: null };
 
-function Step({ step, number }: { step: FilingStep; number: number }) {
+type StepProps = { step: FilingStep; number: number; loading: boolean };
+
+function Step({ step, number, loading }: StepProps) {
   const tag = TAGS[step.state];
   return (
     <li
       className="step"
+      // Each step appears a moment after the one before (CSS; off under "reduce motion").
+      style={{ "--i": number } as CSSProperties}
       data-state={step.state}
       aria-current={step.state === "next" ? "step" : undefined}
     >
@@ -106,6 +126,9 @@ function Step({ step, number }: { step: FilingStep; number: number }) {
           )}
         </h3>
         {step.detail !== null && <p className="step-detail">{step.detail}</p>}
+        {step.detail === null && loading && step.key !== "profile" && (
+          <span className="skeleton skeleton-line" aria-hidden="true" />
+        )}
         <Link
           to={step.action.to}
           className={

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import {
   hasProfile,
@@ -179,4 +179,16 @@ test("a logged-in visitor goes to the home page", async () => {
   renderApp("/signup");
 
   await screen.findByText(/logged in as demo@example\.com/i);
+});
+
+// Feature 001, User Story 6, task T058 (FR-032).
+
+test("sign-up has the same brand panel as login", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/signup");
+
+  const panel = await screen.findByRole("complementary", {
+    name: /about paktaxfiler/i,
+  });
+  within(panel).getByText("Check every figure the app reads");
 });

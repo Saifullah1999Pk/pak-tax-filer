@@ -23,6 +23,10 @@ export type TaxResult = {
   profit_balance: string | null;
   /** Non-ATL users only: withholding above the profit tax, "to be confirmed". */
   non_atl_extra_withheld: string | null;
+  /** Tax deducted by employers (what the salary side was reduced by). */
+  salary_credit: string | null;
+  /** Tax withheld by banks, as counted against the profit tax. */
+  profit_credit: string | null;
   steps: TaxStep[];
   summary: string | null;
   label: string;

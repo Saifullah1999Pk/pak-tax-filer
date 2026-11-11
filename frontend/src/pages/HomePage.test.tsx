@@ -224,3 +224,51 @@ test("if the documents can't be loaded, Home says so, guesses nothing and can re
   await screen.findByText("1 confirmed");
   expect(screen.queryByRole("alert")).toBeNull();
 });
+
+// Feature 001, User Story 6, task T059 (FR-032): the top band names the next step. There is no
+// step count: Tax and Wealth are never marked done, so a count could never reach the end.
+
+/** The whole "Next step: ..." line (its label is a separate element inside it). */
+const nextStepLine = (_: string, element: Element | null) =>
+  element?.tagName === "P" &&
+  (element.textContent ?? "").startsWith("Next step:");
+
+test("the top band names the next step", async () => {
+  loggedIn({
+    "GET /api/documents": () => ({ status: 200, body: [CONFIRMED_SALARY] }),
+  });
+  renderApp("/");
+
+  const band = await screen.findByText(nextStepLine);
+  expect(band.textContent).toBe("Next step: See your tax");
+  expect(screen.queryByRole("progressbar")).toBeNull();
+});
+
+test("with no documents, the band says to upload them", async () => {
+  loggedIn();
+  renderApp("/");
+
+  const band = await screen.findByText(nextStepLine);
+  expect(band.textContent).toBe("Next step: Upload documents");
+});
+
+test("no next step is named while the documents are unknown", async () => {
+  loggedIn({
+    "GET /api/documents": () => ({
+      status: 500,
+      body: { detail: "Server error." },
+    }),
+  });
+  renderApp("/");
+
+  await screen.findByRole("alert");
+  expect(screen.queryByText(/next step:/i)).toBeNull();
+});
+
+test("while the documents load, Home says so and names no next step yet", async () => {
+  loggedIn({ "GET /api/documents": () => new Promise(() => {}) });
+  renderApp("/");
+
+  await screen.findByText("Loading your documents…");
+  expect(screen.queryByText(/next step:/i)).toBeNull();
+});

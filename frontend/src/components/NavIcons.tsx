@@ -55,21 +55,60 @@ export const ProfileIcon = () => (
   </Icon>
 );
 
-/** The app's mark beside its name: a page with a tick, for a return that's in order. */
+/** The app's mark beside its name: an eight-pointed star (the pattern's motif) in gold, with a
+ * green tick inside, for a return that's in order. */
 export const Mark = () => (
   <svg
-    width="22"
-    height="22"
+    width="26"
+    height="26"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"
     focusable="false"
   >
-    <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7z" />
-    <path d="m9 14 2 2 4-4.5" />
+    <g style={{ stroke: "var(--gold)" }} strokeWidth="1.6">
+      <path d="M5.5 5.5h13v13h-13z" />
+      <path d="M12 2.8 21.2 12 12 21.2 2.8 12z" />
+    </g>
+    <path
+      d="m8.6 12.2 2.3 2.3 4.6-4.9"
+      style={{ stroke: "var(--accent)" }}
+      strokeWidth="2.2"
+    />
   </svg>
+);
+
+/** Larger decorative icons for the upload area and empty states (task T061). */
+function BigIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      className="big-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const UploadIcon = () => (
+  <BigIcon>
+    <path d="M12 15V4M7.5 8.5 12 4l4.5 4.5" />
+    <path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />
+  </BigIcon>
+);
+
+export const EmptyDocumentsIcon = () => (
+  <BigIcon>
+    <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7z" />
+    <path d="M14 3v4h4M12 11v6M9 14h6" />
+  </BigIcon>
 );

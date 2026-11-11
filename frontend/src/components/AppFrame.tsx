@@ -55,14 +55,34 @@ type FrameProps = {
   /** The full frame: the tax year and the navigation. */
   full: boolean;
   showLogout: boolean;
+  /** The brand panel beside the page (login and sign-up). */
+  brand?: boolean;
   children?: ReactNode;
 };
+
+/** What the app does, beside the login and sign-up forms (task T058, FR-032). */
+function BrandPanel() {
+  return (
+    <aside className="brand-panel" aria-label="About PakTaxFiler">
+      <p className="brand-title">Your salaried tax return, step by step.</p>
+      <ol className="brand-steps" role="list">
+        <li>Upload your salary and bank certificates</li>
+        <li>Check every figure the app reads</li>
+        <li>See your tax and your wealth statement</li>
+      </ol>
+      <p className="brand-note">
+        AI reads your certificates, you confirm every figure, and the tax itself
+        is worked out from FBR&apos;s published rates.
+      </p>
+    </aside>
+  );
+}
 
 /**
  * One component for every frame, so a page whose frame changes (profile setup becoming
  * editing) keeps its place in the tree and isn't re-created.
  */
-function Frame({ full, showLogout, children }: FrameProps) {
+function Frame({ full, showLogout, brand = false, children }: FrameProps) {
   const { profile } = useProfile();
   return (
     <>
@@ -97,7 +117,14 @@ function Frame({ full, showLogout, children }: FrameProps) {
         className={full ? "app-body" : "plain-body"}
         tabIndex={-1}
       >
-        {children ?? <Outlet />}
+        {brand ? (
+          <div className="auth-layout">
+            <BrandPanel />
+            {children ?? <Outlet />}
+          </div>
+        ) : (
+          (children ?? <Outlet />)
+        )}
       </div>
     </>
   );
@@ -112,10 +139,19 @@ export function AppFrame({ children }: { children?: ReactNode }) {
   );
 }
 
-/** Login, sign-up and not found: the app's name above one panel. */
+/** Not found: the app's name above one panel. */
 export function PlainFrame({ children }: { children?: ReactNode }) {
   return (
     <Frame full={false} showLogout={false}>
+      {children}
+    </Frame>
+  );
+}
+
+/** Login and sign-up: the simple frame with the brand panel beside the form. */
+export function AuthFrame({ children }: { children?: ReactNode }) {
+  return (
+    <Frame full={false} showLogout={false} brand>
       {children}
     </Frame>
   );

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { hasProfile, mockFetch, noDocuments } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
@@ -179,4 +179,29 @@ test("links to sign-up", async () => {
 
   const link = await screen.findByRole("link", { name: /create an account/i });
   expect(link.getAttribute("href")).toBe("/signup");
+});
+
+// Feature 001, User Story 6, task T058 (FR-032): the brand panel says what the app does.
+
+test("a brand panel says what the app does, in three steps", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/login");
+
+  const panel = await screen.findByRole("complementary", {
+    name: /about paktaxfiler/i,
+  });
+  const steps = within(panel).getAllByRole("listitem");
+  expect(steps.map((step) => step.textContent)).toEqual([
+    "Upload your salary and bank certificates",
+    "Check every figure the app reads",
+    "See your tax and your wealth statement",
+  ]);
+});
+
+test("the not-found page has no brand panel", async () => {
+  mockFetch(LOGGED_OUT);
+  renderApp("/no-such-page");
+
+  await screen.findByRole("heading", { name: /page not found/i });
+  expect(screen.queryByRole("complementary")).toBeNull();
 });

@@ -15,6 +15,7 @@ import type {
   Wealth,
   WealthResult,
 } from "../api/wealth";
+import { MoneyInput } from "../components/MoneyInput";
 import { useProfile } from "../profile/ProfileContext";
 
 // The wealth statement for the profile's tax year (feature 005, tasks T011, T017, T023). The
@@ -214,7 +215,17 @@ export function WealthPage() {
       <h1>Wealth statement for {taxYear}</h1>
       {loadError !== null && <p role="alert">{loadError}</p>}
       {wealth === null || form === null ? (
-        loadError === null && <p role="status">Loading…</p>
+        loadError === null && (
+          <>
+            <p role="status">Loading…</p>
+            {/* The shape of the statement while it loads (task T062). */}
+            <div aria-hidden="true">
+              <div className="skeleton skeleton-line" />
+              <div className="skeleton skeleton-card" />
+              <div className="skeleton skeleton-card" />
+            </div>
+          </>
+        )
       ) : (
         <>
           {wealth.certificates_changed && (
@@ -319,7 +330,7 @@ function Assets({ form, update, asOn }: FormProps & { asOn: string }) {
           </label>
           <label>
             Amount
-            <input
+            <MoneyInput
               inputMode="numeric"
               value={asset.amount}
               onChange={(e) => change(asset.key, { amount: e.target.value })}
@@ -395,7 +406,7 @@ function Liabilities({ form, update }: FormProps) {
           </label>
           <label>
             Amount
-            <input
+            <MoneyInput
               inputMode="numeric"
               value={row.amount}
               onChange={(e) => change(row.key, { amount: e.target.value })}
@@ -472,7 +483,7 @@ function MoneyInAndOut({
       <label>
         Net assets on {previousDate} (from last year's statement)
         {/* No numeric keypad: this one may be negative, and phone keypads lack a minus. */}
-        <input
+        <MoneyInput
           aria-describedby="previous-hint"
           value={form.previous_net_assets}
           onChange={(e) => update({ previous_net_assets: e.target.value })}
@@ -485,7 +496,7 @@ function MoneyInAndOut({
         {MONEY_FIELDS.map(([field, label]) => (
           <label key={field}>
             {label}
-            <input
+            <MoneyInput
               inputMode="numeric"
               value={form[field]}
               onChange={(e) => update({ [field]: e.target.value })}
@@ -498,7 +509,7 @@ function MoneyInAndOut({
         {EXPENSE_CATEGORIES.map(([category, label]) => (
           <label key={category}>
             {label}
-            <input
+            <MoneyInput
               inputMode="numeric"
               value={form.expenses[category] ?? ""}
               onChange={(e) =>

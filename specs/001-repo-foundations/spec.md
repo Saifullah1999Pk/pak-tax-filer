@@ -26,6 +26,8 @@
 
 - Q: The lead said the frontend "looks messy"; where does a whole-app redesign go, and how far does it go? → A: Into feature 001 as User Story 6 (FR-026 to FR-031), since it is shared frontend groundwork like the app skeleton. The user chose the middle path: one visual system, a shared frame with navigation and a guiding Home checklist, every page working at phone width; not a step-by-step flow. Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`.
 
+- Q: After the first pass the user found it "barebones": plain, or thin? → A: Plain. Direction B chosen (modern with a Pakistani touch: green and gold, one geometric pattern in two places), plus polish on every page (FR-032). Design addendum 2026-11-11.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Start the whole app with one command (Priority: P1)
@@ -306,6 +308,11 @@ Home's next step matches the user's documents.
   its wording for errors, refusals and results, except where FR-027 and FR-028 say so.
 - **FR-031**: The redesign MUST NOT add a UI component library or CSS framework; the only new
   dependency allowed is one self-hosted font.
+- **FR-032** (added 2026-11-11): The app MUST have a look of its own (design addendum,
+  direction B): a green and gold palette, a logo mark, and one geometric pattern used only on the
+  login and sign-up brand panel and Home's top band; money fields show "Rs" as a visual prefix;
+  uploads accept a dragged file; statuses show as badges whose words carry the meaning; empty
+  and loading states say what to do next; motion stays short and is off under "reduce motion".
 
 ## Success Criteria *(mandatory)*
 

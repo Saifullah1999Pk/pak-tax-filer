@@ -561,3 +561,16 @@ test("the result shows its label, then its message, then where to look", async (
   expect(follows(label, message)).toBe(true);
   expect(follows(message, look)).toBe(true);
 });
+
+test("while the statement loads, 'Loading…' is announced (task T062)", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/wealth/2025-26": () => new Promise(() => {}),
+  });
+  renderApp("/wealth");
+
+  // The page's own heading first: the profile's loading message is also a status.
+  await screen.findByRole("heading", { name: /wealth statement for 2025-26/i });
+  expect(screen.getByRole("status").textContent).toBe("Loading…");
+});
