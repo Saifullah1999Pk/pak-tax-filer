@@ -37,7 +37,6 @@ const CALCULATED: TaxResult = {
       result: "20000",
     },
   ],
-  summary: null,
   label: LABEL,
 };
 
@@ -45,7 +44,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function showTax(result: Partial<TaxResult>) {
+/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
+type Summary = string | null | "pending";
+
+function showTax(result: Partial<TaxResult>, summary: Summary = null) {
   const reply = (): FakeReply => ({
     status: 200,
     body: { ...CALCULATED, ...result },
@@ -54,6 +56,10 @@ function showTax(result: Partial<TaxResult>) {
     "GET /api/auth/me": () => ME,
     "GET /api/profile": hasProfile,
     "GET /api/tax/2025-26": reply,
+    "GET /api/tax/2025-26/summary": () =>
+      summary === "pending"
+        ? new Promise<FakeReply>(() => {})
+        : { status: 200, body: { summary } },
   });
 }
 
@@ -118,7 +124,7 @@ test("the breakdown shows every step with its rule location", async () => {
 });
 
 test("the summary is shown only when the API sends one", async () => {
-  showTax({ summary: "Your salary tax is Rs 72,000; Rs 12,000 is payable." });
+  showTax({}, "Your salary tax is Rs 72,000; Rs 12,000 is payable.");
   const first = renderApp("/tax");
   await screen.findByText(
     /Your salary tax is Rs 72,000; Rs 12,000 is payable\./,
@@ -126,10 +132,38 @@ test("the summary is shown only when the API sends one", async () => {
   first.unmount();
   vi.unstubAllGlobals();
 
-  showTax({ summary: null });
+  showTax({}, null);
   renderApp("/tax");
   await screen.findByRole("list", { name: /how it was worked out/i });
+  await waitFor(() =>
+    expect(screen.queryByText(/writing a short summary/i)).toBeNull(),
+  );
   expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+});
+
+// Feature 001, User Story 6: the figures never wait for the AI summary, which has its own request.
+
+test("the figures show while the summary is still being written", async () => {
+  showTax({}, "pending");
+  renderApp("/tax");
+
+  await screen.findByRole("region", { name: /salary/i });
+  const panel = screen.getByRole("region", { name: /summary/i });
+  within(panel).getByText("Writing a short summary…");
+});
+
+test("a refused calculation never asks for a summary", async () => {
+  const fake = showTax(
+    blocked("needs_atl_answer", "Set your ATL status in your profile."),
+    "Rs 1",
+  );
+  renderApp("/tax");
+
+  await screen.findByText("Set your ATL status in your profile.");
+  const asked = fake.mock.calls.some(([url]) =>
+    String(url).endsWith("/summary"),
+  );
+  expect(asked).toBe(false);
 });
 
 test("without ATL status it links to the profile, with no figures", async () => {
@@ -243,11 +277,12 @@ const follows = (first: Node, second: Node) =>
   );
 
 test("the label comes first, then each side's balance as its headline, then the detail", async () => {
-  showTax({ summary: "Your tax is Rs 72,000." });
+  showTax({}, "Your tax is Rs 72,000.");
   renderApp("/tax");
 
   const salary = await screen.findByRole("region", { name: /salary/i });
   const profit = screen.getByRole("region", { name: /bank profit/i });
+  await screen.findByText("Your tax is Rs 72,000.");
   expect(follows(screen.getByText(LABEL), salary)).toBe(true);
   expect(
     follows(

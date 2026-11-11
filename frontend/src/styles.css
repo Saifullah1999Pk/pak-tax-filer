@@ -1644,3 +1644,59 @@ button[type="submit"]:not(:disabled):hover,
     );
   }
 }
+
+/* ---------- Finishing touches (tasks T066-T068) ---------- */
+
+.money-input {
+  display: block;
+}
+
+/* The amount repeated with digit grouping, so long figures are easy to check. */
+.amount-preview {
+  display: block;
+  margin-top: var(--s-1);
+  color: var(--muted);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Each page fades in quickly when opened. */
+.app-body > main,
+.auth-layout > main,
+.plain-body > main {
+  animation: page-in 160ms ease-out both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* A section that can be folded away. */
+.fold {
+  margin: var(--s-5) 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+.fold > summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--fs-3);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fold[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.fold > .money-grid {
+  padding: var(--s-4) var(--s-4) 0;
+}

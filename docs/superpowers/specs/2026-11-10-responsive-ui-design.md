@@ -296,3 +296,40 @@ Lighthouse at least 90 for performance and 95 for accessibility (SC-010).
 
 The exact pattern drawing and its opacity, the brand panel's copy within the three points above,
 icon drawings, and animation timing (short: about 150-300 ms).
+
+## Addendum 2026-11-11 (round 3): finishing touches
+
+After direction B was committed, a self-critique pass (anthropics `frontend-design`) found four
+small gaps. The user asked for the recommended set:
+
+1. **Browser-tab icon:** the star-and-tick mark replaces Vite's default logo.
+2. **Readable amounts:** under every amount field (Wealth, and the review page), the value is
+   repeated with digit grouping, e.g. "Rs 7,635,000.00" for `7635000.00`, as you type. Display
+   only: the same string-based grouping the Tax page uses, never arithmetic. Hidden from screen
+   readers, which read the field's own value.
+3. **Smooth page changes:** each page fades in quickly (about 160 ms) when opened. React Router's
+   built-in view transitions need its data router, which this app doesn't use; a CSS entrance
+   gives the effect without rewiring. Off under "reduce motion".
+4. **Wealth expenses:** the 16 expense fields sit in a section that can be folded away, its
+   heading showing how many are filled ("3 of 16 filled": a count of fields, not money). Open by
+   default, since expenses count towards the reconciliation.
+
+Left for a separate PR (needs the lead's agreement, as it changes tooling and CI): screenshot
+tests with Playwright (anthropics `webapp-testing`).
+
+## Addendum 2026-11-11 (round 4): fast figures, honest summaries
+
+The user verified the Tax page's figures (all correct against an independent recalculation)
+and found the page slow. Measured: every visit waited the full 4-second summary limit, and from
+here the summary never arrived. Options considered: load the summary separately (chosen);
+preload the old request from Home (still calls the AI on every Home visit, and a quick click
+still waits); cache summaries on the server (the first visit still waits; could be added later).
+Background preloading of the figures was dropped too: once separate they return in about 0.02 s,
+and a cached copy could briefly show outdated figures after a certificate changes.
+
+- The tax and wealth figures never wait for the AI; each summary has its own request (12 s
+  limit) and fills a "Summary" panel after the figures.
+- Once summaries arrived, one said the salary tax was "after accounting for" the tax deducted.
+  The model is now told the tax comes before anything is taken off, and a plain-code guard drops
+  a sentence that puts a credit inside a tax figure. Option B (a code-written summary instead of
+  the AI's) is put to the lead as a question.

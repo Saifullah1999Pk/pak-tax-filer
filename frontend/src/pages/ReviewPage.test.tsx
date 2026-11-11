@@ -389,3 +389,20 @@ test("on a wide screen the original document starts open", async () => {
 
   expect(originalPanel().open).toBe(true);
 });
+
+// Feature 001, User Story 6, task T066: long amounts are repeated with digit grouping, so they
+// are easy to check against the document (display only; the field keeps the plain value).
+
+test("each amount is repeated with digit grouping beneath its field", async () => {
+  mockFetch(routes(DOCUMENT));
+  await openReview();
+
+  screen.getByText("Rs 1,800,000.00");
+  screen.getByText("Rs 1,700,000.00");
+  expect(screen.getByLabelText("Gross salary")).toHaveProperty(
+    "value",
+    "1800000.00",
+  );
+  // The tax year is not an amount.
+  expect(screen.queryByText(/Rs 2025/)).toBeNull();
+});

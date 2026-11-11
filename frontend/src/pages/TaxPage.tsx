@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api/client";
-import { balanceWords, getTax, rupees } from "../api/tax";
+import { balanceWords, getTax, getTaxSummary, rupees } from "../api/tax";
 import type { TaxResult } from "../api/tax";
+import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
 
 // The user's tax for the profile's tax year (feature 004, tasks T013, T019, T023). Every figure
@@ -180,15 +181,13 @@ function Figures({ result }: { result: TaxResult }) {
           )}
         </section>
       </div>
-      {result.summary !== null && (
-        <section
-          aria-labelledby="summary-heading"
-          className="panel summary-panel"
-        >
-          <h2 id="summary-heading">Summary</h2>
-          <p>{result.summary}</p>
-        </section>
-      )}
+      {/* Loaded on its own, so the figures above never wait for the AI. */}
+      <SummaryPanel
+        key={result.tax_year}
+        fetchSummary={getTaxSummary}
+        taxYear={result.tax_year}
+        headingId="summary-heading"
+      />
       <h2 id="breakdown-heading">How it was worked out</h2>
       <ol aria-labelledby="breakdown-heading" className="ledger" role="list">
         {result.steps.map((step, index) => (

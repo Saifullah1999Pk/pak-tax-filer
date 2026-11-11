@@ -7,6 +7,7 @@ import {
   ASSET_CATEGORIES,
   EXPENSE_CATEGORIES,
   getWealth,
+  getWealthSummary,
   saveWealth,
 } from "../api/wealth";
 import type {
@@ -16,6 +17,7 @@ import type {
   WealthResult,
 } from "../api/wealth";
 import { MoneyInput } from "../components/MoneyInput";
+import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
 
 // The wealth statement for the profile's tax year (feature 005, tasks T011, T017, T023). The
@@ -128,6 +130,8 @@ export function WealthPage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveAttempts, setSaveAttempts] = useState(0);
+  // Each statement shown (loaded or saved) gets a new number, so its summary is asked for anew.
+  const [version, setVersion] = useState(0);
   const [shownYear, setShownYear] = useState(taxYear);
   const saveButton = useRef<HTMLButtonElement | null>(null);
   // The year a save was sent for; a reply for another year is ignored.
@@ -165,6 +169,7 @@ export function WealthPage() {
         if (current) {
           setWealth(loaded);
           setForm(toForm(loaded.statement));
+          setVersion((n) => n + 1);
         }
       })
       .catch((caught: unknown) => {
@@ -195,6 +200,7 @@ export function WealthPage() {
       }
       setWealth(result);
       setForm(toForm(result.statement));
+      setVersion((n) => n + 1);
       setSaved(true);
     } catch (caught) {
       setSaveError(message(caught, "Couldn't save. Try again."));
@@ -273,7 +279,12 @@ export function WealthPage() {
               <p role="status">{saved ? "Saved." : ""}</p>
             </div>
           </form>
-          <Result result={wealth.result} label={wealth.label} />
+          <Result
+            result={wealth.result}
+            label={wealth.label}
+            taxYear={taxYear}
+            version={version}
+          />
         </>
       )}
     </main>
@@ -450,6 +461,9 @@ function MoneyInAndOut({
   autoFilled,
   previousDate,
 }: FormProps & { autoFilled: AutoFilledLine[]; previousDate: string }) {
+  const filledExpenses = Object.values(form.expenses).filter(
+    (value) => value.trim() !== "",
+  ).length;
   return (
     <section aria-labelledby="money-heading" className="statement-section">
       <h2 id="money-heading">Money in and out</h2>
@@ -504,23 +518,30 @@ function MoneyInAndOut({
           </label>
         ))}
       </div>
-      <h3>Personal expenses</h3>
-      <div className="money-grid">
-        {EXPENSE_CATEGORIES.map(([category, label]) => (
-          <label key={category}>
-            {label}
-            <MoneyInput
-              inputMode="numeric"
-              value={form.expenses[category] ?? ""}
-              onChange={(e) =>
-                update({
-                  expenses: { ...form.expenses, [category]: e.target.value },
-                })
-              }
-            />
-          </label>
-        ))}
-      </div>
+      {/* Foldable once filled in; open by default, as expenses count towards the
+          reconciliation. The heading counts fields filled, never money (task T068). */}
+      <details className="fold" open>
+        <summary>
+          Personal expenses ({filledExpenses} of {EXPENSE_CATEGORIES.length}{" "}
+          filled)
+        </summary>
+        <div className="money-grid">
+          {EXPENSE_CATEGORIES.map(([category, label]) => (
+            <label key={category}>
+              {label}
+              <MoneyInput
+                inputMode="numeric"
+                value={form.expenses[category] ?? ""}
+                onChange={(e) =>
+                  update({
+                    expenses: { ...form.expenses, [category]: e.target.value },
+                  })
+                }
+              />
+            </label>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }
@@ -547,7 +568,15 @@ function SectionBar() {
   );
 }
 
-function Result({ result, label }: { result: WealthResult; label: string }) {
+type ResultProps = {
+  result: WealthResult;
+  label: string;
+  taxYear: string;
+  /** Changes with every load and save, so the summary is asked for again. */
+  version: number;
+};
+
+function Result({ result, label, taxYear, version }: ResultProps) {
   return (
     <section aria-labelledby="result-heading" className="result">
       <h2 id="result-heading">Result</h2>
@@ -565,15 +594,14 @@ function Result({ result, label }: { result: WealthResult; label: string }) {
               </ul>
             </>
           )}
-          {result.summary !== null && (
-            <section
-              aria-labelledby="wealth-summary-heading"
-              className="panel summary-panel"
-            >
-              <h3 id="wealth-summary-heading">Summary</h3>
-              <p>{result.summary}</p>
-            </section>
-          )}
+          {/* Loaded on its own, and again after each save (a new `key`). */}
+          <SummaryPanel
+            key={version}
+            fetchSummary={getWealthSummary}
+            taxYear={taxYear}
+            headingId="wealth-summary-heading"
+            level={3}
+          />
           <h3 id="wealth-breakdown-heading">How it was worked out</h3>
           <ol
             aria-labelledby="wealth-breakdown-heading"

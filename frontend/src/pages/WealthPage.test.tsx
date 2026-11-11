@@ -76,7 +76,6 @@ const SAVED: Wealth = {
         result: "0",
       },
     ],
-    summary: null,
   },
   label: LABEL,
 };
@@ -85,9 +84,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
+type Summary = string | null | "pending";
+
 function serve(
   wealth: Partial<Wealth> = {},
   onSave?: (body: unknown) => FakeReply | Promise<FakeReply>,
+  summary: Summary = null,
 ) {
   const reply = (): FakeReply => ({
     status: 200,
@@ -99,6 +102,10 @@ function serve(
     "GET /api/profile": hasProfile,
     "GET /api/wealth/2025-26": reply,
     "PUT /api/wealth/2025-26": ({ body }) => (onSave ? onSave(body) : reply()),
+    "GET /api/wealth/2025-26/summary": () =>
+      summary === "pending"
+        ? new Promise<FakeReply>(() => {})
+        : { status: 200, body: { summary } },
   });
 }
 
@@ -135,7 +142,10 @@ test("the saved rows and amounts are filled in", async () => {
     "value",
     "2100000",
   );
-  expect(screen.getByLabelText(/^rent$/i)).toHaveProperty("value", "600000");
+  expect(screen.getByRole("textbox", { name: /^rent$/i })).toHaveProperty(
+    "value",
+    "600000",
+  );
 });
 
 test("adding, editing and removing rows is what gets saved", async () => {
@@ -253,8 +263,10 @@ test("empty fields are sent as not entered, zero or left out, and amounts trimme
   fireEvent.change(screen.getByLabelText(/inheritance/i), {
     target: { value: "" },
   });
-  fireEvent.change(screen.getByLabelText(/^rent$/i), { target: { value: "" } });
-  fireEvent.change(screen.getByLabelText(/^medical$/i), {
+  fireEvent.change(screen.getByRole("textbox", { name: /^rent$/i }), {
+    target: { value: "" },
+  });
+  fireEvent.change(screen.getByRole("textbox", { name: /^medical$/i }), {
     target: { value: " 5000 " },
   });
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
@@ -443,22 +455,28 @@ test("the breakdown shows each step with its form line", async () => {
   within(steps[0]).getByText(/703001/);
   screen.getByText("Your wealth statement reconciles.");
   expect(screen.queryByRole("list", { name: /where to look/i })).toBeNull();
-  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+  // No summary (the request answers none): the panel goes once that answer arrives.
+  await waitFor(() =>
+    expect(screen.queryByRole("region", { name: /summary/i })).toBeNull(),
+  );
   within(screen.getByRole("region", { name: /^result$/i })).getByText(LABEL);
 });
 
 test("a gap shows its message, where to look, and the summary when there is one", async () => {
-  serve({
-    result: {
-      ...SAVED.result,
-      unreconciled: "-50000",
-      direction: "growth_exceeds_inflows",
-      message:
-        "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
-      where_to_look: ["A gift you received", "An inheritance"],
-      summary: "Your assets grew Rs 50,000 more than your inflows explain.",
+  serve(
+    {
+      result: {
+        ...SAVED.result,
+        unreconciled: "-50000",
+        direction: "growth_exceeds_inflows",
+        message:
+          "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
+        where_to_look: ["A gift you received", "An inheritance"],
+      },
     },
-  });
+    undefined,
+    "Your assets grew Rs 50,000 more than your inflows explain.",
+  );
   await open();
 
   screen.getByText(
@@ -466,8 +484,26 @@ test("a gap shows its message, where to look, and the summary when there is one"
   );
   const look = screen.getByRole("list", { name: /where to look/i });
   within(look).getByText("A gift you received");
+  await within(
+    await screen.findByRole("region", { name: /summary/i }),
+  ).findByText("Your assets grew Rs 50,000 more than your inflows explain.");
+});
+
+// Feature 001, User Story 6: the statement never waits for the AI summary.
+
+test("the statement shows while its summary is still being written, and asks again after a save", async () => {
+  const fake = serve({}, undefined, "pending");
+  await open();
+
   within(screen.getByRole("region", { name: /summary/i })).getByText(
-    "Your assets grew Rs 50,000 more than your inflows explain.",
+    "Writing a short summary…",
+  );
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+  await screen.findByText("Saved.");
+  await waitFor(() =>
+    expect(
+      fake.mock.calls.filter(([url]) => String(url).endsWith("/summary")),
+    ).toHaveLength(2),
   );
 });
 
@@ -573,4 +609,33 @@ test("while the statement loads, 'Loading…' is announced (task T062)", async (
   // The page's own heading first: the profile's loading message is also a status.
   await screen.findByRole("heading", { name: /wealth statement for 2025-26/i });
   expect(screen.getByRole("status").textContent).toBe("Loading…");
+});
+
+// Feature 001, User Story 6, tasks T066 and T068.
+
+test("an amount typed in is repeated with digit grouping, and nothing for a non-number", async () => {
+  serve();
+  await open();
+
+  const field = screen.getByRole("textbox", { name: /^inheritance$/i });
+  fireEvent.change(field, { target: { value: "1500000" } });
+  screen.getByText("Rs 1,500,000");
+  fireEvent.change(field, { target: { value: "15 lakh" } });
+  expect(screen.queryByText(/Rs 15/)).toBeNull();
+});
+
+test("the personal expenses can be folded away and say how many are filled", async () => {
+  serve();
+  await open();
+
+  const summary = screen.getByText(/personal expenses/i, {
+    selector: "summary",
+  });
+  const panel = summary.parentElement as HTMLDetailsElement;
+  expect(panel.open).toBe(true);
+  expect(summary.textContent).toBe("Personal expenses (1 of 16 filled)");
+  fireEvent.change(screen.getByRole("textbox", { name: /^water$/i }), {
+    target: { value: "500" },
+  });
+  expect(summary.textContent).toBe("Personal expenses (2 of 16 filled)");
 });

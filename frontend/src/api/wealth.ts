@@ -64,7 +64,6 @@ export type WealthResult = {
   direction: Direction | null;
   where_to_look: string[];
   steps: WealthStep[];
-  summary: string | null;
 };
 
 export type Wealth = {
@@ -82,6 +81,10 @@ export const getWealth = (taxYear: string) => apiFetch<Wealth>(path(taxYear));
 
 export const saveWealth = (taxYear: string, statement: StatementIn) =>
   apiFetch<Wealth>(path(taxYear), { method: "PUT", body: statement });
+
+/** The checked AI summary, on its own so the statement never waits for it (feature 001, US6). */
+export const getWealthSummary = (taxYear: string) =>
+  apiFetch<{ summary: string | null }>(`${path(taxYear)}/summary`);
 
 /** IRIS asset categories (005 research R4), in the IRIS order. */
 export const ASSET_CATEGORIES: [string, string][] = [
