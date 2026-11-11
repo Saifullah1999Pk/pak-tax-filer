@@ -22,6 +22,8 @@ from alembic import context
 from app.auth import models as _auth_models  # pylint: disable=unused-import
 from app.documents import models as _documents_models  # pylint: disable=unused-import
 from app.profile import models as _profile_models  # pylint: disable=unused-import
+from app.rag import models as _rag_models  # pylint: disable=unused-import
+from app.tokens import models as _tokens_models  # pylint: disable=unused-import
 from app.wealth import models as _wealth_models  # pylint: disable=unused-import
 from app.db import Base
 
