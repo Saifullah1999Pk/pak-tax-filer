@@ -72,7 +72,7 @@ data.
 ```text
 specs/001-repo-foundations/
 ├── plan.md              # This file
-├── research.md          # Decisions R1–R13
+├── research.md          # Decisions R1–R14
 ├── data-model.md        # None for 001
 ├── quickstart.md        # Validation guide
 ├── contracts/
@@ -96,7 +96,7 @@ scripts/
 ├── validate_contracts.py   # the contract check (R12)
 └── tests/                  # pytest with a sample app and sample specs
 
-.github/workflows/ci.yml    # backend, frontend, hooks and contracts jobs (R8, R13)
+.github/workflows/ci.yml    # backend, frontend, hooks and contracts jobs (R8, R14)
 
 .claude/
 ├── settings.json           # the lead's hooks (#10) + ours + permissions
