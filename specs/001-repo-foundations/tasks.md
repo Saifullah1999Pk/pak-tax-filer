@@ -157,7 +157,7 @@ hook and CI (FR-033 to FR-039).
 - [ ] T075 [US7] Add job `contracts` to `.github/workflows/ci.yml` (every pull request and push to `main`): `uv run --project backend python scripts/validate_contracts.py --all`
 - [ ] T076 [P] [US7] Add the "Machine-checkable contract" rule to `docs/api-conventions.md` per [contracts/api-conventions.md](contracts/api-conventions.md) (every route declares `response_model`; `api.yaml` changes with the Markdown contract); make `GET /health` in `backend/app/main.py` declare its `response_model`
 - [ ] T077 [P] [US7] Write `docs/contracts.md` (defining a contract and `api.yaml`; running the check locally; reading `[NNN] file: item: problem` messages; the started-feature and `(manual)` rules; the completion hook) and add a "Contracts" section to the root `CLAUDE.md`: run the check before claiming a feature done, and run `/speckit-converge` and `/speckit-analyze` before a feature's pull request
-- [ ] T078 [US7] Mark this feature's human-only tasks `(manual)` in this `tasks.md` (T020, T026, T028, T041, T043, T079, T080 and the quickstart runs), per research R13
+- [ ] T078 [US7] Mark this feature's human-only tasks `(manual)` in this `tasks.md` (T020, T026, T028, T041, T043, T079, T080 and the quickstart runs), per research R14
 - [ ] T079 [US7] (manual) In this feature's pull request description, ask the lead to make the `contracts` CI job a required status check on `main` (repository setting)
 - [ ] T080 [US7] (manual) Run [quickstart.md](quickstart.md) section 8, including every planted violation
 
