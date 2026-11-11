@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TaxResult } from "../api/tax";
 import { hasProfile, mockFetch } from "../test/mockFetch";
@@ -73,7 +73,10 @@ test("asks for the profile's tax year and never asks for ATL status itself", asy
   renderApp("/tax");
 
   await screen.findByRole("heading", { name: /your tax for 2025-26/i });
-  expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything());
+  // The heading shows before the page asks for its tax, so wait for the request.
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything()),
+  );
   expect(screen.queryByText(/active taxpayer/i)).toBeNull();
   expect(screen.queryByRole("radio")).toBeNull();
 });
