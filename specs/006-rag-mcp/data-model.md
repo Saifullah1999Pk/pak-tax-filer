@@ -23,7 +23,7 @@ Timestamps are UTC.
 | `location` | text | stable, e.g. `§149(1)`, `ch. 14.3` |
 | `page` | int | 1-based PDF page |
 | `text` | text | 150–400 words target |
-| `embedding` | vector(384) | HNSW index, cosine distance |
+| `embedding` | vector(768) | HNSW index, cosine distance (Gemini `gemini-embedding-001` at 768 dimensions; amended 2026-11-11) |
 
 The whole corpus is replaced in one transaction on each build.
 

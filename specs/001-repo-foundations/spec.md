@@ -294,10 +294,13 @@ Home's next step matches the user's documents.
 - **FR-026** (added 2026-11-10): Every page MUST use one shared set of colours, type sizes and
   spacing values, in a light and a dark theme that follows the device setting, with text
   contrast of at least 4.5:1.
-- **FR-027**: Every logged-in page with a profile MUST share one frame: a header with the app
-  name, the tax year and Log out, and one navigation (Home, Documents, Tax, Wealth statement,
-  Profile) marking the current page; below 720 px wide the navigation MUST sit at the bottom of
-  the screen. Login, sign-up, not-found and first-time profile setup MUST use a simpler frame
+- **FR-027** (amended 2026-11-11 with 006): Every logged-in page with a profile MUST share one
+  frame: a header with the app name and the tax year. From 720 px wide the header links are
+  Home, Documents, Tax, Wealth statement and Ask (Guided filing joins in 007), marking the
+  current page, with a profile menu holding Profile and Log out (Activity joins in 008). Below
+  720 px a bottom bar holds Home, Filing, Ask and Account; Filing and Account open sheets with
+  their pages (Documents, Tax, Wealth statement; Profile, Log out), and the current page's group
+  is marked. Login, sign-up, not-found and first-time profile setup MUST use a simpler frame
   without the navigation.
 - **FR-028**: Home MUST show the four filing steps (profile, documents, tax, wealth statement)
   for the profile's tax year, each with its state and one action, and mark the first step not

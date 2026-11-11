@@ -15,6 +15,17 @@
 - Q: Should the Ask page limit how many questions one user can ask in a period? → A: Yes: 30 questions per user per hour; beyond that, "try again later" (per-user quotas are the standard guard against unbounded AI cost).
 - Q: When a question mixes a covered and an uncovered topic, answer partly or refuse? → A: Answer the covered part with citations and state clearly which part isn't covered; if the checks fail, refuse the whole question.
 
+### Session 2026-11-11
+
+Built after the switch to Gemini and the redesign; decided with Saifullah (design addendum 2026-11-11 (`docs/superpowers/specs/2026-11-03-rag-mcp-design.md`)):
+
+- Q: Which embeddings? → A: Gemini's embedding API (`gemini-embedding-001`, 768 dimensions) in pgvector; no new stack component, so the embeddings-approval question to the lead no longer applies.
+- Q: Gemini answers take about 3-9 s here and must be checked before they're shown; keep the 10-second target? → A: No: 15 seconds, with progress shown while waiting (SC-004).
+- Q: Where does Ask go in the navigation, with more pages to come? → A: Flat on computers (Home, Documents, Tax, Wealth statement, Ask; a profile menu for Profile and Log out); on phones a bottom bar of Home, Filing, Ask, Account, with sheets for the groups (001 FR-027 amended).
+- Q: Who uses the MCP server, and where are tokens made? → A: Developers, locally, from Gemini CLI or Claude Code; tokens come from a command (`create-token`, `revoke-token`), with no page in the app (FR-016).
+- Q: Every feature shares one free Gemini key; cap Ask for the whole app? → A: Yes: 200 questions a day for the whole app (a setting), the MCP search counting too (FR-009b).
+- Q: The retrieval eval now needs the Gemini key; where does it run? → A: As the extraction eval does: in CI where the secret exists; a fork PR attaches a local run's report (FR-011).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Ask a tax question and get a cited answer (Priority: P1)
@@ -171,11 +182,17 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
 - **FR-009**: No conversation history MUST be kept; each question is answered alone.
 - **FR-009a**: Each user MUST be limited to 30 questions per hour; beyond that, no answer is
   generated and the user is told to try again later.
+- **FR-009b** (added 2026-11-11): The whole app MUST be limited to 200 questions a day (a
+  setting), counting the MCP search tool; beyond that, no question is embedded or answered and
+  the user is told the assistant has reached today's limit. Before the corpus is first built,
+  questions get "The tax assistant isn't ready yet".
 - **FR-010**: A retrieval eval MUST measure the top-5 hit rate over labelled questions and the
   refusal rate over out-of-corpus questions; labels MUST name stable locations, not internal
   identifiers.
-- **FR-011**: Automated checks MUST run the retrieval eval on every pull request without needing
-  a secret, and MUST fail below the agreed pass mark.
+- **FR-011** (amended 2026-11-11): Automated checks MUST run the retrieval eval on pull requests
+  where the Gemini key is available (as the extraction eval does), and MUST fail below the
+  agreed pass mark; it MUST also run on every push to `main`, so a merge that lowers quality
+  fails CI there; a pull request without the key (our fork PRs) attaches a local run's report.
 - **FR-012**: The MCP server MUST expose exactly three tools: search tax documents, calculate
   income tax, validate salary information.
 - **FR-013**: Calculate income tax MUST use only the authenticated user's confirmed certificates,
@@ -186,8 +203,11 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
 - **FR-015**: Every tool call MUST require a valid personal access token; tokens MUST be stored
   only as hashes, shown in full once at creation, revocable, and expire after 90 days. The web
   app's own login MUST stay unchanged.
-- **FR-016**: Users MUST be able to create, list (without full values) and revoke their own
-  tokens.
+- **FR-016** (amended 2026-11-11): Developers MUST be able to create a token for a user and
+  revoke it with commands (as `create-user` today); there is no token page in the app.
+- **FR-017** (added 2026-11-11): Ask MUST appear in the app's navigation as 001 FR-027 (amended)
+  describes, and the Ask page MUST show its progress ("Searching the FBR texts…", "Writing a
+  cited answer…") while waiting.
 
 ### Key Entities
 
@@ -207,7 +227,8 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
 - **SC-002**: 0 shown answers cite a passage not found for that question, or contain a number not
   in a cited passage (tested with deliberately bad answers).
 - **SC-003**: 100% of shown answers carry the practitioner label.
-- **SC-004**: An answer appears within 10 seconds of asking.
+- **SC-004** (amended 2026-11-11): An answer or a not-covered message appears within 15 seconds
+  of asking, with progress shown while waiting.
 - **SC-005**: Calculate income tax returns figures identical to the Tax page for 100% of 004's
   signed-off worked examples.
 - **SC-006**: 100% of tool calls with a missing, wrong, expired or revoked token are refused.
@@ -216,9 +237,8 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
 
 - FBR publishes no separate Form 114(1) or Form 116 guide for TY2026; the FBR-hosted 2026 filing
   manual's chapters are the current equivalent (asked of the lead).
-- The search representation uses a small open-source model running locally, pending the lead's
-  approval (a hosted alternative is the fallback); either is a stack addition recorded in the
-  plan.
+- The search representation comes from Gemini's embedding API (amended 2026-11-11), already
+  part of the stack, so no new component or approval is needed.
 - The pass mark and adding the First Schedule (salaried slabs) to the corpus are asked of the
   lead.
 - The MCP server runs locally and is used from Claude Code; tests use synthetic users with

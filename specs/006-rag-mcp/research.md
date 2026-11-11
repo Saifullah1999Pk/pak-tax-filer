@@ -8,7 +8,7 @@ the [design doc](../../docs/superpowers/specs/2026-11-03-rag-mcp-design.md).
 - **Decision:** `backend/app/rag/sources.yaml` lists each document: `id`, `title`, `kind`
   (`law` or `guidance`), official FBR `url`, `sha256`, and what to keep (Ordinance: sections
   12, 13, 149, 7B, 151; manual: chapters 4–6 and 14 by page range). A build command
-  (`python -m app.rag.build`) downloads into a git-ignored cache (`/data/corpus-cache/`), stops
+  (`python -m app.rag.build`) downloads into a git-ignored cache (`backend/data/corpus-cache/`; amended 2026-11-11: inside the mounted folder, so downloads survive container restarts), stops
   if a checksum differs, extracts text with `pypdf` (already used in 003), splits, embeds and
   replaces the stored corpus in one transaction.
 - **Rationale:** the manual can't be redistributed (design, "Licensing"); a checksum makes the
@@ -106,3 +106,20 @@ the [design doc](../../docs/superpowers/specs/2026-11-03-rag-mcp-design.md).
   Answer quality with Claude is checked by a separate local script, `evals/answers/run.py`, not
   in CI.
 - **Rationale:** meets Principle VI and FR-010/011 without secrets.
+
+## Amendments 2026-11-11 (design addendum 2026-11-11 (`docs/superpowers/specs/2026-11-03-rag-mcp-design.md`))
+
+- **R3 Embeddings:** replaced by Gemini's embedding API (`gemini-embedding-001`, 768
+  dimensions, retrieval task types for passages and questions) through `google-genai`, already a
+  dependency. The local model would have taken 0.3-0.5 GB on a 1 GB VM and was a new stack
+  component. The corpus build embeds in batches with pauses and retries (free-tier per-minute
+  limits) and is all-or-nothing.
+- **R5 Answer generation:** Gemini (`google-genai`), as 003 and 004 call it, with structured
+  output; a 15-second limit (SC-004 amended).
+- **R7 Question limit:** plus a whole-app cap of 200 a day (FR-009b), counted and locked like
+  003's `use_extraction`.
+- **R8 Personal access tokens:** created and revoked by `app.cli` commands; no API or page.
+- **R9 MCP server:** unchanged (stdio, the backend's own service functions); connected from both
+  Gemini CLI and Claude Code, with setup for each in `docs/`.
+- **R10 Retrieval eval and CI:** runs where the Gemini key is available, like the extraction
+  eval; fork PRs attach a local report.

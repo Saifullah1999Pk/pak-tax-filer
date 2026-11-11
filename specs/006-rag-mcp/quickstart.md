@@ -36,16 +36,18 @@ docker compose exec backend python -m evals.retrieval.run
 Expected: hit@5 and refusal rate printed and at or above `thresholds.yaml`. Replace the search
 with random passages locally: the run exits non-zero. Revert.
 
-## 4. MCP tools (User Story 4)
+## 4. MCP tools (User Story 4; amended 2026-11-11)
 
-1. In the app, open **Tokens**, create one, copy it (shown once), and set `PAKTAX_TOKEN` in your
-   shell.
-2. Start Claude Code in the repo; `/mcp` shows `pak-tax-filer` with exactly three tools.
-3. Ask Claude Code to search for "§149": passages with citations.
+1. Create a token: `docker compose exec backend python -m app.cli create-token --email
+   demo@example.com` (shown once), and set `PAKTAX_TOKEN` in your shell.
+2. **Claude Code:** start it in the repo; `/mcp` shows `pak-tax-filer` with exactly three tools.
+   **Gemini CLI:** connect it as `docs/mcp.md` shows; its MCP list shows the same three tools.
+3. In each, ask it to search for "§149": passages with citations.
 4. Ask it to calculate your tax: the same figures as the Tax page, using your profile's ATL
    status.
 5. Ask it to validate taxable salary 2,100,000 with gross 2,000,000: an issue is reported.
-6. Revoke the token in the app: the next tool call is refused.
+6. Revoke the token (`python -m app.cli revoke-token --prefix <its prefix>`): the next tool call
+   is refused, in both clients.
 
 ## 5. All tests
 

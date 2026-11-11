@@ -8,7 +8,7 @@
 
 A build command downloads the named FBR documents by URL and checksum, splits them into located
 passages, embeds them locally and stores them in pgvector. `POST /api/ask` retrieves the top 5
-passages, asks Claude for a structured, cited answer from them only, and shows it only if code
+passages, asks Gemini for a structured, cited answer from them only, and shows it only if code
 confirms every citation was retrieved and every number appears in a cited passage; otherwise it
 refuses. A retrieval eval with stable-location labels runs in CI without secrets. An MCP server
 (stdio, inside the backend container) exposes exactly three tools that call existing service
@@ -20,26 +20,25 @@ functions, acting as the owner of a personal access token. Decisions are in
 **Language/Version**: Python 3.13, TypeScript on Node 24 (as in 001)
 
 **Primary Dependencies**: FastAPI, SQLAlchemy 2 async + Alembic, `pgvector` (Python), `pypdf`
-(003), `anthropic` (003), Python MCP SDK `mcp`, **`fastembed` with `BAAI/bge-small-en-v1.5`
-(new, pending the lead's approval)**, `pyyaml` (004); React + React Router (002)
+(003), `google-genai` (003; answers and embeddings, amended 2026-11-11), Python MCP SDK `mcp`, `pyyaml` (004); React + React Router (002)
 
 **Storage**: PostgreSQL 17 + pgvector: four tables ([data-model.md](data-model.md)); FBR files
 in a git-ignored cache
 
-**Testing**: pytest (fake Claude client for answers and checks; fake embedder for unit tests);
+**Testing**: pytest (fake Gemini client for answers and checks; fake embedder for unit tests);
 retrieval eval with thresholds; Vitest
 
 **Target Platform**: local Docker Compose; MCP over stdio from Claude Code
 
 **Project Type**: web application + local MCP server
 
-**Performance Goals**: answer within 10 seconds (SC-004; 8-second Claude timeout)
+**Performance Goals**: an answer or not-covered message within 15 seconds, with progress shown (SC-004 amended; 15-second Gemini limit)
 
 **Constraints**: corpus limited to the named sources (constitution, Corpus); no source files in
 the repo (licence); no figures from AI (Principle I); eval without secrets; 30 questions per
 user per hour
 
-**Scale/Scope**: 2 source documents, a few hundred passages, 4 endpoints, 3 MCP tools, 2 pages
+**Scale/Scope**: 2 source documents, a few hundred passages, 1 endpoint (`POST /api/ask`), 3 MCP tools, 1 page plus the app's navigation (amended 2026-11-11)
 
 ## Constitution Check
 
@@ -54,10 +53,10 @@ user per hour
 | V. Synthetic data only | PASS | No user documents involved; question text not stored |
 | VI. Measured AI | PASS | Retrieval eval with thresholds in CI (R10); answer checks tested with a fake client |
 | VII. MVP scope | PASS | Exactly three MCP tools; corpus exactly as named; no chat history |
-| Stack | **PENDING LEAD** | `fastembed` + `bge-small-en-v1.5` is a stack addition (Claude has no embeddings API); approval requested in the PR and recorded here |
-| Secrets | PASS | `ANTHROPIC_API_KEY` and `PAKTAX_TOKEN` only from the local environment; tokens stored as hashes |
+| Stack | PASS (amended 2026-11-11) | Gemini embeddings and answers through `google-genai`, already in the stack; no new component |
+| Secrets | PASS | `GEMINI_API_KEY` and `PAKTAX_TOKEN` only from the local environment; tokens stored as hashes |
 
-**Post-design re-check:** PASS, with the stack addition pending the lead's approval.
+**Post-design re-check:** PASS (amended 2026-11-11: no stack addition any more).
 
 ## Project Structure
 
@@ -86,10 +85,10 @@ backend/
 │   ├── models.py                  # corpus_documents, passages, ask_requests
 │   ├── build.py                   # download, verify, extract, split, embed, store
 │   ├── split.py                   # structure-aware passages
-│   ├── embed.py                   # fastembed wrapper; fake for tests
+│   ├── embed.py                   # Gemini embeddings; fake for tests
 │   ├── search.py                  # top-5 + cut-off
 │   ├── settings.py                # cut-off, ANSWER_MODEL, timeout, limit
-│   ├── answer.py                  # Claude call, structured output
+│   ├── answer.py                  # Gemini call, structured output
 │   ├── checks.py                  # citation + number checks (uses app.explain)
 │   ├── service.py                 # ask(): limit, search, answer, checks
 │   └── router.py                  # POST /api/ask
@@ -106,13 +105,13 @@ frontend/src/pages/AskPage.tsx, TokensPage.tsx (+ tests)
 ```
 
 **Structure Decision**: retrieval, answering and checks are separate modules so the checks can
-be tested with a fake Claude client and the eval can run with retrieval alone.
+be tested with a fake Gemini client and the eval can run with retrieval alone.
 
 ## Complexity Tracking
 
 | Item | Why needed | Simpler alternative rejected because |
 |---|---|---|
-| New stack component (`fastembed` + model), pending lead approval | Claude has no embeddings API and the README requires pgvector | Voyage API: a vendor, key and cost, and no CI eval on fork PRs; keyword search: README specifies pgvector |
+| ~~New stack component (`fastembed` + model)~~ (withdrawn 2026-11-11: Gemini embeddings instead) | — | — |
 | Personal access tokens | MCP clients aren't browsers; `calculate_income_tax` must act as a specific user (spec FR-013) | Shared key: breaks own-data rules; no auth: anyone with shell access could read any user's data |
 
 ## AI provider (2026-11-08)
@@ -120,3 +119,13 @@ be tested with a fake Claude client and the eval can run with retrieval alone.
 The AI model is Google's **Gemini API, free tier**, replacing Claude (the lead asked for "anything
 free"; see 003's plan, "Stack change"). Where this plan names Claude or the Anthropic SDK, read
 Gemini and `google-genai`; the details are settled when this feature is built.
+
+## Amendment 2026-11-11: built with Gemini, after the redesign
+
+Per the design addendum 2026-11-11 (`docs/superpowers/specs/2026-11-03-rag-mcp-design.md`): embeddings from Gemini's API at 768 dimensions (no `fastembed`, no new stack
+component, so the "PENDING LEAD" stack row no longer applies); answers from Gemini with a 15 s
+limit and progress on the Ask page; a whole-app cap of 200 questions a day; tokens from
+`app.cli` commands, with no tokens API or page (`app/tokens/` keeps models and service only);
+the MCP server connected from Gemini CLI and Claude Code; the retrieval eval in CI where the key
+exists. The navigation for the whole app (001 FR-027 amended) is built here, first, because Ask
+is the first page that needs it. Changes outside 006: 001's frame and its tests.

@@ -141,3 +141,97 @@ setting (same pattern as 003/004), the embedding model's exact name, table layou
 - The retrieval eval runs in CI and meets the agreed pass mark.
 - The three MCP tools work from Claude Code (stdio) with a personal access token;
   `calculate_income_tax` uses only confirmed certificates.
+
+## Addendum 2026-11-11: building it after the Gemini switch and the redesign
+
+This design (and 006's plan) was written for Claude and a local embedding model. Since then the
+app uses Gemini (free tier, `google-genai`; 003's "Stack change"), runs in production on one
+1 GB e2-micro VM, and has a new look and navigation (001, User Story 6). Three decisions, made
+with Saifullah on 2026-11-11 (superpowers:brainstorming):
+
+### 1. Embeddings: Gemini's API (replaces approach A above)
+
+| | Approach | Trade-off | Outcome |
+|---|---|---|---|
+| A | **Gemini embeddings** (`gemini-embedding-001`, 768 dimensions), stored in pgvector | Same key and provider as the rest of the app, free, nothing extra in memory on the 1 GB VM; the retrieval eval needs the key, so it can't run on fork PRs (the extraction eval already has this limit) | **Chosen** ("we could just use gemini ... we're already using it") |
+| B | Local `fastembed` (bge-small), as first planned | Offline, eval runs anywhere; about 0.3-0.5 GB of memory and a bigger image on a VM already holding Postgres and the backend; a new stack component needing the lead's approval | Rejected |
+| C | PostgreSQL keyword search | No embeddings | Rejected: the README specifies pgvector |
+
+No new stack component, so PR #11's question 1 (embeddings approval) no longer applies. The
+corpus is embedded once when it's built; each question costs one embedding call. Passage and
+question embeddings use Gemini's retrieval task types (document vs query).
+
+### 2. Answers: up to 15 seconds, with visible progress (replaces SC-004's 10 s)
+
+Gemini answers take about 3-9 s from Pakistan (measured on 004's summaries), and an answer is
+shown only after code checks it, so it can't be streamed. Options: 15 s with visible steps
+(chosen); keep 10 s and fail slow answers more often; stream (rejected: shows unchecked text).
+The Ask page shows "Searching the FBR texts…" then "Writing a cited answer…", then the checked
+answer or the not-covered message. The answer call has a 15 s limit; past it, "That took too
+long; try again." SC-004 becomes "an answer or a not-covered message appears within 15 seconds,
+with progress shown while waiting".
+
+### 3. Navigation for the whole app: flat on computers, grouped on phones
+
+By 008 the app has about nine destinations: Home, Documents, Tax, Wealth statement, Guided filing
+(007), Ask (006), Profile, Connect an AI assistant (006's tokens), Activity (008's telemetry
+view). Options considered: grouped, flat where there's room (chosen); submenus everywhere (an
+extra click on computers for core steps); a "More" tab (buries core steps); a side menu (heavy
+for nine items; everything two taps away on phones).
+
+- **Computers (720 px and up):** header links Home, Documents, Tax, Wealth statement, Ask (and
+  Guided filing when 007 lands), then a profile icon opening a menu: Profile, (Activity in 008),
+  Log out.
+- **Phones:** a bottom bar of four: Home, Filing, Ask, Account. "Filing" opens a sheet with
+  Documents, Tax, Wealth statement (and Guided filing); "Account" opens one with Profile,
+  (Activity) and Log out. The current page's group is marked.
+- New filing steps join Filing; new settings join Account, so the bar stays at four.
+- 001's frame tests change with it (the five-link navigation becomes this structure); it is
+  built in 006 because Ask is the first page that needs it.
+
+### 4. MCP is for developers; tokens come from a command (replaces the token page)
+
+The MCP server serves Claude Code on a developer's machine, as the README frames it (a training
+goal: "learn ... Claude Code itself — hooks, permissions, MCP"). Options considered: a token page
+only in local copies; remote MCP on the live site (a real-user feature beyond the README, and a
+path to production data); tokens from a command, no page (chosen, Saifullah 2026-11-11). Tokens
+are created with `python -m app.cli create-token --email <user>` (printed once; only the hash is
+stored; 90 days) and removed with `revoke-token`, like `create-user` today. There is no "Connect
+an AI assistant" page or menu entry. The MCP server still runs locally over stdio and acts as
+the token's owner, as before.
+
+**Clients: Gemini CLI and Claude Code.** MCP is an open standard, so one server serves any
+client. Options considered: both (chosen, Saifullah 2026-11-11), Gemini CLI only (drops the
+README's Claude Code learning goal), Claude Code only (out of step with the Gemini stack).
+`docs/` shows how to connect each (Gemini CLI's settings file, the repo's `.mcp.json`), and
+quickstart checks the three tools from both. Gemini CLI's current MCP setup is confirmed when
+built, not assumed.
+
+### 5. A whole-app daily cap on Ask (protects the shared free quota)
+
+Every feature shares one free-tier Gemini key, and extraction (core to filing) is already capped
+at 100 a day for the whole app. Ask gets the same kind of cap, beside its 30 per user per hour:
+**200 questions a day for the whole app** (a setting), counted and locked the way
+`use_extraction` is. Past it: "The tax assistant has reached today's limit; try again tomorrow."
+The MCP `search_tax_documents` tool counts towards it too (each search embeds the query). Chosen
+over accepting the risk (Saifullah, 2026-11-11).
+
+### Unchanged
+
+The corpus, the code checks before an answer is shown, the not-covered behaviour, the three MCP
+tools and personal access tokens, the 30 questions per user per hour, and the practitioner
+label. PR #11's other questions stay open with their proposed defaults: the manual's chapters
+are "the guides"; the pass mark has both its parts (the labelled passage in the top 5 for at
+least 80% of questions, and at least 90% of out-of-corpus questions refused by the relevance
+cut-off); the First Schedule stays out of the corpus.
+
+### Builder check (2026-11-11)
+
+- **The retrieval eval needs the Gemini key now**, so it runs as the extraction eval does: in CI
+  where the repository secret exists; a fork PR attaches a local run's report instead. FR-011's
+  "on every pull request, without secrets" can't hold; the lead is told in the PR.
+- **Building the corpus** (my call): a one-off command, `python -m app.rag.build`, run locally and
+  once on the VM after a deploy that changes the sources (documented in `docs/deployment.md`),
+  never on every deploy. It is all-or-nothing: if a download, a checksum or an embedding fails,
+  the existing passages stay and Ask keeps working. Before the first build, Ask says "The tax
+  assistant isn't ready yet" instead of answering.
