@@ -19,3 +19,6 @@ dist/
 # Extraction eval (feature 003): generated synthetic cases and the local report
 backend/evals/extraction/cases/
 backend/evals/extraction/report*.md
+
+# RAG corpus (feature 006): FBR source files are downloaded, never committed (FR-002)
+backend/data/corpus-cache/

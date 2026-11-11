@@ -84,3 +84,9 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   examples in `tests/wealth/worked_examples.yaml` (`test_wealth_sign_off.py` fails if unsigned).
 - The entries are stored; the result never is. A test's wealth summariser is faked by the
   autouse `no_real_ai` fixture.
+
+## RAG and MCP (feature 006)
+
+- FBR source files are never committed: `python -m app.rag.build` downloads them into
+  `data/corpus-cache/` (git- and docker-ignored) and checks each against its SHA-256 in
+  `app/rag/sources.yaml` (FR-002).
