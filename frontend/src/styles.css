@@ -1557,6 +1557,41 @@ ul.panel {
   background: var(--danger);
 }
 
+/* ---------- Ask (feature 006): law is green, filing guidance gold ---------- */
+
+.ask-form {
+  display: grid;
+  gap: var(--s-2);
+  max-width: 48rem;
+}
+
+.ask-form button {
+  justify-self: start;
+}
+
+.sources {
+  display: grid;
+  gap: var(--s-2);
+  padding: 0;
+  list-style: none;
+}
+
+.badge[data-kind="law"] {
+  background: var(--accent-soft);
+}
+
+.badge[data-kind="law"]::before {
+  background: var(--accent);
+}
+
+.badge[data-kind="guidance"] {
+  background: var(--gold-soft);
+}
+
+.badge[data-kind="guidance"]::before {
+  background: var(--gold);
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;

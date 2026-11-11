@@ -59,7 +59,7 @@ for the eval gate.
 - [x] T011 [US1] Create `backend/app/rag/answer.py` per research R5 (amended): Gemini through `google-genai` as 003/004 call it, a model setting, structured output (`answer`, `citations`, `not_covered`, `asks_own_figure`), a 15 s limit (SC-004 amended), and a fake client for tests
 - [x] T012 [US1] Create `backend/app/rag/checks.py` using `app.explain.number_check` (from 005) with the cited passages' text and locations as the allowed set; T009 passes
 - [x] T013 [US1] Create `backend/app/rag/service.py` (`ask()`: search → answer → checks) and `backend/app/rag/router.py` (`POST /api/ask` per [contracts/ask-and-tokens-api.md](contracts/ask-and-tokens-api.md)); write `backend/tests/rag/test_ask_api.py` (`401` not logged in; `422` empty or over 1,000 characters); include the router in `backend/app/main.py`; T010 passes
-- [ ] T014 [P] [US1] Write `frontend/src/pages/AskPage.test.tsx` (question box; answer with citations showing law vs guidance; label always visible; a second question replaces the first; while waiting it shows "Searching the FBR texts…" then "Writing a cited answer…" (FR-017); the page sits in the app frame like the others, under `RequireAuth` and `RequireProfile`), then create `frontend/src/pages/AskPage.tsx` and its route
+- [x] T014 [P] [US1] Write `frontend/src/pages/AskPage.test.tsx` (question box; answer with citations showing law vs guidance; label always visible; a second question replaces the first; while waiting it shows "Searching the FBR texts…" then "Writing a cited answer…" (FR-017); the page sits in the app frame like the others, under `RequireAuth` and `RequireProfile`), then create `frontend/src/pages/AskPage.tsx` and its route
 - [ ] T015 [US1] Run [quickstart.md](quickstart.md) section 2, steps 1 and 5, including the timing check (an answer within 15 seconds with progress shown, SC-004 amended)
 
 **Checkpoint**: User Story 1 works on its own.
@@ -79,7 +79,7 @@ for the eval gate.
 ### Implementation for User Story 2
 
 - [x] T017 [US2] Add the refusal paths, the fixed Tax page line, the per-hour limit (research R7) and the whole-app daily cap of 200 with its `daily_limit` status and the `not_ready` status before the first build (FR-009b) to `backend/app/rag/service.py`, counted and locked like 003's `use_extraction`; T016 passes
-- [ ] T018 [US2] Show each `status` message, the uncovered part and the Tax page line (linking to the Tax page) on `frontend/src/pages/AskPage.tsx`; extend its test
+- [x] T018 [US2] Show each `status` message, the uncovered part and the Tax page line (linking to the Tax page) on `frontend/src/pages/AskPage.tsx`; extend its test
 - [ ] T019 [US2] Run [quickstart.md](quickstart.md) section 2, steps 2–4 and 6
 
 **Checkpoint**: User Stories 1 and 2 work.

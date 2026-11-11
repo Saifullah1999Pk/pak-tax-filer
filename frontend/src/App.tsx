@@ -6,6 +6,7 @@ import {
   PlainFrame,
   ProfileFrame,
 } from "./components/AppFrame";
+import { AskPage } from "./pages/AskPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
@@ -54,6 +55,7 @@ export function AppRoutes() {
         <Route path="/documents/:id" element={<ReviewPage />} />
         <Route path="/tax" element={<TaxPage />} />
         <Route path="/wealth" element={<WealthPage />} />
+        <Route path="/ask" element={<AskPage />} />
       </Route>
       <Route element={<PlainFrame />}>
         <Route path="*" element={<NotFoundPage />} />
