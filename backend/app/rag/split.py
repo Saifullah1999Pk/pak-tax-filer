@@ -220,7 +220,7 @@ def _by_heading(span: _Span, layout: _Layout) -> list[RawPassage]:
     """The span as passages. Text before the first sub-heading that is only the part's own
     heading ("12. Salary.—") leads the first passage instead of standing alone."""
     segments = _segments(span, layout)
-    if len(segments) > 1 and _only_heading(segments[0].body):
+    if len(segments) > 1 and _only_heading(span.text[segments[0].begin : segments[1].begin]):
         segments[1] = _Segment(
             segments[0].begin, segments[1].location, f"{segments[0].body} {segments[1].body}"
         )
@@ -234,9 +234,10 @@ def _by_heading(span: _Span, layout: _Layout) -> list[RawPassage]:
     return passages
 
 
-def _only_heading(body: str) -> bool:
-    """The text before the first sub-heading is just the heading (e.g. "12. Salary.—")."""
-    return len(body.split()) <= 8
+def _only_heading(raw: str) -> bool:
+    """The text before the first sub-heading is just the part's heading line ("12. Salary.—"
+    with "(1)" on the same line), not a heading followed by its own text on later lines."""
+    return "\n" not in raw.strip()
 
 
 def _pieces(body: str) -> list[str]:

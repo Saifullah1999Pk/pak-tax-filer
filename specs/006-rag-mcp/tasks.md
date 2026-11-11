@@ -36,7 +36,7 @@ for the eval gate.
 - [X] T004 Write `backend/app/rag/sources.yaml` per research R1 with the two FBR URLs from the [design doc](../../docs/superpowers/specs/2026-11-03-rag-mcp-design.md), their SHA-256 (computed from freshly downloaded files), `kind`, the Ordinance sections (12, 13, 149, 7B, 151) and the manual's page ranges for ch. 4–6 and 14
 - [X] T005 [P] Write `backend/tests/rag/test_split.py` (Ordinance text yields locations like `§149(1)`; manual text yields `ch. 14.3`; every passage has a page; long sections split with the same location; no passage outside the configured sections), then create `backend/app/rag/split.py`
 - [X] T006 [P] Create `backend/app/rag/embed.py`: Gemini embeddings (`gemini-embedding-001`, 768 dimensions; document vs query task types) in batches with pauses and retries, plus a deterministic fake embedder for tests
-- [ ] T007 Write `backend/tests/rag/test_build.py` (a checksum mismatch stops the build and leaves the existing corpus unchanged; a successful build replaces all passages in one transaction), then create `backend/app/rag/build.py` (`python -m app.rag.build`) per research R1
+- [X] T007 Write `backend/tests/rag/test_build.py` (a checksum mismatch stops the build and leaves the existing corpus unchanged; a successful build replaces all passages in one transaction), then create `backend/app/rag/build.py` (`python -m app.rag.build`) per research R1
 - [ ] T008 Write `backend/tests/rag/test_search.py` (top 5 by cosine with location, page and kind; below the cut-off returns `not_covered`), then create `backend/app/rag/search.py` and `backend/app/rag/settings.py` per research R4
 
 **Checkpoint**: corpus builds from FBR with checksums; search works.

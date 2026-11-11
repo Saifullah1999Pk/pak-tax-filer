@@ -134,3 +134,16 @@ def test_every_passage_has_a_page_inside_its_part() -> None:
 
     assert all(p.page in (58, 59, 67, 68, 69, 80, 81) for p in passages)
     assert all(p.text.strip() for p in passages)
+
+
+def test_a_short_chapter_introduction_keeps_its_own_passage() -> None:
+    """Fails if a chapter's own short text is merged into its first sub-heading's passage;
+    only a heading line with nothing after it ("12. Salary.—") may lead the next passage."""
+    pages = {
+        80: "14. (a) Wealth Statement \nList assets and liabilities.\n"
+        "14.3. Reconciliation of Net Assets \nInflows explain the change.\n"
+    }
+
+    passages = split_guidance(pages, [Part("14", (80, 80))])
+
+    assert [p.location for p in passages] == ["ch. 14", "ch. 14.3"]
