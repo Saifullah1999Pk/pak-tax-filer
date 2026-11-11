@@ -14,8 +14,8 @@ TOP_K = 5
 # out-of-corpus top scores overlap (in 0.585-0.755, out 0.531-0.695). Anywhere in 0.659-0.666
 # gets the most right; 0.66 is the low end, giving hit@5 0.93 and a refusal rate of 0.90 (the
 # proposed pass marks: 0.80, 0.90). The price: answerable questions scoring lower are refused
-# ("Does my yearly bonus get taxed like my salary?" 0.655; live, "Is my medical allowance taxable?" 0.651 and "How
-# much tax do I owe?" 0.624, which then gets no Tax page line). At 0.62 those are answered and
-# the model refuses borderline ones itself, but the refusal rate drops to 0.70. The lead sets
-# the pass marks; if they lower the refusal mark, lower this with them.
+# ("Does my yearly bonus get taxed like my salary?" 0.655; live, "Is my medical allowance
+# taxable?" 0.651 and "How much tax do I owe?" 0.624, which then gets no Tax page line). At
+# 0.62 those are answered and the model refuses borderline ones itself, but the refusal rate
+# drops to 0.70. The lead sets the pass marks; if they lower the refusal mark, lower this too.
 RELEVANCE_CUTOFF = 0.66
