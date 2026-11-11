@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pak-tax-filer": {
+      "command": "docker",
+      "args": ["compose", "exec", "-T", "-e", "PAKTAX_TOKEN", "backend", "python", "-m", "app.mcp_server"],
+      "env": { "PAKTAX_TOKEN": "${PAKTAX_TOKEN}" }
+    }
+  }
+}
