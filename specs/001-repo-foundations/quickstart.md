@@ -68,3 +68,18 @@ Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** 
 3. A CI run for a pull request (or a failing one) starts no deploy.
 4. With the deploy key, `ssh <user>@<vm> whoami` doesn't run `whoami`: it is refused as an
    invalid deploy request.
+
+## 8. Contract checks (User Story 7, SC-012 to SC-014)
+
+1. `uv run --project backend python scripts/validate_contracts.py --all`. **Expected:** exit 0
+   in under 30 seconds; features 002–008 are skipped as not started (SC-013, SC-014).
+2. In a throwaway branch, plant each violation in turn and rerun: remove `GET /health` from the
+   app; add an undocumented `GET /api/debug`; add a fourth tool name to a copy of 006's
+   `mcp-tools.md` with 006 marked started. **Expected:** exit 1 each time, naming the feature,
+   file and item.
+3. On branch `001-…`, untick nothing and break `/health`; let Claude finish a turn.
+   **Expected:** the failures are shown, Claude isn't blocked. Tick every non-manual task and
+   repeat. **Expected:** Claude is blocked with the failure message until `/health` is fixed.
+4. Open a pull request with the `/health` break. **Expected:** the `contracts` CI job fails.
+5. Open `docs/contracts.md`. **Expected:** how to define a contract, run the check and read its
+   failures.
