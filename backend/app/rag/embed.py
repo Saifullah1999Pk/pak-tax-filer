@@ -129,9 +129,19 @@ class FakeEmbedder:
         return _bag_of_words(text)
 
 
+# Words too common to say what a text is about; the fake ignores them, as a real model in effect
+# does, so "What is the sales tax on cars?" doesn't look like every passage with "is" and "tax".
+_FILLER = frozenset(
+    "a an and any at by do does for from i in is it its my of on or the this to under what "
+    "when where which who with tax taxes".split()
+)
+
+
 def _bag_of_words(text: str) -> list[float]:
     vector = [0.0] * EMBEDDING_DIMENSIONS
     for word in re.findall(r"[a-z0-9]+", text.lower()):
+        if word in _FILLER:
+            continue
         digest = hashlib.sha256(word.encode()).digest()
         vector[int.from_bytes(digest[:4], "big") % EMBEDDING_DIMENSIONS] += 1.0
     norm = math.sqrt(sum(x * x for x in vector)) or 1.0
