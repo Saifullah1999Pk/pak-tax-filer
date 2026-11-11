@@ -151,7 +151,7 @@ Each decision: what was chosen, why, and what else was considered.
 - **Rationale:** one human-readable standard, per-feature contracts reviewed with the spec, and
   an automatically generated schema that can't drift from the code.
 
-## R11. Machine-checkable contracts and the check (added for issue #16)
+## R12. Machine-checkable contracts and the check (added for issue #16)
 
 - **Decision:** each feature with an API has `contracts/api.yaml`, an OpenAPI 3.1 subset of its
   Markdown contract (paths, methods, success status, required request and response fields).
@@ -178,7 +178,7 @@ Each decision: what was chosen, why, and what else was considered.
   checking the contract exists); declaring every error status in code (busywork; error codes are
   covered by each feature's API tests).
 
-## R12. The completion hook (added for issue #16)
+## R13. The completion hook (added for issue #16)
 
 - **Decision:** `.claude/hooks/contracts-gate.sh` (bash + `jq`, like the others) on the `Stop`
   event, registered in `.claude/settings.json` beside the lead's hooks. It reads the feature
@@ -191,7 +191,7 @@ Each decision: what was chosen, why, and what else was considered.
     so Claude keeps working on the fix.
   It never runs per edit. If the check itself can't run (exit 2), it shows the error without
   blocking, so a broken environment never traps a session.
-- **Rationale:** FR-024; `Stop` fires when Claude tries to finish, which is the moment of a
+- **Rationale:** FR-036; `Stop` fires when Claude tries to finish, which is the moment of a
   completion claim; blocking only then keeps mid-feature work usable.
 - **Alternatives:** a `PostToolUse` check (runs on every edit, which issue #16 rules out);
   blocking at every `Stop` (unusable mid-feature).
@@ -204,4 +204,4 @@ Each decision: what was chosen, why, and what else was considered.
   pull request and push to `main`; making it a required status check is a repository setting the
   lead is asked to enable. `CLAUDE.md` tells the assistant to run `/speckit-converge` and
   `/speckit-analyze` before a feature's pull request (semantic review, not pass/fail).
-- **Rationale:** FR-023, FR-025, FR-026; reuses Spec Kit instead of re-implementing it.
+- **Rationale:** FR-035, FR-037, FR-038; reuses Spec Kit instead of re-implementing it.

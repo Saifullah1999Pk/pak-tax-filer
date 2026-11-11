@@ -19,7 +19,7 @@
 ### Session 2026-11-04
 
 - Q: Now that the hooks are bash scripts (like the lead's #10), what automated checks run on them? → A: Tests only: CI runs each hook (ours and the lead's) against sample inputs and checks the response; no lint or type checks for bash.
-- Q: The lead's issue #16 asks for automated contract validation (machine-checkable contracts, hooks, reusable scripts, Spec Kit integration, CI); where does it go? → A: Into feature 001 as User Story 5 (FR-021 to FR-027), like issues #4/#5 became User Story 4. Contracts become a small machine-checkable file per feature checked against the app's generated API schema (design addendum, approach A).
+- Q: The lead's issue #16 asks for automated contract validation (machine-checkable contracts, hooks, reusable scripts, Spec Kit integration, CI); where does it go? → A: Into feature 001 as User Story 7 (FR-033 to FR-039), like issues #4/#5 became User Story 4. Contracts become a small machine-checkable file per feature checked against the app's generated API schema (design addendum, approach A).
 - Q: When should the check block the AI assistant from finishing? → A: Only when the current feature's last non-manual task is ticked (a completion claim); mid-feature it shows failures without blocking. Features not started are skipped, and tasks marked `(manual)` are never counted.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -148,7 +148,7 @@ backend feature and a code review; the matching guide and reviewer are used.
 
 ---
 
-### User Story 5 - Contracts are checked automatically (Priority: P5)
+### User Story 7 - Contracts are checked automatically (Priority: P7)
 
 Added at the lead's request (issue #16). Each feature's API, database tables and task list are
 checked automatically against what its spec promises: while the AI assistant implements a
@@ -257,25 +257,25 @@ pull request each report it by name and fail; remove it and check all pass.
 - **FR-020**: The repository MUST contain one written API convention covering paths, request
   and response shapes, errors, authentication and how changes are kept in step between backend
   and frontend.
-- **FR-021**: Each feature with an API MUST have a machine-checkable contract file, beside its
+- **FR-033**: Each feature with an API MUST have a machine-checkable contract file, beside its
   written contract, listing every endpoint's path, method, success status and required request
   and response fields.
-- **FR-022**: One reusable check MUST compare the app with every started feature's contract
+- **FR-034**: One reusable check MUST compare the app with every started feature's contract
   file, the tables and columns in its data model, the assistant tools named in feature 006, and
   its task list; every problem MUST be reported with the feature, file and item, and any
   problem MUST give a failing result.
-- **FR-023**: Features with no ticked task MUST be skipped; tasks marked `(manual)` MUST NOT be
+- **FR-035**: Features with no ticked task MUST be skipped; tasks marked `(manual)` MUST NOT be
   counted; endpoints present in the app but in no contract MUST fail the check, except the
   framework's own documentation pages.
-- **FR-024**: When the AI assistant finishes a turn, the check MUST run for the current feature:
+- **FR-036**: When the AI assistant finishes a turn, the check MUST run for the current feature:
   mid-feature it MUST show failures without stopping work; once the feature's last non-manual
   task is ticked, it MUST refuse to let the assistant finish until every check passes. No check
   MUST run after every individual edit.
-- **FR-025**: CI MUST run the same check on every pull request and push to `main`; a failure MUST
+- **FR-037**: CI MUST run the same check on every pull request and push to `main`; a failure MUST
   mark the pull request failing.
-- **FR-026**: The comparison of code with spec, plan and tasks MUST use Spec Kit's own steps
+- **FR-038**: The comparison of code with spec, plan and tasks MUST use Spec Kit's own steps
   (converge, analyze) before a feature's pull request, kept separate from the pass/fail check.
-- **FR-027**: Documentation MUST explain how to define a contract, run the check locally and read
+- **FR-039**: Documentation MUST explain how to define a contract, run the check locally and read
   its failures.
 
 ## Success Criteria *(mandatory)*
@@ -296,12 +296,12 @@ pull request each report it by name and fail; remove it and check all pass.
   failing test or formatting error is marked as failing.
 - **SC-008**: Each of the six rule topics (in the lead's rule files or ours), both folder guides,
   the three reusable guides and both reviewers exists and is referenced from the root guide.
-- **SC-009**: 100% of planted contract violations (missing endpoint, wrong method, missing field,
+- **SC-012**: 100% of planted contract violations (missing endpoint, wrong method, missing field,
   undocumented endpoint, missing column, extra assistant tool, unticked task at completion) are
   reported by name with a failing result, by the script, the assistant hook and CI.
-- **SC-010**: The check for all features finishes in under 30 seconds (no server started, no full
+- **SC-013**: The check for all features finishes in under 30 seconds (no server started, no full
   test suite run).
-- **SC-011**: With only feature 001 started, the check passes (no false failures from planned
+- **SC-014**: With only feature 001 started, the check passes (no false failures from planned
   features).
 
 ## Assumptions

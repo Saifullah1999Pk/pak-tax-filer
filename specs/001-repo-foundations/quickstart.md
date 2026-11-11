@@ -59,10 +59,10 @@ Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** 
 5. Open `docs/api-conventions.md`. **Expected:** paths, bodies, errors, auth and keeping-in-step
    rules as in [contracts/api-conventions.md](contracts/api-conventions.md).
 
-## 6. Contract checks (User Story 5, SC-009 to SC-011)
+## 8. Contract checks (User Story 7, SC-012 to SC-014)
 
 1. `uv run --project backend python scripts/validate_contracts.py --all`. **Expected:** exit 0
-   in under 30 seconds; features 002–008 are skipped as not started (SC-010, SC-011).
+   in under 30 seconds; features 002–008 are skipped as not started (SC-013, SC-014).
 2. In a throwaway branch, plant each violation in turn and rerun: remove `GET /health` from the
    app; add an undocumented `GET /api/debug`; add a fourth tool name to a copy of 006's
    `mcp-tools.md` with 006 marked started. **Expected:** exit 1 each time, naming the feature,
