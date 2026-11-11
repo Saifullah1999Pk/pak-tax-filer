@@ -112,13 +112,13 @@ for the eval gate.
 ### Tests for User Story 4 (write first, confirm they fail)
 
 - [x] T026 [P] [US4] Write `backend/tests/tokens/test_token_commands.py`: `create-token --email [--name]` (name defaults to "MCP client"; 1–50 characters) prints the full `ptx_…` value once and stores only its SHA-256 with a 90-day expiry; `revoke-token --prefix` revokes it; an unknown email or prefix is refused with a message (FR-016 amended)
-- [ ] T027 [P] [US4] Write `backend/tests/mcp/test_mcp_tools.py`: exactly three tools are listed; a missing, wrong, expired or revoked token is refused for every tool (SC-006); `search_tax_documents` returns the same passages as `app.rag.search`; `calculate_income_tax` takes no input and returns the same body as `GET /api/tax/{tax_year}` for a synthetic user (with a profile) built from each of 004's signed-off worked examples (SC-005); a token owner without a profile gets `needs_atl_answer`; a user with only `needs_review` certificates gets 004's not-ready reason and no figures (Principle III guardrail); `validate_salary_information` reports taxable above gross and never returns a tax figure
+- [x] T027 [P] [US4] Write `backend/tests/mcp/test_mcp_tools.py`: exactly three tools are listed; a missing, wrong, expired or revoked token is refused for every tool (SC-006); `search_tax_documents` returns the same passages as `app.rag.search`; `calculate_income_tax` takes no input and returns the same body as `GET /api/tax/{tax_year}` for a synthetic user (with a profile) built from each of 004's signed-off worked examples (SC-005); a token owner without a profile gets `needs_atl_answer`; a user with only `needs_review` certificates gets 004's not-ready reason and no figures (Principle III guardrail); `validate_salary_information` reports taxable above gross and never returns a tax figure
 
 ### Implementation for User Story 4
 
 - [x] T028 [US4] Create `backend/app/tokens/service.py` and the `create-token` / `revoke-token` commands in `backend/app/cli.py`; T026 passes (no tokens API: contract amended)
 - [ ] T029 [US4] (Removed 2026-11-11: no token page; tokens come from commands, FR-016 amended)
-- [ ] T030 [US4] Create `backend/app/mcp_server/__main__.py` per research R9 and [contracts/mcp-tools.md](contracts/mcp-tools.md): stdio, token check on every call (updating `last_used_at`), three tools calling `app.rag.search`, 004's `app.tax.service` and 003's `app/documents/extraction/rules.py`; T027 passes
+- [x] T030 [US4] Create `backend/app/mcp_server/__main__.py` per research R9 and [contracts/mcp-tools.md](contracts/mcp-tools.md): stdio, token check on every call (updating `last_used_at`), three tools calling `app.rag.search`, 004's `app.tax.service` and 003's `app/documents/extraction/rules.py`; T027 passes
 - [ ] T031 [US4] Add `.mcp.json` at the repo root for Claude Code, and document connecting from Gemini CLI (its settings file; current setup confirmed, not assumed) in `docs/mcp.md`; the token comes only from the developer's environment
 - [ ] T032 [US4] Run [quickstart.md](quickstart.md) section 4 from Gemini CLI and from Claude Code
 

@@ -84,6 +84,11 @@ _REFUSALS: dict[Status, str] = {
 }
 
 
+def refusal_message(status: Status) -> str:
+    """The fixed message for a refusal (also used by the MCP server's search)."""
+    return _REFUSALS[status]
+
+
 def _refusal(status: Status) -> AskResult:
     return AskResult(status=status, answer=_REFUSALS[status])
 
