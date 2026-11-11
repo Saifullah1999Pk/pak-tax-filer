@@ -15,7 +15,10 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
 
 1. Write or update the feature's contract in `specs/NNN-*/contracts/` and follow
    `docs/api-conventions.md`.
-2. Write the failing test in `tests/` with FastAPI's `TestClient`; run it and see it fail.
+2. Write the failing test in `tests/`; run it and see it fail. Endpoint tests use the `client`
+   fixture (`httpx2.AsyncClient` over `ASGITransport`), which shares the test's rolled-back
+   async database session (feature 002, research R10). FastAPI's `TestClient` can't share that
+   session, so it is only for endpoints that need no database, like `/health`.
 3. Add the route in `app/<area>/router.py`, keeping logic in `service.py`; money is `Decimal`.
 4. Run `uv run pytest`, `uv run ruff format .`, `uv run pylint --recursive=y app alembic tests`,
    `uv run mypy app alembic tests` (the same checks as CI).
@@ -31,7 +34,9 @@ Loaded when working in `backend/`. The root `CLAUDE.md` and `.claude/rules/` sti
   from the host with `uv run alembic ...` and a host `DATABASE_URL`. Windows and macOS are not
   affected.
 - `DATABASE_URL` comes from the environment (docker-compose sets it); never put it in a file.
-- Tests that need the database use a separate test database (set up in feature 002).
+- Tests that need the database ask for the `db` (rolled-back session) or `client` (HTTP client
+  using that session) fixtures from `tests/conftest.py`; they run against `pak_tax_filer_test`,
+  never development data, so run them in Docker: `docker compose exec backend pytest`.
 
 ## Running tools on the host
 

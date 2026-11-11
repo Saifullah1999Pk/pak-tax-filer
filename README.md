@@ -101,6 +101,12 @@ docker compose up -d        # starts db (Postgres + pgvector), backend, frontend
 docker compose exec backend alembic upgrade head
 ```
 
+Create a demo user to log in with (synthetic data only; you're asked for the password twice):
+
+```bash
+docker compose exec backend python -m app.cli create-user --email demo@example.com
+```
+
 If you use Claude Code, also install the tools its hooks run on your machine:
 
 ```bash

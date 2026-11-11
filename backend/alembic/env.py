@@ -18,6 +18,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
+# Importing a models module registers its tables on Base.metadata.
+from app.auth import models as _auth_models  # pylint: disable=unused-import
+from app.profile import models as _profile_models  # pylint: disable=unused-import
+from app.db import Base
+
 config = context.config
 
 if config.config_file_name is not None:
@@ -28,8 +33,8 @@ if not database_url:
     raise RuntimeError("DATABASE_URL is not set; docker-compose.yml sets it for the backend.")
 config.set_main_option("sqlalchemy.url", database_url)
 
-# No tables yet; feature 002 points this at the models' metadata for autogenerate.
-target_metadata = None
+# Every model module imported above registers its tables here, for autogenerate.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
