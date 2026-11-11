@@ -79,3 +79,15 @@ def reply(**changes: object) -> ModelAnswer:
     }
     values.update(changes)
     return ModelAnswer(**values)  # type: ignore[arg-type]
+
+
+class SpyEmbedder(FakeEmbedder):
+    """The fake embedder, recording every question it embeds."""
+
+    def __init__(self) -> None:
+        self.questions: list[str] = []
+
+    async def embed_query(self, text: str) -> list[float]:
+        """Record the question, then embed it as the fake does."""
+        self.questions.append(text)
+        return await super().embed_query(text)

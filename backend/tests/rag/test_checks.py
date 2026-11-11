@@ -7,8 +7,10 @@ number check from 004/005). Anything else and the answer is never shown.
 
 import uuid
 
+import pytest
+
 from app.rag.answer import ModelAnswer
-from app.rag.checks import checked_citations
+from app.rag.checks import checked_citations, written_in_english
 from app.rag.models import DocumentKind
 from app.rag.search import RetrievedPassage
 
@@ -85,3 +87,21 @@ def test_the_uncovered_part_is_checked_too() -> None:
     reply = answer("Employers deduct tax.", ["P1"], uncovered="Rental income above 600000.")
 
     assert checked_citations(reply, RETRIEVED) is None
+
+
+@pytest.mark.parametrize(
+    ("question", "english"),
+    [
+        ("Is my bonus taxed?", True),
+        ("Is my bonus taxed under §12(2)? 2025-26", True),
+        ("Kya meri salary par tax lagta hai?", True),  # Roman Urdu: Latin letters, sent on
+        ("کیا مجھے اپنی تنخواہ پر ٹیکس دینا ہوگا؟", False),
+        ("کیا salary پر ٹیکس ہے؟", False),  # mostly Urdu script
+        ("12345 ?", False),  # no words at all
+    ],
+)
+def test_only_questions_in_english_letters_are_searched(question: str, english: bool) -> None:
+    """Fails if a question in Urdu script reaches search: the sources are in English, and
+    Gemini's embeddings match Urdu to English passages, so the cut-off alone doesn't refuse it
+    (eval run, 2026-11-11: 0.691, above most in-scope questions)."""
+    assert written_in_english(question) is english

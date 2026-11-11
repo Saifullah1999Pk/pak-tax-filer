@@ -26,3 +26,12 @@ def checked_citations(
     if not reply.answer.strip() or not uses_only_numbers_from(shown, allowed):
         return None
     return cited
+
+
+def written_in_english(question: str) -> bool:
+    """True if most of the question's letters are Latin (A-Z), so it's searched; a question in
+    Urdu script is out of scope (spec: English questions only). Gemini's embeddings match Urdu
+    to the English passages, so the relevance cut-off alone wouldn't refuse it."""
+    letters = [c for c in question if c.isalpha()]
+    latin = sum(c.isascii() for c in letters)
+    return bool(letters) and latin * 2 > len(letters)

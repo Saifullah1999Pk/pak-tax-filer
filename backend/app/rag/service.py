@@ -20,7 +20,7 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rag.answer import AnswerError, ModelAnswer
-from app.rag.checks import checked_citations
+from app.rag.checks import checked_citations, written_in_english
 from app.rag.embed import Embedder, EmbeddingError
 from app.rag.models import AskRequest, Passage
 from app.rag.search import RetrievedPassage, search
@@ -98,6 +98,9 @@ async def ask(
     """Answer one question from the corpus, or say why not."""
     if not (await db.execute(select(exists().where(Passage.id.is_not(None))))).scalar_one():
         return _refusal("not_ready")
+    if not written_in_english(question):
+        # Out of scope (English questions only): refused before it counts or reaches any AI.
+        return _refusal("not_covered")
     refused = await use_question(db, user_id)
     if refused is not None:
         return _refusal(refused)

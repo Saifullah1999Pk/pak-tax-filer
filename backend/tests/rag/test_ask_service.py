@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from rag_helpers import QUESTION, a_corpus, a_user, reply
+from rag_helpers import QUESTION, SpyEmbedder, a_corpus, a_user, reply
 
 from app.rag.answer import AnswerError, FakeAnswerer, ModelAnswer
 from app.rag.embed import FakeEmbedder
@@ -84,15 +84,17 @@ async def test_below_the_cut_off_it_is_not_covered_without_asking_the_ai(db: Asy
 
 
 async def test_a_question_in_urdu_is_not_covered(db: AsyncSession) -> None:
-    """Fails if a question in Urdu is answered (out of scope; the sources are in English)."""
+    """Fails if a question in Urdu reaches the embedder or the AI (spec: English questions only)."""
     await a_corpus(db)
     user = await a_user(db)
     answerer = FakeAnswerer(reply())
 
-    result = await ask(db, user.id, "کیا میری تنخواہ پر ٹیکس کٹتا ہے؟", FakeEmbedder(), answerer)
+    embedder = SpyEmbedder()
+
+    result = await ask(db, user.id, "کیا میری تنخواہ پر ٹیکس کٹتا ہے؟", embedder, answerer)
 
     assert result.status == "not_covered"
-    assert not answerer.calls
+    assert not answerer.calls and not embedder.questions
 
 
 @pytest.mark.parametrize(

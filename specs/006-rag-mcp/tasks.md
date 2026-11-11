@@ -92,9 +92,9 @@ for the eval gate.
 
 **Independent Test**: [quickstart.md](quickstart.md), section 3.
 
-- [ ] T020 [US3] Write `backend/evals/retrieval/questions.yaml` per research R10: ~30 questions in a salaried user's words (not copying passage wording; some deliberately tricky), each with `expected` stable locations, and ~10 with `expected: out_of_corpus` (e.g. rental income, dividends, sales tax, Urdu); the file is reviewed by the lead in the PR
-- [ ] T021 [US3] Write `backend/tests/evals/test_retrieval_gate.py` (a search returning random passages makes the run exit non-zero), then create `backend/evals/retrieval/run.py` (hit@5 and cut-off refusal rate) and `backend/evals/retrieval/thresholds.yaml` (proposed 0.80 / 0.90 until the lead sets them)
-- [ ] T022 [US3] Run the eval, choose the relevance cut-off that best separates labelled from out-of-corpus questions, and record the value and the run's scores in `backend/app/rag/settings.py`
+- [x] T020 [US3] Write `backend/evals/retrieval/questions.yaml` per research R10: ~30 questions in a salaried user's words (not copying passage wording; some deliberately tricky), each with `expected` stable locations, and ~10 with `expected: out_of_corpus` (e.g. rental income, dividends, sales tax, Urdu); the file is reviewed by the lead in the PR
+- [x] T021 [US3] Write `backend/tests/evals/test_retrieval_gate.py` (a search returning random passages makes the run exit non-zero), then create `backend/evals/retrieval/run.py` (hit@5 and cut-off refusal rate) and `backend/evals/retrieval/thresholds.yaml` (proposed 0.80 / 0.90 until the lead sets them)
+- [x] T022 [US3] Run the eval, choose the relevance cut-off that best separates labelled from out-of-corpus questions, and record the value and the run's scores in `backend/app/rag/settings.py`
 - [ ] T023 [US3] Add a `retrieval-eval` job to CI that runs where the Gemini key secret exists, as the extraction eval does (FR-011 amended): on every push to `main` and on pull requests that have the secret; builds the corpus with FBR files cached by the checksums in `sources.yaml`, runs the eval and fails below the pass mark; fork PRs attach a local run's report
 - [ ] T024 [P] [US3] Create `backend/evals/answers/run.py`: a local-only script that asks the eval questions through `ask()` with the real API key and reports refusals and check failures (not run in CI)
 - [ ] T025 [US3] Run [quickstart.md](quickstart.md) section 3, including the random-search failure

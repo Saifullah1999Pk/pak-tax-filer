@@ -1,0 +1,102 @@
+# Retrieval eval questions (feature 006, task T020; research R10). For the lead to review in the PR.
+#
+# Written the way a salaried taxpayer would ask, not copied from the passages; some are
+# deliberately indirect. `expected` lists the stable locations any one of which counts as a hit
+# ("§13" matches §13(3); "ch. 14" matches ch. 14.3). `out_of_corpus` questions must be refused
+# by the relevance cut-off: the corpus is §§7B, 12, 13, 149, 151 of the Income Tax Ordinance and
+# chapters 4, 5, 6 and 14 of FBR's return-filing manual.
+
+questions:
+  # Salary as income (§12)
+  - question: Is my monthly salary counted as taxable income?
+    expected: ["§12(1)", "§12(2)"]
+  - question: Does my yearly bonus get taxed like my salary?
+    expected: ["§12(2)"]
+  - question: Is the medical allowance my company pays part of my salary for tax?
+    expected: ["§12(2)"]
+  - question: My employer pays my income tax for me. Does that count as extra income?
+    expected: ["§12(3)"]
+  - question: Can I deduct my commuting costs from my salary income?
+    expected: ["§12(4)"]
+  - question: I got salary arrears from two years ago. Can they be taxed at the old rates?
+    expected: ["§12(7)", "§12(8)"]
+  - question: Is my pension taxed as salary?
+    expected: ["§12(2A)", "§12(2)", "§149(1A)"]
+  - question: Is money my old employer paid me after I left still salary?
+    expected: ["§12(2)", "§12(5)"]
+
+  # Perquisites (§13)
+  - question: My company gave me a car that I also use on weekends. Is that taxed?
+    expected: ["§13(3)"]
+  - question: How is free housing from my employer valued for tax?
+    expected: ["§13(12)"]
+  - question: My employer pays my electricity and gas bills. Is that income?
+    expected: ["§13(6)"]
+  - question: My company provides a driver for me. Do I pay tax on that?
+    expected: ["§13(5)"]
+  - question: I took an interest-free loan from my employer. Is there tax on it?
+    expected: ["§13(7)", "§13(14)"]
+  - question: My boss wrote off money I owed the company. Does that count as income?
+    expected: ["§13(9)", "§13(10)"]
+  - question: I bought a laptop from my company below market price. Is the discount taxed?
+    expected: ["§13(11)"]
+  - question: How are benefits from my job that aren't cash valued?
+    expected: ["§13(1)", "§13(13)"]
+
+  # Withholding from salary (§149)
+  - question: Why does my employer cut tax from my pay every month?
+    expected: ["§149(1)"]
+  - question: How does my company work out how much tax to take from each paycheck?
+    expected: ["§149(1)", "§149(2)"]
+  - question: Is the tax deducted from my salary my final tax?
+    expected: ["§149"]
+
+  # Profit on debt (§7B, §151)
+  - question: Is the profit on my savings account taxed?
+    expected: ["§7B(1)", "§151(1)"]
+  - question: Does my bank keep some of my savings profit as tax?
+    expected: ["§151(1)"]
+  - question: Are National Savings certificate returns taxed?
+    expected: ["§151(1)", "§7B"]
+  - question: Is the tax my bank takes on profit the last tax I owe on it?
+    expected: ["§151(3)", "§7B(2)"]
+  - question: What rate applies to the interest I earn on deposits?
+    expected: ["§7B(1)", "§151(1)"]
+
+  # Filing the return (manual ch. 4-6)
+  - question: How do I start filing my return on the FBR website?
+    expected: ["ch. 4"]
+  - question: Where do I enter my salary when filing online?
+    expected: ["ch. 6.1", "ch. 6"]
+  - question: Where do I put the tax my employer already deducted in the return?
+    expected: ["ch. 6.2"]
+
+  # Wealth statement (manual ch. 14)
+  - question: How do I declare my house in the wealth statement?
+    expected: ["ch. 14.2"]
+  - question: What does it mean when my wealth statement doesn't reconcile?
+    expected: ["ch. 14.3"]
+  - question: Where do I list property I own abroad?
+    expected: ["ch. 14.1"]
+
+  # Out of the corpus: must be refused
+  - question: How is rental income from my flat taxed?
+    expected: out_of_corpus
+  - question: What tax do I pay on dividends from shares?
+    expected: out_of_corpus
+  - question: What is the sales tax rate on electronics?
+    expected: out_of_corpus
+  - question: How much customs duty is there on importing a car?
+    expected: out_of_corpus
+  - question: Can I claim zakat as a deduction?
+    expected: out_of_corpus
+  - question: How do I register a new business with FBR?
+    expected: out_of_corpus
+  - question: What is the capital gains tax on selling a plot?
+    expected: out_of_corpus
+  - question: Do freelancers earning from abroad pay tax?
+    expected: out_of_corpus
+  - question: کیا مجھے اپنی تنخواہ پر ٹیکس دینا ہوگا؟
+    expected: out_of_corpus
+  - question: What's the best mutual fund to invest in this year?
+    expected: out_of_corpus
