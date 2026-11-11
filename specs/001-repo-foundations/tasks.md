@@ -160,38 +160,6 @@ review subagents and an API convention.
 
 ---
 
-## Dependencies & Execution Order
-
-- **Setup (T001–T005)** → **Foundational (T006–T009)** → user stories.
-- **US1** depends only on Foundational.
-- **US2 and US3** need only T001 and T009 (the reserved folder), so they can run alongside US1.
-- **`.claude/settings.json`** (the lead's file) is extended by T019, T023 and T024, so those run in that order; his entries are never removed.
-- The root **`CLAUDE.md`** (the lead's file) is extended by T025, then T033 (import rename), then T038.
-- **US4** needs US1 (something for CI to check) and T025 (root `CLAUDE.md`); T029 to T037 and T042 can be written in parallel, except T033, which edits the root `CLAUDE.md` after T025.
-- **Polish** comes after all stories.
-- Within each story: tests → implementation → quickstart check.
-
-## Parallel Opportunities
-
-- Setup: T003, T004, T005 together after T001/T002.
-- Foundational: T006 and T007 together.
-- US1: T010 and T011 together.
-- Across stories: T017 (US2) and T021, T025 (US3) can be written while US1 is in progress.
-
-## Implementation Strategy
-
-1. **MVP = User Story 1**: Setup → Foundational → US1, then stop and validate with quickstart
-   section 1. The app runs.
-2. **Add US2**: the tax-rates guard, before feature 004 ever adds rates.
-3. **Add US3**: formatting, permissions and `CLAUDE.md`.
-4. **Add US4**: CI and the shared conventions from the lead's issues #4 and #5.
-5. **Polish**, then one PR for the implementation.
-
-GitHub issues for these tasks are titled `[001] T0NN: <description>` so they can't clash with
-other features' task numbers.
-
----
-
 ## Phase 9: User Story 6 - A clean app that works on phone and computer (P6, added 2026-11-10)
 
 **Goal**: FR-026 to FR-031. Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`; research R11.
@@ -230,3 +198,64 @@ other features' task numbers.
 - [X] T068 [US6] Write a failing test in `WealthPage.test.tsx`: the personal expenses can be folded away, open by default, and their heading says how many are filled ("2 of 16 filled"). Then build it in `WealthPage.tsx`
 - [X] T069 [US6] The figures never wait for the AI: `GET /api/tax/{year}` and `GET`/`PUT /api/wealth/{year}` no longer include a summary; it has its own request (`GET .../summary`, contracts 004 and 005 updated) with a 12 s limit instead of 4 s, and the pages load it into a "Summary" panel after the figures (`SummaryPanel.tsx`). Measured on the local app: tax figures 4.02 s → 0.02 s; the tax summary, which always timed out before, now arrives in about 6-9 s. Tests first, backend and frontend
 - [X] T070 [US6] Once the summary arrived, one live summary said the salary tax was "after accounting for" the tax deducted, though every number was in the breakdown. `app/tax/summary.py` now tells the model the tax comes before anything is taken off, and drops a sentence that puts a credit inside a tax figure without reaching the balance (the wealth summary's sentence-level approach). Tests first in `tests/tax/test_summary_check.py`, from the real summaries
+
+---
+
+## Phase 10: User Story 7 - Contracts are checked automatically (Priority: P7)
+
+**Goal**: the lead's issue #16: machine-checkable contracts checked by one script, a completion
+hook and CI (FR-033 to FR-039).
+
+**Independent Test**: [quickstart.md](quickstart.md) section 8.
+
+### Tests for User Story 7 (write first, confirm they fail)
+
+- [ ] T071 [P] [US7] Write `scripts/tests/test_validate_contracts.py` (pytest, a small sample FastAPI app and sample `specs/` folders) per research R12: a missing path, method, success status, required request field or required response field → exit 1 with `[NNN] file: item: problem`; an app endpoint in no `api.yaml` → exit 1, but `/openapi.json`, `/docs`, `/redoc` are allowed; a feature with no ticked task is skipped; a started feature with an API but no `api.yaml` → exit 1; a table or column in `data-model.md` missing from the metadata → exit 1; an MCP tool list not equal to the `mcp-tools.md` headings → exit 1; all non-manual tasks ticked except one → exit 1; `(manual)` tasks ignored; invalid YAML or an app that can't be imported → exit 2; everything matching → exit 0
+- [ ] T072 [P] [US7] Write `.claude/hooks/tests/test_contracts_gate.py` per [contracts/claude-hooks.md](contracts/claude-hooks.md) (contract gate) with a stubbed check: non-feature branch → no output; pass → no output; violations mid-feature → `systemMessage`, exit 0; violations with every non-manual task ticked → `decision: block` with the messages; check exit 2 → `systemMessage`, never block
+
+### Implementation for User Story 7
+
+- [ ] T073 [US7] Create `scripts/validate_contracts.py` per research R12 (`--feature NNN` / `--all`; exit codes 0/1/2; started-feature and `(manual)` rules); add `pyyaml` to `backend/pyproject.toml` dev dependencies; T071 passes
+- [ ] T074 [US7] Create `.claude/hooks/contracts-gate.sh` per research R13 and register it under `Stop` in `.claude/settings.json` beside the lead's entries (his are not changed); T072 passes
+- [ ] T075 [US7] Add job `contracts` to `.github/workflows/ci.yml` (every pull request and push to `main`): `uv run --project backend python scripts/validate_contracts.py --all`
+- [ ] T076 [P] [US7] Add the "Machine-checkable contract" rule to `docs/api-conventions.md` per [contracts/api-conventions.md](contracts/api-conventions.md) (every route declares `response_model`; `api.yaml` changes with the Markdown contract); make `GET /health` in `backend/app/main.py` declare its `response_model`
+- [ ] T077 [P] [US7] Write `docs/contracts.md` (defining a contract and `api.yaml`; running the check locally; reading `[NNN] file: item: problem` messages; the started-feature and `(manual)` rules; the completion hook) and add a "Contracts" section to the root `CLAUDE.md`: run the check before claiming a feature done, and run `/speckit-converge` and `/speckit-analyze` before a feature's pull request
+- [ ] T078 [US7] Mark this feature's human-only tasks `(manual)` in this `tasks.md` (T020, T026, T028, T041, T043, T079, T080 and the quickstart runs), per research R14
+- [ ] T079 [US7] (manual) In this feature's pull request description, ask the lead to make the `contracts` CI job a required status check on `main` (repository setting)
+- [ ] T080 [US7] (manual) Run [quickstart.md](quickstart.md) section 8, including every planted violation
+
+**Checkpoint**: all user stories work.
+
+---
+
+## Dependencies & Execution Order
+
+- **Setup (T001–T005)** → **Foundational (T006–T009)** → user stories.
+- **US1** depends only on Foundational.
+- **US2 and US3** need only T001 and T009 (the reserved folder), so they can run alongside US1.
+- **`.claude/settings.json`** (the lead's file) is extended by T019, T023 and T024, so those run in that order; his entries are never removed.
+- The root **`CLAUDE.md`** (the lead's file) is extended by T025, then T033 (import rename), then T038.
+- **US4** needs US1 (something for CI to check) and T025 (root `CLAUDE.md`); T029 to T037 and T042 can be written in parallel, except T033, which edits the root `CLAUDE.md` after T025.
+- **US7** needs US1 (an app to check), US3 (`.claude/settings.json` from T019/T023/T024) and US4 (the CI workflow and T038's `CLAUDE.md`); T071 and T072 can be written in parallel; T074 extends `settings.json` after T024, and T077 extends `CLAUDE.md` after T038.
+- **Polish** comes after all stories.
+- Within each story: tests → implementation → quickstart check.
+
+## Parallel Opportunities
+
+- Setup: T003, T004, T005 together after T001/T002.
+- Foundational: T006 and T007 together.
+- US1: T010 and T011 together.
+- Across stories: T017 (US2) and T021, T025 (US3) can be written while US1 is in progress.
+
+## Implementation Strategy
+
+1. **MVP = User Story 1**: Setup → Foundational → US1, then stop and validate with quickstart
+   section 1. The app runs.
+2. **Add US2**: the tax-rates guard, before feature 004 ever adds rates.
+3. **Add US3**: formatting, permissions and `CLAUDE.md`.
+4. **Add US4**: CI and the shared conventions from the lead's issues #4 and #5.
+5. **Add US7**: contract checks from the lead's issue #16.
+6. **Polish**, then one PR for the implementation.
+
+GitHub issues for these tasks are titled `[001] T0NN: <description>` so they can't clash with
+other features' task numbers.
