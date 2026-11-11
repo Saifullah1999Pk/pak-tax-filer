@@ -196,7 +196,7 @@ Each decision: what was chosen, why, and what else was considered.
 - **Alternatives:** a `PostToolUse` check (runs on every edit, which issue #16 rules out);
   blocking at every `Stop` (unusable mid-feature).
 
-## R13. Started features, manual tasks, CI and Spec Kit (added for issue #16)
+## R14. Started features, manual tasks, CI and Spec Kit (added for issue #16)
 
 - **Decision:** a task line containing `(manual)` is ignored by the check; human-only tasks
   (sign-offs, browser checks, a second operating system, requests to the lead, deliberately
