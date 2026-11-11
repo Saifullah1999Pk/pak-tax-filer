@@ -23,6 +23,7 @@ from app.wealth.reconcile import (
     CertificateFigures,
     ReconciliationResult,
     UserEntries,
+    WealthInputs,
     build_inputs,
     reconcile,
 )
@@ -236,7 +237,7 @@ def _auto_filled(found: Certificates, rounded: dict[str, Decimal]) -> list[AutoF
     ]
 
 
-def _result_out(result: ReconciliationResult, summary: str | None) -> ResultOut:
+def _result_out(result: ReconciliationResult) -> ResultOut:
     return ResultOut(
         not_ready_reason=result.not_ready_reason,
         message=result.message,
@@ -251,18 +252,22 @@ def _result_out(result: ReconciliationResult, summary: str | None) -> ResultOut:
             StepOut(description=s.description, form_line=s.form_line, result=str(s.result))
             for s in result.steps
         ],
-        summary=summary,
     )
 
 
-async def wealth_view(
-    db: AsyncSession, user_id: uuid.UUID, tax_year: str, summariser: Summariser
-) -> WealthOut:
-    """The saved statement, the certificate lines and a freshly computed result (R8)."""
+async def _reconciled(
+    db: AsyncSession, user_id: uuid.UUID, tax_year: str
+) -> tuple[WealthStatement | None, Certificates, WealthInputs, ReconciliationResult]:
     statement = await get_statement(db, user_id, tax_year)
     found = await certificates(db, user_id, tax_year)
     inputs = build_inputs(_entries(statement), found.salary, found.bank, rates_for(tax_year))
-    result = reconcile(inputs)
+    return statement, found, inputs, reconcile(inputs)
+
+
+async def wealth_view(db: AsyncSession, user_id: uuid.UUID, tax_year: str) -> WealthOut:
+    """The saved statement, the certificate lines and a freshly computed result (R8). Never
+    waits for the AI: the summary has its own request (wealth_summary)."""
+    statement, found, inputs, result = await _reconciled(db, user_id, tax_year)
     rounded = {
         "taxable": inputs.taxable_salary,
         "gross": inputs.gross_salary,
@@ -275,6 +280,14 @@ async def wealth_view(
         auto_filled=_auto_filled(found, rounded),
         # R7: certificates added or deleted since the last save (never saved: nothing to warn).
         certificates_changed=statement is not None and statement.certificate_ids != found.ids,
-        result=_result_out(result, await verified_wealth_summary(result, tax_year, summariser)),
+        result=_result_out(result),
         label=LABEL,
     )
+
+
+async def wealth_summary(
+    db: AsyncSession, user_id: uuid.UUID, tax_year: str, summariser: Summariser
+) -> str | None:
+    """A short checked summary of the same result, or None (feature 001, US6)."""
+    *_, result = await _reconciled(db, user_id, tax_year)
+    return await verified_wealth_summary(result, tax_year, summariser)

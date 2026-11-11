@@ -19,7 +19,6 @@ Every response has **all** the fields below; a field that doesn't apply is `null
 | `salary_credit` | tax deducted by employers, rounded (s.219) | `null` |
 | `profit_credit` | tax withheld by banks as counted against the profit tax (non-ATL: up to the profit tax), rounded | `null` |
 | `steps` | the breakdown, in order | `[]` |
-| `summary` | checked AI summary, or `null` | `null` |
 | `label` | always | always |
 
 Credits (tax deducted by employers, tax withheld by banks) appear in the salary-side and
@@ -42,7 +41,6 @@ that counts.
       "rule_location": "Income Tax Ordinance 2001 (amended up to 31.07.2025), First Schedule, Part I, Division I, clause (2), row 3",
       "result": "72000" }
   ],
-  "summary": "Your salary tax is Rs 72,000 …",
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```
@@ -56,7 +54,7 @@ that counts.
   "salary_tax": null, "surcharge": null, "profit_tax": null,
   "salary_balance": null, "profit_balance": null, "non_atl_extra_withheld": null,
   "salary_credit": null, "profit_credit": null,
-  "steps": [], "summary": null,
+  "steps": [],
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```
@@ -64,6 +62,19 @@ that counts.
 `blocked_reason` values: `needs_atl_answer`, `no_confirmed_salary_certificate`,
 `profit_over_limit`, `salary_share_ambiguous`, `surcharge_ambiguous`.
 
+## GET /api/tax/{tax_year}/summary
+
+Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same result, in its own
+request so the figures above never wait for the AI (they come back at once; the summary can take
+several seconds). Checked as before: dropped unless every number in it is in the breakdown
+(FR-011), and also when a sentence describes a tax figure as being after (net of, accounting
+for) its credit without reaching the balance, since the tax comes before the credit is taken
+off; `null` when dropped, late (12 s limit), failed, or when the result is blocked.
+
+```json
+{ "summary": "Your salary tax is Rs 72,000 …" }
+```
+
 ## Errors
 
-`404` unknown tax year; `401` not logged in.
+`404` unknown tax year; `401` not logged in (both requests).

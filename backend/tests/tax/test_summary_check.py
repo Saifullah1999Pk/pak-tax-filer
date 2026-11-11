@@ -12,7 +12,7 @@ import pytest
 
 from app.tax.engine import TaxInputs, TaxResult, calculate
 from app.tax.rates import rates_for
-from app.tax.summary import FakeSummariser, summary_is_safe, verified_summary
+from app.tax.summary import INSTRUCTIONS, FakeSummariser, summary_is_safe, verified_summary
 
 pytestmark = pytest.mark.anyio
 
@@ -115,3 +115,56 @@ def test_a_summary_must_not_reverse_the_balance(
     """Fails if a summary with the right number says payable where it's over-deducted, or the
     reverse, or promises a refund (spec: the summary never contradicts the steps)."""
     assert summary_is_safe(summary, result()) is kept
+
+
+# Feature 001, User Story 6: with the summary loaded on its own it finally arrived, and one live
+# summary tied the right numbers together the wrong way ("salary tax Rs 1,666,193 after
+# accounting for Rs 213,016 deducted"), though every number was in the breakdown. Salary tax is
+# before anything is taken off; a sentence that says otherwise is dropped.
+
+
+def top_band() -> TaxResult:
+    """The demo user's figures: tax 1,666,192.50 (Rs 1,666,193), deducted 213,016, 1,453,177 due."""
+    inputs = TaxInputs(
+        "2025-26", True, Decimal("7100550"), Decimal("213016"), Decimal(0), Decimal(0), True
+    )
+    return calculate(inputs, rates_for("2025-26"))
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        # Live, 2026-11-11: says the deduction is already inside the tax.
+        "Your salary tax is calculated as Rs 1,666,193 after accounting for Rs 213,016 of tax "
+        "deducted by employers. This leaves a final amount of Rs 1,453,177 payable on the "
+        "salary side. Meanwhile, the profit side results in nothing to pay.",
+        "Your salary tax, net of the Rs 213,016 your employers deducted, is Rs 1,666,193.",
+        "Taking into account Rs 213,016 deducted by employers, your salary tax is Rs 1,666,192.50.",
+    ],
+)
+def test_a_summary_putting_the_deduction_inside_the_tax_is_dropped(summary: str) -> None:
+    """Fails if a summary that calls the salary tax "after" the deduction reaches the user."""
+    assert not summary_is_safe(summary, top_band())
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        # Both live, 2026-11-11, and right.
+        "Your salary tax of Rs 1,666,193, after subtracting tax deducted by employers of "
+        "Rs 213,016, results in Rs 1,453,177 payable. On the profit side, tax on bank profit "
+        "of Rs 0 and tax withheld by banks of Rs 0 means there is nothing to pay, and the "
+        "surcharge is Rs 0.",
+        "Your total salary tax for the tax year 2025-26 is Rs 1,666,193 after accounting for "
+        "your taxable salary of Rs 7,100,550. After subtracting Rs 213,016 for tax deducted by "
+        "employers, your final salary side amount is Rs 1,453,177 payable.",
+    ],
+)
+def test_a_summary_subtracting_the_deduction_from_the_tax_is_kept(summary: str) -> None:
+    """Fails if a faithful summary is thrown away because it mentions the deduction."""
+    assert summary_is_safe(summary, top_band())
+
+
+def test_the_model_is_told_the_tax_comes_before_the_deduction() -> None:
+    """Fails if the instructions stop saying how the figures relate."""
+    assert "before" in INSTRUCTIONS and "never" in INSTRUCTIONS.lower()

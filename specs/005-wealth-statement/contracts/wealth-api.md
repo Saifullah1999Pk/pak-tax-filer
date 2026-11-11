@@ -40,8 +40,7 @@ computed result.
     "where_to_look": [],
     "steps": [
       { "description": "Net assets this year: Rs 2,765,000 − Rs 200,000 = Rs 2,565,000", "form_line": "703001", "result": "2565000" }
-    ],
-    "summary": null
+    ]
   },
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
@@ -63,6 +62,17 @@ direction and never contains an amount.
 Body: the `statement` object above without `saved_at`. Replaces the whole statement (rows
 included), records `saved_at` and the confirmed certificate ids, and returns the same body as
 GET.
+
+## GET /api/wealth/{tax_year}/summary
+
+Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same reconciliation,
+in its own request so GET and PUT never wait for the AI. Checked as before (the shared number
+check plus the wealth guards); `null` when dropped, late (12 s limit), failed, or when the
+statement is not ready.
+
+```json
+{ "summary": "Your wealth statement reconciles: …" }
+```
 
 ## Errors
 

@@ -288,16 +288,67 @@ async def test_minus_zero_is_saved_and_shown_as_zero(client: AsyncClient) -> Non
     assert saved["statement"]["inheritance"] == "0"
 
 
-async def test_a_checked_summary_reaches_the_page(
+class RecordingSummariser:  # pylint: disable=too-few-public-methods
+    """Counts how often the AI would be asked."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def write(self, breakdown: str) -> str | None:
+        """Count the call; write nothing."""
+        del breakdown
+        self.calls += 1
+        return None
+
+
+async def test_reading_and_saving_never_wait_for_the_summary(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if reading or saving asks the AI, or still carries a summary (feature 001, US6)."""
+    await certificates(db, logged_in_user)
+    recorder = RecordingSummariser()
+    app.dependency_overrides[get_wealth_summariser] = lambda: recorder
+    try:
+        saved = (await client.put(URL, json=STATEMENT)).json()
+        read = (await client.get(URL)).json()
+    finally:
+        app.dependency_overrides.pop(get_wealth_summariser, None)
+
+    assert recorder.calls == 0
+    assert "summary" not in saved["result"] and "summary" not in read["result"]
+    assert read["result"]["direction"] == "reconciled"
+
+
+async def test_the_summary_request_returns_a_checked_summary(
     client: AsyncClient, db: AsyncSession, logged_in_user: User
 ) -> None:
     """Fails if a safe summary is lost between the check and the response (service wiring)."""
     await certificates(db, logged_in_user)
+    await client.put(URL, json=STATEMENT)
     text = "Your wealth statement reconciles: inflows of Rs 2,050,000 explain the change."
     app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(text)
     try:
-        body = (await client.put(URL, json=STATEMENT)).json()
+        response = await client.get(URL + "/summary")
     finally:
         app.dependency_overrides.pop(get_wealth_summariser, None)
 
-    assert body["result"]["summary"] == text
+    assert response.status_code == 200
+    assert response.json() == {"summary": text}
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_a_not_ready_statement_has_no_summary(client: AsyncClient) -> None:
+    """Fails if a statement that can't be reconciled yet gets an AI summary."""
+    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser("Rs 1")
+    try:
+        response = await client.get(URL + "/summary")
+    finally:
+        app.dependency_overrides.pop(get_wealth_summariser, None)
+
+    assert response.json() == {"summary": None}
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_the_summary_request_needs_a_known_year(client: AsyncClient) -> None:
+    """Fails if the summary answers for a year without rates."""
+    assert (await client.get("/api/wealth/2019-20/summary")).status_code == 404
