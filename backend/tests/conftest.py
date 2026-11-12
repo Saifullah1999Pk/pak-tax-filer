@@ -34,6 +34,8 @@ from app.profile.service import save_profile
 from app.rag.answer import AnswerError, FakeAnswerer
 from app.rag.embed import FakeEmbedder
 from app.rag.router import get_answerer, get_embedder
+from app.workflow.client import FakeAgentClient
+from app.workflow.router import get_agent_client
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
 from app.wealth.router import get_wealth_summariser
@@ -153,20 +155,24 @@ async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
 
 @pytest.fixture(autouse=True)
 def no_real_ai() -> Iterator[None]:
-    """Fakes for every AI service in every test, so no test can call the real Gemini API, even
-    when the environment has a key (research R8 of 003). Tests wanting a particular answer
-    override these again (fake_extractor, or their own FakeSummariser)."""
+    """Fakes for every AI service (and the guided run's agents) in every test, so no test can
+    call the real Gemini API, even when the environment has a key (research R8 of 003). Tests
+    wanting a particular answer override these again (fake_extractor, their own FakeSummariser
+    or FakeAgentClient)."""
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(failed("No AI in tests."))
     app.dependency_overrides[get_summariser] = lambda: FakeSummariser(None)
     app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(None)
     app.dependency_overrides[get_embedder] = FakeEmbedder
     app.dependency_overrides[get_answerer] = lambda: FakeAnswerer(AnswerError("No AI in tests."))
+    # A function, not the class: FastAPI would read the dataclass's fields as parameters.
+    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient({})  # every agent fails
     yield
     app.dependency_overrides.pop(get_extractor, None)
     app.dependency_overrides.pop(get_summariser, None)
     app.dependency_overrides.pop(get_wealth_summariser, None)
     app.dependency_overrides.pop(get_embedder, None)
     app.dependency_overrides.pop(get_answerer, None)
+    app.dependency_overrides.pop(get_agent_client, None)
 
 
 @pytest.fixture(autouse=True)

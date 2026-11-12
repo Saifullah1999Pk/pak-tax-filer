@@ -1,0 +1,134 @@
+"""Starting, resuming and advancing a guided run (feature 007, tasks T010, T015, T019; research
+R1-R3, R9).
+
+Steps 1-3 run in one go: on start, and whenever the inputs' fingerprint differs from the one the
+step outputs were made for (a certificate added, deleted or re-confirmed, or the profile
+changed). Each such run counts as one question against 006's limits; past a limit the steps use
+their plain results. Re-running clears any approval, so the result is only ever shown for inputs
+the user approved (Principle III). The tax result itself is never stored.
+"""
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.models import User
+from app.documents.service import confirmed_documents
+from app.profile.models import TaxpayerProfile
+from app.rag.embed import Embedder
+from app.rag.service import use_question
+from app.tax.service import tax_inputs
+from app.workflow.agents import document_step, research_step, validation_step
+from app.workflow.client import AgentClient
+from app.workflow.fingerprint import fingerprint
+from app.workflow.models import Step, WorkflowRun
+from app.workflow.state import Event, next_step
+from app.workflow.tools import Toolbox
+
+AGENT_STEPS = ("document", "validation", "research")
+
+
+@dataclass(frozen=True)
+class Context:
+    """What a run needs from the request: the user, their profile and the AI services."""
+
+    db: AsyncSession
+    user: User
+    profile: TaxpayerProfile
+    client: AgentClient
+    embedder: Embedder
+
+
+async def get_run(ctx: Context) -> WorkflowRun | None:
+    """The user's run for the profile's tax year, re-running steps 1-3 first if the inputs
+    changed since they ran; None if no run was started."""
+    run = await _find(ctx)
+    if run is None:
+        return None
+    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
+    current = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
+    if run.outputs_fingerprint != current:
+        await _run_steps(ctx, run, Event.INPUTS_CHANGED)
+    return run
+
+
+async def start(ctx: Context) -> WorkflowRun:
+    """Start a run, or restart the existing one (still one row per user and year)."""
+    now = datetime.now(UTC)
+    # One row even if two tabs start at once (unique on user and tax year).
+    await ctx.db.execute(
+        insert(WorkflowRun)
+        .values(
+            user_id=ctx.user.id,
+            tax_year=ctx.profile.tax_year,
+            step=Step.DOCUMENT,
+            created_at=now,
+            updated_at=now,
+        )
+        .on_conflict_do_nothing(constraint="uq_workflow_runs_user_year")
+    )
+    run = await _find(ctx)
+    assert run is not None  # just inserted, or already there
+    await _run_steps(ctx, run, Event.START)
+    return run
+
+
+async def _find(ctx: Context) -> WorkflowRun | None:
+    return (
+        await ctx.db.execute(
+            select(WorkflowRun).where(
+                WorkflowRun.user_id == ctx.user.id, WorkflowRun.tax_year == ctx.profile.tax_year
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def _run_steps(ctx: Context, run: WorkflowRun, event: Event) -> None:
+    """Run the document, validation and research steps on the current inputs."""
+    run.step = next_step(run.step, event)
+    run.approved_at = run.approved_fingerprint = run.done_at = None
+    # Counted (and committed) before any AI is used, under 006's lock (research R9).
+    use_ai = await use_question(ctx.db, ctx.user.id) is None
+    await ctx.db.commit()
+
+    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
+    tools = Toolbox(
+        db=ctx.db, user_id=ctx.user.id, profile_tax_year=ctx.profile.tax_year, embedder=ctx.embedder
+    )
+    outputs: dict[str, Any] = {"document": await document_step(ctx.client, tools, use_ai=use_ai)}
+    if outputs["document"]["missing"]:
+        run.step = next_step(run.step, Event.MISSING_SALARY)
+    else:
+        outputs["validation"] = await validation_step(ctx.client, tools, documents, use_ai=use_ai)
+        outputs["research"] = await research_step(ctx.client, tools, documents, use_ai=use_ai)
+        for _ in AGENT_STEPS:
+            run.step = next_step(run.step, Event.STEPS_OK)
+    run.step_outputs = outputs
+    run.outputs_fingerprint = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
+    run.updated_at = datetime.now(UTC)
+    await ctx.db.commit()
+
+
+async def gate_view(ctx: Context) -> dict[str, Any]:
+    """What the gate shows the user before they approve: the confirmed figures the calculation
+    would use (summed per type, as 004 sums them) and the profile's ATL status (FR-008)."""
+    inputs = await tax_inputs(ctx.db, ctx.user, ctx.profile.tax_year)
+    return {
+        "figures": {
+            "taxable_salary": _money(inputs.taxable_salary),
+            "tax_deducted": _money(inputs.tax_deducted),
+            "gross_profit": _money(inputs.gross_profit),
+            "tax_withheld": _money(inputs.tax_withheld),
+        },
+        "on_atl": ctx.profile.on_atl,
+    }
+
+
+def _money(amount: Decimal) -> str:
+    """Always two decimals ("1800000.00"), whether the amount was cached or read back."""
+    return str(amount.quantize(Decimal("0.01")))

@@ -9,6 +9,7 @@ from app.auth.router import router as auth_router
 from app.documents.router import router as documents_router
 from app.profile.router import router as profile_router
 from app.rag.router import router as ask_router
+from app.workflow.router import router as workflow_router
 from app.tax.router import router as tax_router
 from app.wealth.router import router as wealth_router
 
@@ -19,6 +20,7 @@ app.include_router(documents_router)
 app.include_router(tax_router)
 app.include_router(wealth_router)
 app.include_router(ask_router)
+app.include_router(workflow_router)
 
 
 @app.exception_handler(RequestValidationError)
