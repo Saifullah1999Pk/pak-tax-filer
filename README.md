@@ -118,8 +118,8 @@ If you use Claude Code, also install the tools its hooks run on your machine:
 ```
 
 - Backend: `http://localhost:8000` · Frontend: `http://localhost:5173`
-- Set `ANTHROPIC_API_KEY` in a local `.env` (not committed) before running
-  anything that touches extraction, RAG, or the MCP server.
+- Set `GEMINI_API_KEY` (Google Gemini, free tier from AI Studio) in a local `.env` (not
+  committed) before running anything that touches extraction, RAG, or the MCP server.
 - Backend tests: `docker compose exec backend pytest`
 - Frontend tests: `docker compose exec frontend npm test`
 - Claude Code hook tests: `uv run --no-project --with pytest pytest .claude/hooks/tests`
