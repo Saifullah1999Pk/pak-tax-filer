@@ -189,3 +189,111 @@ test("without a profile, the run sends the user to set one up first", async () =
     await screen.findByText("Location: /profile?next=%2Fworkflow"),
   ).toBeDefined();
 });
+
+// ---- User Story 2 (T016) ----
+
+const TAX_BODY = {
+  tax_year: "2025-26",
+  blocked_reason: null,
+  message: null,
+  salary_tax: "72000",
+  surcharge: "0",
+  profit_tax: "0",
+  salary_balance: "-3000",
+  profit_balance: "0",
+  non_atl_extra_withheld: null,
+  salary_credit: "75000",
+  profit_credit: "0",
+  steps: [
+    {
+      description: "Salary tax: Rs 6,000 + 11% of Rs 600,000 = Rs 72,000",
+      rule_location: "First Schedule, Part I, Division I, clause (2), row 3",
+      result: "72000",
+    },
+  ],
+  label: "Not yet reviewed by a tax practitioner. Not tax advice.",
+};
+const RESULT_BODY = { ...TAX_BODY, passages: AT_GATE.research!.passages };
+const APPROVED: Run = {
+  ...AT_GATE,
+  step: "result",
+  approved_at: "2026-11-12T10:00:00Z",
+};
+
+function showGateFlow(approve: FakeReply = { status: 200, body: APPROVED }) {
+  return mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => ({ status: 200, body: AT_GATE }),
+    "POST /api/workflow/approve": () => approve,
+    "POST /api/workflow/back": () => ({
+      status: 200,
+      body: { ...AT_GATE, step: "document", gate: null },
+    }),
+    "GET /api/workflow/result": () => ({ status: 200, body: RESULT_BODY }),
+    "GET /api/tax/2025-26/summary": () => ({
+      status: 200,
+      body: { summary: null },
+    }),
+    "POST /api/workflow/done": () => ({
+      status: 200,
+      body: { ...APPROVED, step: "done", done_at: "2026-11-12T10:05:00Z" },
+    }),
+  });
+}
+
+test("approving sends the fingerprint the user saw and shows the result", async () => {
+  const fetch = showGateFlow();
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+
+  expect(await screen.findByText("Rs 3,000 over-deducted")).toBeDefined();
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/workflow/approve",
+    expect.objectContaining({
+      body: JSON.stringify({ fingerprint: AT_GATE.fingerprint }),
+    }),
+  );
+  screen.getByText("Not yet reviewed by a tax practitioner. Not tax advice.");
+  screen.getByText(/Salary tax: Rs 6,000/);
+  const sources = screen.getByRole("list", { name: "Where this comes from" });
+  expect(sources.textContent).toContain("§149(1), page 327");
+});
+
+test("if the inputs changed, approving says so and asks to review again", async () => {
+  showGateFlow({
+    status: 409,
+    body: { detail: "Your inputs changed; please review and approve again." },
+  });
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Your inputs changed",
+  );
+});
+
+test("Go back leaves the gate", async () => {
+  showGateFlow();
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Go back" }));
+
+  expect(
+    await screen.findByRole("button", { name: "Start again" }),
+  ).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+});
+
+test("marking the run done shows the date", async () => {
+  showGateFlow();
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Mark done" }));
+
+  expect(await screen.findByText("Done on 12 Nov 2026.")).toBeDefined();
+  expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
+});

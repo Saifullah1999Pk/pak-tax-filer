@@ -2,6 +2,7 @@
 // Figures arrive as decimal strings and are only displayed (constitution, Principle I).
 
 import { apiFetch } from "./client";
+import type { TaxResult } from "./tax";
 
 export type Step =
   "document" | "validate" | "research" | "gate" | "result" | "done";
@@ -45,3 +46,17 @@ export type Run = {
 export const getRun = () => apiFetch<Run>("/api/workflow");
 export const startRun = () =>
   apiFetch<Run>("/api/workflow/start", { method: "POST" });
+
+/** 004's result for the run (exactly the Tax page's body) plus the research passages. */
+export type WorkflowResult = TaxResult & { passages: Passage[] };
+
+export const approveRun = (fingerprint: string) =>
+  apiFetch<Run>("/api/workflow/approve", {
+    method: "POST",
+    body: { fingerprint },
+  });
+export const backRun = () =>
+  apiFetch<Run>("/api/workflow/back", { method: "POST" });
+export const getResult = () => apiFetch<WorkflowResult>("/api/workflow/result");
+export const markDone = () =>
+  apiFetch<Run>("/api/workflow/done", { method: "POST" });

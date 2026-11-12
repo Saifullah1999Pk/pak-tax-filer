@@ -77,7 +77,7 @@ features 001–006 implemented.
 ### Implementation for User Story 2
 
 - [x] T015 [US2] Add `approve`, `back`, `result` (calls 004's `app.tax.service`, never stored) and `done` to `backend/app/workflow/service.py` and the matching endpoints to `router.py`, using `state.next_step`; T013 and T014 pass
-- [ ] T016 [US2] Add the gate's Approve / Go back, the result (004's breakdown display, passages as "Where this comes from", practitioner label) and Mark done to `frontend/src/pages/WorkflowPage.tsx`; extend its test
+- [x] T016 [US2] Add the gate's Approve / Go back, the result (004's breakdown display, passages as "Where this comes from", practitioner label) and Mark done to `frontend/src/pages/WorkflowPage.tsx`; extend its test
 - [ ] T017 [US2] Run [quickstart.md](quickstart.md) scenario 2
 
 **Checkpoint**: the run works end to end.
