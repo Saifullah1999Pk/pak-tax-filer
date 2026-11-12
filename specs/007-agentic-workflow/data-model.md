@@ -1,6 +1,6 @@
 # Data Model: Agentic Workflow (007)
 
-Created by Alembic migration `0007_workflow`. All timestamps UTC.
+Created by Alembic migration `0008_workflow` (006 took 0007). All timestamps UTC.
 
 ## workflow_runs
 

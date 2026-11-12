@@ -45,8 +45,17 @@ No tool writes, confirms, approves or calculates (FR-010).
 
 ## Page
 
-`/workflow` (under `RequireAuth` and `RequireProfile`), linked from the home page: a step
-indicator; each step's message (links to 003's pages when something is missing); the gate with
+`/workflow` (under `RequireAuth` and `RequireProfile`), shown as "Guided filing" in the Filing
+group of the navigation (computer top bar, phone Filing sheet) and linked from the home page
+(amended 2026-11-12): a step indicator; while steps 1–3 run, each step's progress message in
+turn ("Checking your documents…", "Checking the figures…", "Finding the law that applies…"); each step's message (links to 003's pages when something is missing); the gate with
 figures, tax year, ATL status, issues, passages, **Approve** and **Go back**; the result with
 004's breakdown, the passages as "Where this comes from", the practitioner label, and **Mark
 done**.
+
+## Question limits (added 2026-11-12)
+
+Each run of steps 1–3 (`POST /start`, or a `GET` that re-runs them after an input change) counts
+as one question against feature 006's limits (30 an hour per user, the app's daily cap). Past a
+limit, the response is still `200`: the steps carry their code-written results with
+`fallback: true`, and the run reaches the gate as usual (research R9).

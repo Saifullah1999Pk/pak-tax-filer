@@ -96,3 +96,31 @@ lead's approval.
 
 Run table and states, API shape, model setting (same pattern as 003/004), prompts and tool
 definitions, how input changes are detected, and the page layout.
+
+## Addendum 2026-11-12: after the stack change and feature 006
+
+The design above stands (approach A, alongside the existing pages, no wealth statement, changes
+return to the gate). This updates it for what changed since 4 November. Decided by Saifullah:
+adjust 007 to the stack as built; Awais's policy-based bill-approval agent (2026-11-11) is **not**
+part of 007 and is left for after 008.
+
+- **Gemini, not Claude.** Each agent is one Gemini call with function calling through
+  `google-genai`, as 003–006 call Gemini; a `WORKFLOW_MODEL` setting (default
+  `gemini-3.5-flash-lite`, effort `minimal`), like 006's `ANSWER_MODEL`. The Claude Agent SDK
+  question no longer arises. No new dependency.
+- **Research uses 006's search as built:** `app.rag.search` with its relevance cut-off, and its
+  text passes 006's checks (`app.rag.checks`: citations among the passages found, every number
+  with its scale from a cited passage). The research agent writes its own queries; no question
+  the user types reaches it.
+- **Time:** each agent step has 15 seconds, as 006's answers do (was 10). The page shows what
+  each step is doing while it waits ("Checking your documents…", "Checking the figures…",
+  "Finding the law that applies…"), like the Ask page. *(Proposed by Claude, accepted.)*
+- **Shared free quota:** one run of steps 1–3 counts as one question against 006's limits (30
+  an hour per user, 200 a day for the app), counted with 006's `use_question`. Past a limit, the
+  steps use their code-written results, so the run still reaches the gate (SC-005). *(Proposed
+  by Claude, accepted.)*
+- **Navigation:** "Guided filing" joins the Filing group: a top-bar link on computers, an entry
+  in the Filing sheet on phones (006's navigation, designed for it), and a link from Home.
+- **Number checks** use 004's shared check, which since 006's review also refuses a scale stuck
+  to digits ("26m").
+- **Housekeeping:** the migration is `0008_workflow` (006 took 0007).

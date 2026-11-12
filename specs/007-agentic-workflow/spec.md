@@ -11,6 +11,10 @@ state machine, human-approval gate before calculation)"; MVP: "document → vali
 calculate → explain → review with a mandatory human-approval gate before calculation". Source
 design: `docs/superpowers/specs/2026-11-04-agentic-workflow-design.md`.
 
+**Amended 2026-11-12** (design addendum): the stack as built (Gemini; 006's search and limits),
+"Guided filing" in the navigation, progress shown while the steps run (FR-017 to FR-019). The
+lead's bill-approval agent idea is not part of this feature.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Guided run up to the approval gate (Priority: P1)
@@ -112,6 +116,8 @@ resumes at the same step.
   engine's reason, exactly as the Tax page does.
 - Two tabs approve at once: one approval is recorded; the result is the same.
 - A user without a profile opens the run: sent to set up the profile first (feature 002).
+- The user (or the whole app) has reached the tax assistant's question limit: the steps use
+  their plain results, marked as such, and the run still reaches the gate (added 2026-11-12).
 
 ## Requirements *(mandatory)*
 
@@ -151,6 +157,14 @@ resumes at the same step.
 - **FR-015**: The run MUST be visible only to its own user.
 - **FR-016**: The feature MUST NOT include the wealth statement, PDF export, telemetry, filing,
   or new tax rules.
+- **FR-017** (added 2026-11-12): The run MUST appear in the app's navigation as "Guided filing",
+  in the Filing group (feature 006's navigation), and stay linked from the home page.
+- **FR-018** (added 2026-11-12): Each run of the document, validation and research steps MUST
+  count as one question against the tax assistant's limits (feature 006, FR-009a and FR-009b);
+  past a limit, the steps MUST use their plain (code-written) results and the run MUST still
+  reach the gate.
+- **FR-019** (added 2026-11-12): While the steps run, the page MUST show what each step is doing,
+  and each step MUST give its result or its plain result within 15 seconds.
 
 ### Key Entities
 

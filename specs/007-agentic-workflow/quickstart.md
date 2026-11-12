@@ -6,7 +6,8 @@ Validates the feature end to end. Contract: [contracts/workflow-api.md](contract
 
 Features 002–006 built; stack running; corpus built (006); a demo user with a profile (ATL
 "yes") and one confirmed synthetic salary certificate (taxable Rs 1,800,000, tax deducted Rs
-75,000). `ANTHROPIC_API_KEY` set for scenario 1; unset for scenario 4.
+75,000). `GEMINI_API_KEY` set for scenario 1; unset for scenario 4 (or a question limit reached:
+the same code-written results).
 
 ## Scenarios
 

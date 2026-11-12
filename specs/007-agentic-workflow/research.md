@@ -36,8 +36,9 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R4. Agents and tools
 
-- **Decision:** each agent is one `anthropic` Messages call with tool use and a structured final
-  answer, through a small client interface with a fake for tests. Tools are read-only functions
+- **Decision** (amended 2026-11-12): each agent is one Gemini call with function calling and a
+  structured final answer (`google-genai`, as 003–006), through a small client interface with a
+  fake for tests. Tools are read-only functions
   in `app/workflow/tools.py`, the same functions 006's MCP tools call:
   - document agent: `list_confirmed_documents()` (types, labels, upload pages);
   - validation agent: `validate_salary_information(...)` and `check_bank_certificate(...)`
@@ -52,10 +53,11 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R5. Checks and fallbacks
 
-- **Decision:** document and validation text pass 004's number check (every number equals a
-  figure given to the agent); research text passes 006's checks (citations among the passages
-  search returned; every number appears in a cited passage). On failure, timeout (10 s) or no API
-  key, the step uses its code-written result: the missing-document list, the raw rule issues, or
+- **Decision** (amended 2026-11-12): document and validation text pass 004's number check
+  (`app.explain.number_check`: every number equals a figure given to the agent; no number words or
+  scales); research text passes 006's checks (`app.rag.checks.checked_citations`: citations among
+  the passages search returned; every number, with its scale, in a cited passage). On failure,
+  timeout (15 s per step, as 006), a reached question limit (R9) or no API key, the step uses its code-written result: the missing-document list, the raw rule issues, or
   the top passages from a fixed query per income type (salary; bank profit).
 - **Rationale:** FR-005 to FR-007; reuses existing checks; the run always completes (SC-005).
 - **Alternatives:** retrying the call (slower, same failure modes); blocking the run (fails
@@ -63,8 +65,9 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R6. Model setting
 
-- **Decision:** `WORKFLOW_MODEL` setting, default `claude-opus-5-5`, effort `low`, short output,
-  same pattern as 003's `EXTRACTION_MODEL` and 004's `SUMMARY_MODEL`.
+- **Decision** (amended 2026-11-12): `WORKFLOW_MODEL` setting, default `gemini-3.5-flash-lite`,
+  `WORKFLOW_EFFORT` default `minimal`, short output, in `app/settings.py` like 003's
+  `EXTRACTION_MODEL`, 004's `SUMMARY_MODEL` and 006's `ANSWER_MODEL`.
 - **Rationale:** one consistent way to choose models across features.
 
 ## R7. API
@@ -82,3 +85,30 @@ Each decision: what was chosen, why, and what else was considered.
   screen (figures, profile, issues, passages, Approve / Go back), and the result (004's breakdown
   component, passages, label, "Mark done"). Linked from the home page.
 - **Rationale:** sits alongside the other pages (design decision); reuses 004's breakdown display.
+
+## R9. Shared question limits (added 2026-11-12)
+
+- **Decision:** each time steps 1–3 run (start, restart, or a re-run after an input change), the
+  service first calls 006's `app.rag.service.use_question` for the user, so the run counts as
+  one question against the same limits as Ask and MCP search (30 an hour per user, the app's 200
+  a day; `ASK_DAILY_LIMIT`), under the same lock. Past a limit, no agent is called: each step uses
+  its code-written result (R5), marked as such, and the run still reaches the gate (SC-005).
+- **Rationale:** the agents and search spend the same free Gemini quota as extraction,
+  summaries and Ask; without this, guided runs could exhaust it.
+- **Alternatives:** counting each agent call (three per run; would use up a user's hour three
+  times as fast for one action); a separate workflow limit (two limits on one quota); blocking
+  the run at a limit (fails SC-005).
+
+## R10. Navigation and progress (added 2026-11-12)
+
+- **Decision:** the page's navigation label is "Guided filing" (route `/workflow`), added to
+  `FILING` in `frontend/src/components/MainNav.tsx`: a top-bar link on computers and an entry in
+  the Filing sheet on phones (006's navigation, design addendum 2026-11-11), and still linked
+  from Home (R8). Steps 1–3 run in one request; while it waits, the page shows each step's
+  message in turn ("Checking your documents…", "Checking the figures…", "Finding the law that
+  applies…"), timed on the page as 006's Ask page times its progress, not reported step by step
+  by the backend.
+- **Rationale:** the navigation was designed for this entry; one request keeps the backend
+  simple, and the messages tell the user why it takes several seconds.
+- **Alternatives:** one request per step (three round trips and partial runs to handle);
+  streaming step results (shows text before its checks pass).
