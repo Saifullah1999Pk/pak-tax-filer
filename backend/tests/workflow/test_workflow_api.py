@@ -22,11 +22,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.documents.models import DocType
+from app.documents.models import DocType, Document
 from app.main import app
 from app.profile.service import save_profile
 from app.rag.models import AskRequest
 from app.workflow.client import FakeAgentClient, Script
+from app.workflow.models import WorkflowRun
 from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
@@ -217,3 +218,104 @@ async def test_marking_done_records_the_date(
 
     assert done["step"] == "done" and done["done_at"] is not None
     assert (await client.get(f"{URL}/result")).status_code == 200  # still readable when done
+
+
+# ---- User Story 3 (T018) ----
+
+
+async def approved_run(client: AsyncClient, db: AsyncSession, user: User) -> dict[str, Any]:
+    """A run approved at the gate, with its result available."""
+    await add_confirmed_document(db, user.id, DocType.SALARY_CERTIFICATE, SALARY)
+    run = (await client.post(f"{URL}/start", json={})).json()
+    approved = (
+        await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
+    ).json()
+    assert (await client.get(f"{URL}/result")).status_code == 200
+    return approved
+
+
+async def test_a_new_certificate_after_approval_returns_to_the_gate(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a certificate confirmed after approval leaves the old approval (or result)
+    standing, or the run doesn't say why it's back (FR-013, SC-006)."""
+    before = await approved_run(client, db, user_with_profile)
+    await add_confirmed_document(
+        db,
+        user_with_profile.id,
+        DocType.BANK_PROFIT_CERTIFICATE,
+        {"profit_amount": "50000", "tax_withheld": "10000"},
+    )
+
+    run = (await client.get(URL)).json()
+
+    assert run["step"] == "gate" and run["approved_at"] is None
+    assert run["inputs_changed"] is True
+    assert run["fingerprint"] != before["fingerprint"]
+    assert run["gate"]["figures"]["gross_profit"] == "50000.00"
+    assert (await client.get(f"{URL}/result")).status_code == 409
+
+
+async def test_deleting_the_salary_certificate_returns_to_the_document_step(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a run whose only salary certificate is gone stays approved."""
+    await approved_run(client, db, user_with_profile)
+    document = (
+        await db.execute(select(Document).where(Document.user_id == user_with_profile.id))
+    ).scalar_one()
+    await db.delete(document)
+    await db.flush()
+
+    run = (await client.get(URL)).json()
+
+    assert run["step"] == "document" and run["document"]["missing"] == ["salary_certificate"]
+    assert run["approved_at"] is None
+
+
+async def test_changing_the_profile_returns_to_the_gate(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a changed ATL answer keeps an approval given for the old one."""
+    await approved_run(client, db, user_with_profile)
+    await save_profile(db, user_with_profile, PROFILE_YEAR, on_atl=False)
+
+    run = (await client.get(URL)).json()
+
+    assert run["step"] == "gate" and run["gate"]["on_atl"] is False
+    assert run["approved_at"] is None and run["inputs_changed"] is True
+
+
+async def test_a_change_before_approval_re_runs_the_steps_and_counts_once(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if the gate could show checks made for older inputs, or a re-run isn't counted
+    (research R9), or a run never approved claims its inputs changed after approval."""
+    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+    await client.post(f"{URL}/start", json={})
+    await add_confirmed_document(
+        db, user_with_profile.id, DocType.BANK_PROFIT_CERTIFICATE, {"profit_amount": "50000"}
+    )
+
+    run = (await client.get(URL)).json()
+    again = (await client.get(URL)).json()
+
+    assert run["gate"]["figures"]["gross_profit"] == "50000.00"
+    assert run["inputs_changed"] is False
+    assert await questions_recorded(db) == 2  # the start, and one re-run (not two)
+    assert again == run
+
+
+async def test_starting_a_done_run_resets_it(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if starting again leaves the old approval, or makes a second run (FR-002)."""
+    await approved_run(client, db, user_with_profile)
+    await client.post(f"{URL}/done", json={})
+
+    run = (await client.post(f"{URL}/start", json={})).json()
+
+    assert run["step"] == "gate" and run["approved_at"] is None and run["done_at"] is None
+    assert run["inputs_changed"] is False
+    count = (await db.execute(select(func.count()).select_from(WorkflowRun))).scalar_one()
+    assert count == 1

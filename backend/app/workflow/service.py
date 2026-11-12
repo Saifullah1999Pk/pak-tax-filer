@@ -55,7 +55,8 @@ async def get_run(ctx: Context) -> WorkflowRun | None:
     documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
     current = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
     if run.outputs_fingerprint != current:
-        await _run_steps(ctx, run, Event.INPUTS_CHANGED)
+        # Says so on the page if an approval is being cleared (FR-013).
+        await _run_steps(ctx, run, Event.INPUTS_CHANGED, after_approval=run.approved_at is not None)
     return run
 
 
@@ -90,7 +91,9 @@ async def _find(ctx: Context) -> WorkflowRun | None:
     ).scalar_one_or_none()
 
 
-async def _run_steps(ctx: Context, run: WorkflowRun, event: Event) -> None:
+async def _run_steps(
+    ctx: Context, run: WorkflowRun, event: Event, *, after_approval: bool = False
+) -> None:
     """Run the document, validation and research steps on the current inputs."""
     run.step = next_step(run.step, event)
     run.approved_at = run.approved_fingerprint = run.done_at = None
@@ -110,6 +113,8 @@ async def _run_steps(ctx: Context, run: WorkflowRun, event: Event) -> None:
         outputs["research"] = await research_step(ctx.client, tools, documents, use_ai=use_ai)
         for _ in AGENT_STEPS:
             run.step = next_step(run.step, Event.STEPS_OK)
+    # True when this re-run cleared an approval: the page asks for a fresh one (T020).
+    outputs["inputs_changed"] = after_approval
     run.step_outputs = outputs
     run.outputs_fingerprint = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
     run.updated_at = datetime.now(UTC)
@@ -150,6 +155,7 @@ async def approve(ctx: Context, seen: str) -> WorkflowRun:
     run.step = next_step(run.step, Event.APPROVE)
     run.approved_at = run.updated_at = datetime.now(UTC)
     run.approved_fingerprint = run.outputs_fingerprint
+    run.step_outputs = {**run.step_outputs, "inputs_changed": False}
     await ctx.db.commit()
     return run
 

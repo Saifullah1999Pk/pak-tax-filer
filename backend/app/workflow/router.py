@@ -65,6 +65,7 @@ async def run_out(ctx: service.Context, run: WorkflowRun) -> dict[str, Any]:
         "document": outputs.get("document"),
         "validation": outputs.get("validation"),
         "research": outputs.get("research"),
+        "inputs_changed": bool(outputs.get("inputs_changed", False)),
         "gate": await service.gate_view(ctx) if run.step in _GATE_ONWARDS else None,
         "approved_at": run.approved_at.isoformat() if run.approved_at else None,
         "done_at": run.done_at.isoformat() if run.done_at else None,
