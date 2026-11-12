@@ -1885,3 +1885,56 @@ button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
     opacity: 0;
   }
 }
+
+/* ---------- Guided filing (feature 007) ---------- */
+
+.run-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-4);
+  padding: 0;
+  list-style: none;
+}
+
+.run-steps li {
+  padding: var(--s-1) var(--s-3);
+  border-radius: 999px;
+  background: var(--sunken);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.run-steps li[aria-current="step"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.gate-figures {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s-2) var(--s-4);
+  margin: 0 0 var(--s-4);
+}
+
+.gate-figures dt {
+  color: var(--muted);
+}
+
+.gate-figures dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.plain-note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.issues {
+  padding-left: var(--s-4);
+}
+
+.guided-offer {
+  margin-top: var(--s-4);
+}

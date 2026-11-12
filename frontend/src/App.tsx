@@ -16,6 +16,7 @@ import { ReviewPage } from "./pages/ReviewPage";
 import { SignupPage } from "./pages/SignupPage";
 import { TaxPage } from "./pages/TaxPage";
 import { WealthPage } from "./pages/WealthPage";
+import { WorkflowPage } from "./pages/WorkflowPage";
 import { RequireProfile } from "./profile/RequireProfile";
 
 /**
@@ -56,6 +57,7 @@ export function AppRoutes() {
         <Route path="/tax" element={<TaxPage />} />
         <Route path="/wealth" element={<WealthPage />} />
         <Route path="/ask" element={<AskPage />} />
+        <Route path="/workflow" element={<WorkflowPage />} />
       </Route>
       <Route element={<PlainFrame />}>
         <Route path="*" element={<NotFoundPage />} />

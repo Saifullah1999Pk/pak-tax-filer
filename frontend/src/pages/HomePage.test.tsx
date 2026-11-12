@@ -274,3 +274,13 @@ test("while the documents load, Home says so and names no next step yet", async 
   await screen.findByText("Loading your documents…");
   expect(screen.queryByText(/next step:/i)).toBeNull();
 });
+
+test("Home offers the guided run as another way through the steps", async () => {
+  loggedIn();
+  renderApp("/");
+
+  const link = await screen.findByRole("link", {
+    name: "Let PakTaxFiler guide you",
+  });
+  expect(link.getAttribute("href")).toBe("/workflow");
+});

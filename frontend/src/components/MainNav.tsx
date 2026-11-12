@@ -6,6 +6,7 @@ import {
   AskIcon,
   DocumentsIcon,
   FilingIcon,
+  GuidedIcon,
   HomeIcon,
   ProfileIcon,
   TaxIcon,
@@ -24,6 +25,7 @@ const FILING: Page[] = [
   { to: "/documents", label: "Documents", icon: <DocumentsIcon /> },
   { to: "/tax", label: "Tax", icon: <TaxIcon /> },
   { to: "/wealth", label: "Wealth statement", icon: <WealthIcon /> },
+  { to: "/workflow", label: "Guided filing", icon: <GuidedIcon /> },
 ];
 const ASK: Page = { to: "/ask", label: "Ask", icon: <AskIcon /> };
 const ACCOUNT: Page[] = [

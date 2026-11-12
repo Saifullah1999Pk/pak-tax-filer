@@ -61,6 +61,16 @@ export const FilingIcon = () => (
   </Icon>
 );
 
+/** Guided filing: a path of three steps ending in a tick. */
+export const GuidedIcon = () => (
+  <Icon>
+    <circle cx="5" cy="6" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <path d="M6.3 7.2l4.4 3.6M13.3 13.2l2.2 1.8" />
+    <path d="M15.5 18.5l2 2 3.5-4" />
+  </Icon>
+);
+
 export const ProfileIcon = () => (
   <Icon>
     <circle cx="12" cy="8.5" r="3.5" />

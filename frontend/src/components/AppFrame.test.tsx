@@ -56,6 +56,7 @@ test("on a computer, the menu links every main page and marks the current one", 
     "Documents",
     "Tax",
     "Wealth statement",
+    "Guided filing",
     "Ask",
   ]);
   expect(links.map((link) => link.getAttribute("href"))).toEqual([
@@ -63,6 +64,7 @@ test("on a computer, the menu links every main page and marks the current one", 
     "/documents",
     "/tax",
     "/wealth",
+    "/workflow",
     "/ask",
   ]);
   expect(within(nav).getByRole("link", { current: "page" }).textContent).toBe(
@@ -188,6 +190,7 @@ test("on a phone, Filing opens a sheet with its pages; a second tap or Escape cl
     ["Documents", "/documents"],
     ["Tax", "/tax"],
     ["Wealth statement", "/wealth"],
+    ["Guided filing", "/workflow"],
   ]);
 
   fireEvent.click(filing);
