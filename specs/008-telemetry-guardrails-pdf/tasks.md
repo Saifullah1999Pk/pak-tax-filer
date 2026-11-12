@@ -69,9 +69,9 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 - [x] T011 [P] [US2] Write `backend/tests/guardrails/test_principle_1.py` per research R5: fake clients from 003–007 return made-up numbers; tax, wealth and workflow results equal the worked-example values
 - [x] T012 [P] [US2] Write `backend/tests/guardrails/test_principle_3.py`: a user with one confirmed and one `needs_review` certificate; the unconfirmed one is absent from `GET /api/tax`, `GET /api/wealth`, `calculate_income_tax` and the workflow gate; `GET /api/workflow/result` and its PDF without approval → `409`
 - [x] T013 [P] [US2] Write `backend/tests/guardrails/test_principle_4.py`: assistant answers in corpus are cited and number-checked (including scales such as "10m") and out-of-corpus and Urdu questions are refused (fake client); 007's research passages come only from search; every result endpoint returns the label; every PDF page carries the banner
-- [ ] T014 [US2] Create `backend/tests/guardrails/README.md` listing what each file proves and the related per-feature tests (005 `test_reconcile_imports.py`, 006 `test_mcp_tools.py`, 007 `test_gate.py`, 004 T013 and 005 T011 screen label tests)
-- [ ] T015 [US2] Add job `guardrails` to `.github/workflows/ci.yml` (on every pull request and push to `main`): `lint-imports`, then `pytest tests/guardrails`
-- [ ] T016 [US2] Run [quickstart.md](quickstart.md) scenario 2, including the three planted breaks (one per principle, SC-003)
+- [x] T014 [US2] Create `backend/tests/guardrails/README.md` listing what each file proves and the related per-feature tests (005 `test_reconcile_imports.py`, 006 `test_mcp_tools.py`, 007 `test_gate.py`, 004 T013 and 005 T011 screen label tests)
+- [x] T015 [US2] Add job `guardrails` to `.github/workflows/ci.yml` (on every pull request and push to `main`): `lint-imports`, then `pytest tests/guardrails`
+- [x] T016 [US2] Run [quickstart.md](quickstart.md) scenario 2, including the three planted breaks (one per principle, SC-003)
 
 **Checkpoint**: breaking any guardrail fails CI.
 
