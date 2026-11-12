@@ -42,9 +42,10 @@ DOCUMENT_INSTRUCTIONS = (
     "optional. Tell the user to upload and confirm missing certificates on the Documents page."
 )
 VALIDATION_INSTRUCTIONS = (
-    f"{COMMON} For each certificate given, call validate_salary_information or "
-    "check_bank_certificate with its figures exactly as given. Then explain any issue found, "
-    "naming the certificate to fix; if there is none, say the figures are consistent."
+    f"{COMMON} Call validate_salary_information or check_bank_certificate for every certificate "
+    "given, all in your first turn (one call per certificate, together), with its figures exactly "
+    "as given. Then explain any issue found, naming the certificate to fix; if there is none, say "
+    "the figures are consistent."
 )
 RESEARCH_INSTRUCTIONS = (
     f"{COMMON} Search the FBR texts (search_tax_documents, at most 3 searches) for the law that "
