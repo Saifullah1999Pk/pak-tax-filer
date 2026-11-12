@@ -23,7 +23,7 @@ features 001–006 implemented.
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `WORKFLOW_MODEL` (default `gemini-3.5-flash-lite`) and `WORKFLOW_EFFORT` (`minimal`) to `backend/app/settings.py` with tests in `backend/tests/test_settings.py` (as 006's `ANSWER_MODEL`), and `STEP_SECONDS = 15` in `backend/app/workflow/settings.py` (research R5, R6; amended 2026-11-12)
+- [x] T001 Add `WORKFLOW_MODEL` (default `gemini-3.5-flash-lite`) and `WORKFLOW_EFFORT` (`minimal`) to `backend/app/settings.py` with tests in `backend/tests/test_settings.py` (as 006's `ANSWER_MODEL`), and `STEP_SECONDS = 15` in `backend/app/workflow/settings.py` (research R5, R6; amended 2026-11-12)
 
 ---
 
