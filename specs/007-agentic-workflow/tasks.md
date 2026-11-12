@@ -71,12 +71,12 @@ features 001–006 implemented.
 
 ### Tests for User Story 2 (write first, confirm they fail)
 
-- [ ] T013 [P] [US2] Write `backend/tests/workflow/test_gate.py` (guardrail, Principle III): `GET /result` before approval → `409` "Approval needed."; `POST /approve` away from the gate or with a stale fingerprint → `409`; two approvals at once record one; no agent reply (scripted to "approve", "confirm" or "set figure") changes the run, a document or a figure
-- [ ] T014 [P] [US2] Extend `backend/tests/workflow/test_workflow_api.py`: after approval `GET /result` equals `GET /api/tax/{tax_year}` plus `passages` for synthetic users built from each of 004's signed-off worked examples (SC-004), including blocked ones; `POST /done` sets `done_at`; `POST /back` returns to `document`
+- [x] T013 [P] [US2] Write `backend/tests/workflow/test_gate.py` (guardrail, Principle III): `GET /result` before approval → `409` "Approval needed."; `POST /approve` away from the gate or with a stale fingerprint → `409`; two approvals at once record one; no agent reply (scripted to "approve", "confirm" or "set figure") changes the run, a document or a figure
+- [x] T014 [P] [US2] Extend `backend/tests/workflow/test_workflow_api.py`: after approval `GET /result` equals `GET /api/tax/{tax_year}` plus `passages` for synthetic users built from each of 004's signed-off worked examples (SC-004), including blocked ones; `POST /done` sets `done_at`; `POST /back` returns to `document`
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Add `approve`, `back`, `result` (calls 004's `app.tax.service`, never stored) and `done` to `backend/app/workflow/service.py` and the matching endpoints to `router.py`, using `state.next_step`; T013 and T014 pass
+- [x] T015 [US2] Add `approve`, `back`, `result` (calls 004's `app.tax.service`, never stored) and `done` to `backend/app/workflow/service.py` and the matching endpoints to `router.py`, using `state.next_step`; T013 and T014 pass
 - [ ] T016 [US2] Add the gate's Approve / Go back, the result (004's breakdown display, passages as "Where this comes from", practitioner label) and Mark done to `frontend/src/pages/WorkflowPage.tsx`; extend its test
 - [ ] T017 [US2] Run [quickstart.md](quickstart.md) scenario 2
 

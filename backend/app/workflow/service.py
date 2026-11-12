@@ -22,12 +22,14 @@ from app.documents.service import confirmed_documents
 from app.profile.models import TaxpayerProfile
 from app.rag.embed import Embedder
 from app.rag.service import use_question
+from app.tax.engine import TaxResult, calculate
+from app.tax.rates import rates_for
 from app.tax.service import tax_inputs
 from app.workflow.agents import document_step, research_step, validation_step
 from app.workflow.client import AgentClient
 from app.workflow.fingerprint import fingerprint
 from app.workflow.models import Step, WorkflowRun
-from app.workflow.state import Event, next_step
+from app.workflow.state import Event, InvalidTransition, next_step, result_allowed
 from app.workflow.tools import Toolbox
 
 AGENT_STEPS = ("document", "validation", "research")
@@ -132,3 +134,75 @@ async def gate_view(ctx: Context) -> dict[str, Any]:
 def _money(amount: Decimal) -> str:
     """Always two decimals ("1800000.00"), whether the amount was cached or read back."""
     return str(amount.quantize(Decimal("0.01")))
+
+
+STALE = "Your inputs changed; please review and approve again."
+
+
+async def approve(ctx: Context, seen: str) -> WorkflowRun:
+    """Record the user's approval at the gate for the inputs they saw (`seen`, the run's
+    fingerprint when shown). The run's row is locked, so two approvals together record one."""
+    run = await _locked(ctx)  # steps 1-3 re-run first if the inputs changed
+    if run is None:
+        raise InvalidTransition("No guided run yet.")
+    if seen != run.outputs_fingerprint:
+        raise InvalidTransition(STALE)
+    run.step = next_step(run.step, Event.APPROVE)
+    run.approved_at = run.updated_at = datetime.now(UTC)
+    run.approved_fingerprint = run.outputs_fingerprint
+    await ctx.db.commit()
+    return run
+
+
+async def back(ctx: Context) -> WorkflowRun:
+    """Leave the gate for step 1; a new approval is needed after the next start."""
+    run = await _locked(ctx)
+    if run is None:
+        raise InvalidTransition("No guided run yet.")
+    run.step = next_step(run.step, Event.BACK)
+    run.approved_at = run.approved_fingerprint = None
+    run.updated_at = datetime.now(UTC)
+    await ctx.db.commit()
+    return run
+
+
+async def mark_done(ctx: Context) -> WorkflowRun:
+    """Mark the run done; only at the result, with a current approval (FR-014)."""
+    run = await get_run(ctx)
+    if run is None:
+        raise InvalidTransition("No guided run yet.")
+    run.step = next_step(
+        run.step,
+        Event.MARK_DONE,
+        approved=run.approved_fingerprint,
+        current=run.outputs_fingerprint,
+    )
+    run.done_at = run.updated_at = datetime.now(UTC)
+    await ctx.db.commit()
+    return run
+
+
+async def result(ctx: Context) -> tuple[WorkflowRun, TaxResult] | None:
+    """004's result for the run's inputs, or None without an approval for exactly them. Never
+    stored: recalculated from the confirmed certificates on every request (as 004)."""
+    run = await get_run(ctx)  # re-runs steps 1-3 (clearing the approval) if inputs changed
+    if run is None or not result_allowed(
+        run.step, run.approved_fingerprint, run.outputs_fingerprint
+    ):
+        return None
+    inputs = await tax_inputs(ctx.db, ctx.user, ctx.profile.tax_year)
+    return run, calculate(inputs, rates_for(ctx.profile.tax_year))
+
+
+async def _locked(ctx: Context) -> WorkflowRun | None:
+    """The run, re-checked against the inputs, then locked until the transaction ends."""
+    if await get_run(ctx) is None:
+        return None
+    return (
+        await ctx.db.execute(
+            select(WorkflowRun)
+            .where(WorkflowRun.user_id == ctx.user.id, WorkflowRun.tax_year == ctx.profile.tax_year)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()

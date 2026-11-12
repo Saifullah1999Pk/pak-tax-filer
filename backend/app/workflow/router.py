@@ -7,6 +7,7 @@ taxpayer profile (002's require_profile: 409 "Set up your profile first.").
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import current_user, require_json
@@ -17,13 +18,16 @@ from app.profile.models import TaxpayerProfile
 from app.rag.embed import Embedder
 from app.rag.router import get_embedder
 from app.settings import get_settings
+from app.tax.router import tax_out
 from app.workflow import service
 from app.workflow.client import AgentClient, GeminiAgentClient
 from app.workflow.models import Step, WorkflowRun
+from app.workflow.state import InvalidTransition
 
 router = APIRouter(prefix="/api/workflow", tags=["workflow"])
 
 NO_RUN = "No guided run yet."
+APPROVAL_NEEDED = "Approval needed."
 _GATE_ONWARDS = (Step.GATE, Step.RESULT, Step.DONE)
 
 
@@ -80,3 +84,52 @@ async def read_run(ctx: Ctx) -> dict[str, Any]:
 async def start_run(ctx: Ctx) -> dict[str, Any]:
     """Start (or restart) the run: steps 1-3, then the gate or what's missing."""
     return await run_out(ctx, await service.start(ctx))
+
+
+class ApproveIn(BaseModel):
+    """The run's fingerprint as the user saw it at the gate."""
+
+    fingerprint: str
+
+
+def _refused(error: InvalidTransition) -> HTTPException:
+    return HTTPException(status.HTTP_409_CONFLICT, str(error))
+
+
+@router.post("/approve", dependencies=[Depends(require_json)])
+async def approve_run(body: ApproveIn, ctx: Ctx) -> dict[str, Any]:
+    """Record approval at the gate; 409 away from it or if the inputs changed since shown."""
+    try:
+        return await run_out(ctx, await service.approve(ctx, body.fingerprint))
+    except InvalidTransition as error:
+        raise _refused(error) from error
+
+
+@router.post("/back", dependencies=[Depends(require_json)])
+async def back_run(ctx: Ctx) -> dict[str, Any]:
+    """Leave the gate for step 1."""
+    try:
+        return await run_out(ctx, await service.back(ctx))
+    except InvalidTransition as error:
+        raise _refused(error) from error
+
+
+@router.get("/result")
+async def read_result(ctx: Ctx) -> dict[str, Any]:
+    """004's result (exactly the Tax page's body) plus the research passages; 409 "Approval
+    needed." unless approved for the current inputs."""
+    found = await service.result(ctx)
+    if found is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, APPROVAL_NEEDED)
+    run, tax = found
+    research = (run.step_outputs or {}).get("research") or {}
+    return {**tax_out(tax).model_dump(), "passages": research.get("passages", [])}
+
+
+@router.post("/done", dependencies=[Depends(require_json)])
+async def mark_done(ctx: Ctx) -> dict[str, Any]:
+    """Mark the run done; 409 before its result."""
+    try:
+        return await run_out(ctx, await service.mark_done(ctx))
+    except InvalidTransition as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Not at the result step.") from error

@@ -8,9 +8,12 @@ results; tests that want an agent's own text script it with their own FakeAgentC
 # pylint: disable=redefined-outer-name
 
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import yaml
 from conftest import make_user
 from document_helpers import PROFILE_YEAR, add_confirmed_document
 from httpx2 import AsyncClient
@@ -21,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.documents.models import DocType
 from app.main import app
+from app.profile.service import save_profile
 from app.rag.models import AskRequest
 from app.workflow.client import FakeAgentClient, Script
 from app.workflow.router import get_agent_client
@@ -119,7 +123,6 @@ async def test_another_users_run_is_never_returned(
     del user_with_profile
     await client.post(f"{URL}/start", json={})
     other = await make_user(db, "other@example.com")
-    from app.profile.service import save_profile  # pylint: disable=import-outside-toplevel
 
     await save_profile(db, other, PROFILE_YEAR, on_atl=False)
     await client.post("/api/auth/logout", json={})
@@ -161,3 +164,56 @@ async def test_past_the_hourly_limit_the_run_still_reaches_the_gate_without_the_
     assert all(run[s]["fallback"] for s in ("document", "validation", "research"))
     assert not agents.calls
     assert await questions_recorded(db) == 30
+
+
+# ---- User Story 2 (T014) ----
+
+EXAMPLES = yaml.safe_load(
+    (Path(__file__).parents[1] / "tax" / "worked_examples.yaml").read_text(encoding="utf-8")
+)["examples"]
+# A run needs a profile (so an ATL answer) and a confirmed salary certificate to reach the gate;
+# the other examples' blocks are the document step's and the profile page's job.
+GATED = [
+    e for e in EXAMPLES if e["inputs"]["atl"] is not None and e["inputs"]["salary_certificates"]
+]
+
+
+@pytest.mark.parametrize("example", GATED, ids=[e["id"] for e in GATED])
+async def test_after_approval_the_result_is_the_tax_pages(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User, example: dict[str, Any]
+) -> None:
+    """Fails if the run's result differs from GET /api/tax for a signed-off worked example,
+    blocked ones included: one engine, one answer (SC-004, FR-011)."""
+    inputs = example["inputs"]
+    await save_profile(db, logged_in_user, PROFILE_YEAR, on_atl=inputs["atl"])
+    for certificate in inputs["salary_certificates"]:
+        await add_confirmed_document(db, logged_in_user.id, DocType.SALARY_CERTIFICATE, certificate)
+    for certificate in inputs["bank_certificates"]:
+        await add_confirmed_document(
+            db, logged_in_user.id, DocType.BANK_PROFIT_CERTIFICATE, certificate
+        )
+    run = (await client.post(f"{URL}/start", json={})).json()
+
+    approved = await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
+    result = (await client.get(f"{URL}/result")).json()
+
+    assert approved.status_code == 200 and approved.json()["step"] == "result"
+    assert approved.json()["approved_at"] is not None
+    passages = result.pop("passages")
+    assert result == (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()
+    assert passages == run["research"]["passages"]
+
+
+async def test_marking_done_records_the_date(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a run can be marked done before its result, or done isn't recorded (FR-014)."""
+    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+    run = (await client.post(f"{URL}/start", json={})).json()
+    assert (await client.post(f"{URL}/done", json={})).status_code == 409  # still at the gate
+    await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
+
+    done = (await client.post(f"{URL}/done", json={})).json()
+
+    assert done["step"] == "done" and done["done_at"] is not None
+    assert (await client.get(f"{URL}/result")).status_code == 200  # still readable when done
