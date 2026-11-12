@@ -3,3 +3,7 @@
 # the cut-off. refusal_rate: share of out-of-corpus questions the cut-off refuses.
 hit_at_5: 0.80
 refusal_rate: 0.90
+# Note for the lead (backend review M6, 2026-11-12): at cut-off 0.66 the refusal rate is exactly
+# 0.90, so one out-of-corpus question drifting above the cut-off fails CI; and the cut-off was
+# tuned on these same 40 questions, so 0.93 / 0.90 flatters real performance. Options: hold some
+# questions out of tuning, or set the marks a little below the measured values.

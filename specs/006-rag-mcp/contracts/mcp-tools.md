@@ -42,3 +42,17 @@ The token value comes from the developer's own environment, never from a committ
   strings).
 - **Output:** `{ "ok": bool, "issues": [{ "field": "…", "reason": "…" }] }` from 003's rule
   checks, with `tax_year` compared to the token owner's profile tax year. Never a tax figure.
+
+## Behaviour common to the tools (amended 2026-11-12, from the backend review)
+
+- **Limits:** `search_tax_documents` counts against the same limits as Ask (30 an hour per user,
+  the app's 200 a day). Past one, the call returns an error result with Ask's message ("…try
+  again later" or "…reached today's limit…"); no search is made.
+- **Language:** a query mostly in non-Latin letters (e.g. Urdu) returns `not_covered` without
+  being counted or searched, as Ask does. The query is trimmed first.
+- **No corpus yet:** search returns `not_covered` (Ask says "not ready yet").
+- **No profile:** `calculate_income_tax` returns 004's `needs_atl_answer` body for the newest
+  tax year the app has rates for; `validate_salary_information` compares `tax_year` with that
+  same year.
+- **Errors:** an invalid token, a limit or an unreachable embedding service is an MCP error
+  result (`isError: true`) whose text says why; never a partial result.

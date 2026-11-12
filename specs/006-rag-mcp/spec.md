@@ -148,7 +148,10 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
   refused.
 - An answer quoting a section number (e.g. "§149"): allowed only if it appears in a cited passage
   or its location.
-- An answer writing an amount in words ("5 million"): fails the number check; refused.
+- An answer writing an amount in words ("5 million"): refused unless a cited passage has that
+  very phrase (amended 2026-11-11: the Ordinance itself writes some amounts in words, e.g.
+  "Rs. 10 million"). A number is compared with its scale: "10m" passes only where a cited
+  passage has 10 million, and a bare "10" can't stand for a cited "10 million".
 - An FBR source file changes (different checksum): the corpus build stops and reports it; the
   existing corpus stays in use.
 - FBR is unreachable during an automated check with no cached copy: the eval fails loudly rather
@@ -172,7 +175,9 @@ connect Claude Code, call each tool, and compare with the Ask page, the Tax page
   them.
 - **FR-005**: Before showing an answer, the system MUST verify that every citation is a passage
   found for that question and every number in the answer appears in a cited passage or its
-  location; number words MUST be rejected. On failure, the refusal message MUST be shown.
+  location, with the same scale (amended 2026-11-11: a number in words passes only if a cited
+  passage has the very same phrase; research R6). On failure, the refusal message MUST be
+  shown.
 - **FR-006**: Questions the corpus doesn't cover MUST get the explicit refusal message. For a
   question only partly covered, the answer MUST cover the covered part with citations and MUST
   name the part that isn't covered.
