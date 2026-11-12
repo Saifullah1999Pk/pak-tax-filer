@@ -25,7 +25,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 ## Phase 1: Setup
 
 - [x] T001 Add `weasyprint`, `jinja2`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi` and `opentelemetry-instrumentation-sqlalchemy` (no OTLP exporter) to `backend/pyproject.toml` with `uv add`, and `import-linter` as a dev dependency; install WeasyPrint's system packages (Pango, HarfBuzz) in `backend/Dockerfile`
-- [ ] T002 [P] Add `OTEL_EXPORTER` (`console` default, or `none`) to `backend/app/settings.py` with tests in `backend/tests/test_settings.py`
+- [x] T002 [P] Add `OTEL_EXPORTER` (`console` default, or `none`) to `backend/app/settings.py` with tests in `backend/tests/test_settings.py`
 
 ---
 
