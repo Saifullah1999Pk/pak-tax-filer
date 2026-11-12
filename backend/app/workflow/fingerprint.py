@@ -10,6 +10,8 @@ comparison, without hooks into 003 or 002. Unconfirmed documents never count (Pr
 import hashlib
 import json
 from collections.abc import Iterable
+from datetime import UTC
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,8 +26,8 @@ def fingerprint(documents: Iterable[ConfirmedDocument], tax_year: str, on_atl: b
         (
             str(d.id),
             d.doc_type.value,
-            d.confirmed_at.isoformat() if d.confirmed_at else "",
-            sorted((name.value, str(value)) for name, value in d.values.items()),
+            d.confirmed_at.astimezone(UTC).isoformat() if d.confirmed_at else "",
+            sorted((name.value, _canonical(value)) for name, value in d.values.items()),
         )
         for d in documents
     )
@@ -34,6 +36,12 @@ def fingerprint(documents: Iterable[ConfirmedDocument], tax_year: str, on_atl: b
         separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode()).hexdigest()
+
+
+def _canonical(value: Decimal | str) -> str:
+    """One spelling per amount: 1800000, 1800000.00 and 1.8E+6 are all "1800000" (a value
+    cached in the session and the same value read back from the database must match)."""
+    return format(value.normalize(), "f") if isinstance(value, Decimal) else value
 
 
 async def current_fingerprint(db: AsyncSession, user: User) -> str | None:

@@ -6,7 +6,7 @@ user's confirmed certificates and profile. Any change to those must change the f
 
 import uuid
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -96,3 +96,17 @@ async def test_without_a_profile_there_is_no_fingerprint(db: AsyncSession) -> No
     await db.flush()
 
     assert await current_fingerprint(db, user) is None
+
+
+def test_an_amount_read_back_from_the_database_is_the_same_amount() -> None:
+    """Fails if 1800000 and 1800000.00 (the same amount, as cached and as read back from the
+    database) give different fingerprints, which made an approval look stale at random."""
+    stored = replace(
+        SALARY, values={**SALARY.values, FieldName.TAXABLE_SALARY: Decimal("1800000.00")}
+    )
+    in_another_zone = replace(
+        SALARY, confirmed_at=CONFIRMED.astimezone(timezone(timedelta(hours=5)))
+    )
+
+    assert fingerprint([stored], "2025-26", True) == fingerprint([SALARY], "2025-26", True)
+    assert fingerprint([in_another_zone], "2025-26", True) == fingerprint([SALARY], "2025-26", True)
