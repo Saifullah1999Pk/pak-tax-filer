@@ -92,7 +92,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 - [x] T019 [US3] Create `backend/app/telemetry/setup.py` (tracer provider, console exporter unless `OTEL_EXPORTER=none`, FastAPI instrumentation with route templates, database spans with the duration only (our own listener: the SQLAlchemy instrumentation doesn't support SQLAlchemy 2.1, research R2 amended), an attribute filter on every exporter, research R1–R2) and `backend/app/telemetry/ai.py` (`ai_call(feature, model, operation)`, `record_refusal`, `tool_call`, `record_gemini_usage`, research R3); open the AI span where each use's outcome is decided (research R3 amended): 004's `tax/summary.py` and 005's `wealth/summary.py`, 006's `rag/service.py`, `rag/search.py` and `rag/build.py` (embeddings), 003's `documents/service.py` (extraction) and 007's `workflow/agents.py`; token counts from the real clients in `tax/summary.py`, `rag/answer.py` and `workflow/client.py` (its tool calls as `execute_tool`); T017 and T018 pass
 - [ ] T020 [US3] (Removed 2026-11-12: no viewer in 008; telemetry goes to the logs, design addendum)
-- [ ] T021 [US3] Run [quickstart.md](quickstart.md) scenario 3
+- [x] T021 [US3] Run [quickstart.md](quickstart.md) scenario 3
 
 **Checkpoint**: all three stories work.
 
@@ -100,7 +100,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 ## Phase 6: Polish
 
-- [ ] T022 [P] Add "Telemetry" and "PDF export" sections to `backend/CLAUDE.md`: wrap every Gemini call in `ai_call`; telemetry is for developers only (logs); never add content attributes; PDFs only through `app/reports` templates with the banner
+- [x] T022 [P] Add "Telemetry" and "PDF export" sections to `backend/CLAUDE.md`: wrap every Gemini call in `ai_call`; telemetry is for developers only (logs); never add content attributes; PDFs only through `app/reports` templates with the banner
 - [ ] T023 Run the lint, format and type checks (001's CI), both test suites, the guardrails job and all of [quickstart.md](quickstart.md); record results in the PR description
 
 ---
