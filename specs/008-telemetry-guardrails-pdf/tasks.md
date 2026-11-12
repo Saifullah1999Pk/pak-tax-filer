@@ -101,7 +101,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 ## Phase 6: Polish
 
 - [x] T022 [P] Add "Telemetry" and "PDF export" sections to `backend/CLAUDE.md`: wrap every Gemini call in `ai_call`; telemetry is for developers only (logs); never add content attributes; PDFs only through `app/reports` templates with the banner
-- [ ] T023 Run the lint, format and type checks (001's CI), both test suites, the guardrails job and all of [quickstart.md](quickstart.md); record results in the PR description
+- [x] T023 Run the lint, format and type checks (001's CI), both test suites, the guardrails job and all of [quickstart.md](quickstart.md); record results in the PR description
 
 ---
 
