@@ -337,3 +337,21 @@ async def test_a_not_ready_statement_has_no_summary(client: AsyncClient) -> None
 async def test_the_summary_request_needs_a_known_year(client: AsyncClient) -> None:
     """Fails if the summary answers for a year without rates."""
     assert (await client.get("/api/wealth/2019-20/summary")).status_code == 404
+
+
+async def test_amounts_read_back_from_the_database_are_plain_rupees(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if an amount reloaded from the database is sent as "1.35E+6" (the driver's form for
+    whole-rupee columns), which the page and the PDF then show as is. Found by 008's PDF check:
+    the tests had only seen amounts still cached in the session."""
+    await certificates(db, logged_in_user)
+    await client.put(URL, json=STATEMENT)
+    db.expire_all()  # read everything back from the database, as a later request would
+
+    statement = (await client.get(URL)).json()["statement"]
+
+    assert [row["amount"] for row in statement["assets"]] == ["1350000", "1400000"]
+    assert statement["liabilities"][0]["amount"] == "200000"
+    assert statement["previous_net_assets"] == "2100000"
+    assert statement["expenses"]["rent"] == "600000"
