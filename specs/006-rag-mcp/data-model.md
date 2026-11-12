@@ -1,6 +1,6 @@
 # Data Model: RAG Tax Assistant and MCP Server (006)
 
-Created by Alembic migration `0006_rag_mcp` (enables the `vector` extension if not already on).
+Created by Alembic migration `0007_rag_mcp` (amended 2026-11-11: `0006` is 005's wealth tables; the `vector` extension is already on from `0001_enable_vector`).
 Timestamps are UTC.
 
 ## corpus_documents
@@ -9,7 +9,7 @@ Timestamps are UTC.
 |---|---|---|
 | `id` | text | primary key, from `sources.yaml` (e.g. `ito-2001-2025-07-31`, `pral-itr-manual-2026`) |
 | `title` | text | required |
-| `kind` | enum | `law` or `guidance` |
+| `kind` | enum `corpus_document_kind` | `law` or `guidance` |
 | `url` | text | official FBR address |
 | `sha256` | text | 64 hex characters; must match the downloaded file |
 | `built_at` | timestamptz | when the passages were last built |
@@ -23,7 +23,7 @@ Timestamps are UTC.
 | `location` | text | stable, e.g. `§149(1)`, `ch. 14.3` |
 | `page` | int | 1-based PDF page |
 | `text` | text | 150–400 words target |
-| `embedding` | vector(384) | HNSW index, cosine distance |
+| `embedding` | vector(768) | HNSW index, cosine distance (Gemini `gemini-embedding-001` at 768 dimensions; amended 2026-11-11) |
 
 The whole corpus is replaced in one transaction on each build.
 
@@ -33,9 +33,9 @@ The whole corpus is replaced in one transaction on each build.
 |---|---|---|
 | `id` | UUID | primary key |
 | `user_id` | UUID | references `users.id`, deleted with the user |
-| `created_at` | timestamptz | indexed with `user_id`; rows older than 1 day deleted |
+| `created_at` | timestamptz | indexed with `user_id` (hourly limit) and on its own (whole-app daily cap, FR-009b); rows older than 1 day deleted |
 
-No question or answer text is stored (FR-009).
+No question or answer text is stored (FR-009). MCP `search_tax_documents` calls write a row too, so they count towards the daily cap (amended 2026-11-11).
 
 ## personal_access_tokens
 

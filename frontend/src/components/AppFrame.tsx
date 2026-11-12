@@ -1,55 +1,16 @@
 import type { ReactNode } from "react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, Outlet } from "react-router";
 import { useProfile } from "../profile/ProfileContext";
 import { LogoutButton } from "./LogoutButton";
-import {
-  DocumentsIcon,
-  HomeIcon,
-  Mark,
-  ProfileIcon,
-  TaxIcon,
-  WealthIcon,
-} from "./NavIcons";
+import { AccountMenu, ComputerLinks, PhoneNav } from "./MainNav";
+import { Mark } from "./NavIcons";
+import { useWideScreen } from "./useWideScreen";
 
-// The frames around every page (feature 001, User Story 6, task T050; FR-027). Pages keep their
-// own <main>; a frame adds the header, the navigation and the "Skip to content" target.
+// The frames around every page (feature 001, User Story 6, task T050; FR-027, amended with 006,
+// task T035). Pages keep their own <main>; a frame adds the header, the navigation and the
+// "Skip to content" target.
 
 const CONTENT_ID = "content";
-
-const NAV_ITEMS = [
-  { to: "/", label: "Home", icon: <HomeIcon /> },
-  { to: "/documents", label: "Documents", icon: <DocumentsIcon /> },
-  { to: "/tax", label: "Tax", icon: <TaxIcon /> },
-  {
-    to: "/wealth",
-    // On phones only "Wealth" shows; the full name is still the link's name.
-    label: (
-      <>
-        Wealth <span className="nav-long">statement</span>
-      </>
-    ),
-    icon: <WealthIcon />,
-  },
-  { to: "/profile", label: "Profile", icon: <ProfileIcon /> },
-];
-
-function MainNav() {
-  return (
-    <nav className="app-nav" aria-label="Main">
-      <ul>
-        {NAV_ITEMS.map((item) => (
-          <li key={item.to}>
-            {/* NavLink marks the current page with aria-current="page". */}
-            <NavLink to={item.to} end={item.to === "/"}>
-              {item.icon}
-              <span>{item.label}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
 
 type FrameProps = {
   /** The full frame: the tax year and the navigation. */
@@ -84,6 +45,8 @@ function BrandPanel() {
  */
 function Frame({ full, showLogout, brand = false, children }: FrameProps) {
   const { profile } = useProfile();
+  // One layout at a time, so the page never holds two menus.
+  const wide = useWideScreen();
   return (
     <>
       <a className="skip-link" href={`#${CONTENT_ID}`}>
@@ -102,13 +65,15 @@ function Frame({ full, showLogout, brand = false, children }: FrameProps) {
                 {profile.tax_year}
               </p>
             )}
-            {showLogout && (
+            {/* The full frame puts Log out in the Account menu; first-time setup shows it. */}
+            {!full && showLogout && (
               <div className="logout">
                 <LogoutButton />
               </div>
             )}
+            {full && wide && <AccountMenu />}
           </div>
-          {full && <MainNav />}
+          {full && (wide ? <ComputerLinks /> : <PhoneNav />)}
         </div>
       </header>
       {/* tabIndex -1: the skip link can move focus here, but Tab never stops on it. */}
@@ -130,7 +95,7 @@ function Frame({ full, showLogout, brand = false, children }: FrameProps) {
   );
 }
 
-/** Logged-in pages with a profile: header with the tax year and Log out, and the navigation. */
+/** Logged-in pages with a profile: header with the tax year, the navigation and Account. */
 export function AppFrame({ children }: { children?: ReactNode }) {
   return (
     <Frame full showLogout>

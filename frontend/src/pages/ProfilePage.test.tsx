@@ -9,6 +9,7 @@ import {
 } from "../test/mockFetch";
 import type { FakeRoutes } from "../test/mockFetch";
 import { renderApp } from "../test/renderApp";
+import { logOut } from "../test/screen";
 
 // Taxpayer profile setup, per specs/002-auth-foundation/contracts/cli-and-ui.md (task T037,
 // FR-016, FR-019, FR-020).
@@ -124,7 +125,11 @@ test("the home page links to the profile, which shows the saved answers for edit
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
   // The navigation's Profile link (feature 001, User Story 6).
-  fireEvent.click(await screen.findByRole("link", { name: "Profile" }));
+  // Profile sits in the Account menu (006, task T035). Saving goes to Home first; a page
+  // change closes the menu, so open it once Home is showing.
+  await screen.findByRole("list", { name: /your steps/i });
+  fireEvent.click(screen.getByRole("button", { name: "Account" }));
+  fireEvent.click(screen.getByRole("link", { name: "Profile" }));
 
   await screen.findByRole("heading", { level: 1, name: /your profile/i });
   expect(screen.getByRole("radio", { name: /yes/i })).toHaveProperty(
@@ -140,7 +145,11 @@ test("changing ATL status saves the new answer", async () => {
   fireEvent.click(await screen.findByRole("radio", { name: /yes/i }));
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
   // The navigation's Profile link (feature 001, User Story 6).
-  fireEvent.click(await screen.findByRole("link", { name: "Profile" }));
+  // Profile sits in the Account menu (006, task T035). Saving goes to Home first; a page
+  // change closes the menu, so open it once Home is showing.
+  await screen.findByRole("list", { name: /your steps/i });
+  fireEvent.click(screen.getByRole("button", { name: "Account" }));
+  fireEvent.click(screen.getByRole("link", { name: "Profile" }));
 
   fireEvent.click(await screen.findByRole("radio", { name: /no/i }));
   fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -195,7 +204,7 @@ test("after one user logs out, the next user doesn't see the first user's profil
   });
   renderApp("/");
 
-  fireEvent.click(await screen.findByRole("button", { name: /log out/i }));
+  await logOut();
   await screen.findByRole("heading", { name: /log in/i });
   fireEvent.change(screen.getByLabelText(/email/i), {
     target: { value: "b@example.com" },

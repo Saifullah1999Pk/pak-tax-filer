@@ -2,7 +2,7 @@
 
 Moved from 004's tax/summary.py so the tax and wealth summaries share one check (constitution
 Principle I; 004 research R8, 005 research R9). Plain code: any number not in the source, or
-any number written as a word ("lakh", "1.8 million"), and the summary must be dropped.
+any number written as a word ("lakh", "1.8 million", "1.8m"), and the summary must be dropped.
 """
 
 import re
@@ -15,6 +15,11 @@ NUMBER_WORDS = re.compile(
     r"seventy|eighty|ninety|hundred|thousand|lakh|lakhs|lac|lacs|crore|crores|million|millions|"
     r"billion|billions)\b",
     re.IGNORECASE,
+)
+# A scale stuck to digits ("26m", "26lakh") or abbreviated after them ("26 mn", "26 cr"): the
+# words above need a word boundary, so these would otherwise be read as the bare number.
+_SCALE_AFTER_DIGITS = re.compile(
+    r"\d\s*(?:k|m|mn|bn|cr|thousands?|lakhs?|lacs?|crores?|millions?|billions?)\b", re.IGNORECASE
 )
 
 
@@ -31,6 +36,6 @@ def numbers_in(text: str) -> set[Decimal]:
 
 def uses_only_numbers_from(summary: str, source: str) -> bool:
     """True only if every number in the summary appears in the source and none is a word."""
-    if NUMBER_WORDS.search(summary):
+    if NUMBER_WORDS.search(summary) or _SCALE_AFTER_DIGITS.search(summary):
         return False
     return numbers_in(summary) <= numbers_in(source)

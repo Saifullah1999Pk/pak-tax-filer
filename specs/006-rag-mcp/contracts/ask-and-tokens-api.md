@@ -23,7 +23,8 @@ Response `200` (locations and pages illustrative):
 }
 ```
 
-`status` values:
+`status` values (amended 2026-11-11: `daily_limit` when the whole app has used today's 200
+questions, and `not_ready` before the corpus is first built):
 - `answered`: checks passed; `uncovered_part` names any part not covered (partial answer).
 - `not_covered`: `answer` is "I can only answer from [the sources], and they don't cover this.";
   no citations.
@@ -35,16 +36,8 @@ for the user's own tax figure, otherwise null. It is never written by Claude.
 
 Errors: `401` not logged in; `422` empty or over-long question.
 
-## GET /api/tokens
+## Tokens (amended 2026-11-11)
 
-`[{ "id": "…", "name": "Claude Code laptop", "prefix": "ptx_a1b2", "created_at": "…",
-"expires_at": "…", "revoked_at": null, "last_used_at": null }]`. Full values never returned.
-
-## POST /api/tokens
-
-Request `{ "name": "Claude Code laptop" }` → `201` with the list item plus `"token": "ptx_…"`,
-shown once only.
-
-## DELETE /api/tokens/{id}
-
-Revokes immediately → `204`. Another user's token → `404`.
+There is no tokens API: developers create and revoke tokens with commands (spec FR-016), e.g.
+`docker compose exec backend python -m app.cli create-token --email demo@example.com` (prints
+the `ptx_…` value once; only its SHA-256 is stored; 90 days) and `revoke-token --prefix ptx_ab12`.

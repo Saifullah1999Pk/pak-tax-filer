@@ -8,7 +8,7 @@ statement with reconciliation, and a RAG assistant that answers tax questions
 with citations.
 
 This repo is also a training project: the goal is for the engineer building it
-to learn Django/DRF, React, and Claude Code itself — hooks, permissions, MCP,
+to learn FastAPI, React, and Claude Code itself — hooks, permissions, MCP,
 RAG, and agentic workflows — by building something real, not a tutorial app.
 
 **Status:** early build, synthetic data only, not yet reviewed by a tax
@@ -27,8 +27,9 @@ practitioner. Nothing in this app is tax advice until that changes.
   explain a reconciliation result that's already been computed — it never
   computes the number itself.
 - A RAG tax assistant, scoped to a small, named corpus (Income Tax Ordinance
-  §12, §13, §149, §7B, §151; the Wealth Statement/Form 116 guide; the
-  salaried-return/Form 114(1) guide). Always cites sources; says so
+  §12, §13, §149, §7B, §151; and FBR's return-filing manual, PRAL's Normal
+  Income Tax Return User Manual, whose chapters cover the salaried return and
+  the wealth statement). Always cites sources; says so
   explicitly when a question falls outside that corpus instead of guessing.
 - A small MCP server exposing exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
@@ -43,8 +44,9 @@ until a tax practitioner and legal review are in place).
 ## Non-negotiables
 
 - **Tax and reconciliation math is deterministic code, never an LLM call.**
-  Claude is only used for document extraction, the RAG assistant, and
-  turning an already-computed number into a plain-language explanation.
+  The AI model (Gemini, free tier) is only used for document extraction, the
+  RAG assistant, and turning an already-computed number into a plain-language
+  explanation.
 - **Real FBR rates (brackets, §151 rates) must come from FBR's own gazetted
   documents** — not third-party calculator/blog sites, which were found to
   disagree with each other during planning.
@@ -55,14 +57,14 @@ until a tax practitioner and legal review are in place).
 
 ## Stack
 
-Django + DRF, React + TypeScript, PostgreSQL + pgvector, Claude (API) for the
+FastAPI, React + TypeScript, PostgreSQL + pgvector, Gemini (API, free tier) for the
 AI-specific pieces, Python MCP SDK, Docker Compose.
 
 ## Build order (milestones, not a task list — how to get there is up to you)
 
 1. Repo foundations: Docker Compose skeleton, `CLAUDE.md`, Claude Code hooks
    (guard the tax-rates module, format-on-write) and permission settings.
-2. Taxpayer profile + auth (Django/DRF + React).
+2. Taxpayer profile + auth (FastAPI + React).
 3. Document upload + AI extraction (salary cert, bank profit cert) with
    confidence scoring and a human confirm/correct step. Extraction accuracy
    eval dataset.

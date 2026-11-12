@@ -63,6 +63,15 @@ docker compose -f docker-compose.prod.yml exec backend python -m app.cli create-
 The first build takes several minutes. Then open `https://34-123-45-67.sslip.io` and log in,
 or choose **Create an account** (the `create-user` command is optional).
 
+Build the tax assistant's corpus (feature 006): it downloads FBR's texts, checks each against
+its checksum in `app/rag/sources.yaml` and embeds them with Gemini (about 45 passages, under a
+minute). Until it is built, the Ask page says the assistant isn't ready yet. Run it again only
+when `sources.yaml` changes; a failed build leaves the previous corpus in place.
+
+```bash
+docker compose -f docker-compose.prod.yml exec backend python -m app.rag.build
+```
+
 ## 5. Private bucket for uploads (once; feature 003, FR-018)
 
 Uploads go to a private Cloud Storage bucket instead of the VM's disk. The app reaches it with

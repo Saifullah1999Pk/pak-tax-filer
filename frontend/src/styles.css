@@ -366,7 +366,8 @@ button[type="submit"]:hover,
   color: var(--accent-ink);
 }
 
-button:disabled {
+button:disabled,
+button[aria-disabled="true"] {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -709,7 +710,8 @@ tbody tr:last-child td {
   margin: 0;
 }
 
-.app-nav a {
+.app-nav a,
+.app-nav button {
   display: flex;
   align-items: center;
   min-height: var(--tap);
@@ -722,11 +724,24 @@ tbody tr:last-child td {
   white-space: nowrap;
 }
 
-.app-nav a:hover {
+.app-nav button {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.app-nav a:hover,
+.app-nav button:hover {
   background: var(--sunken);
   color: var(--ink);
 }
 
+.app-nav button[aria-current="true"],
+.app-nav button[aria-expanded="true"],
 .app-nav a[aria-current="page"] {
   background: var(--accent-soft);
   color: var(--accent);
@@ -807,7 +822,8 @@ tbody tr:last-child td {
     flex: 1;
   }
 
-  .app-nav a {
+  .app-nav a,
+  .app-nav button {
     flex-direction: column;
     justify-content: center;
     gap: 2px;
@@ -817,11 +833,14 @@ tbody tr:last-child td {
     font-size: var(--fs-0);
   }
 
-  .app-nav a:hover {
+  .app-nav a:hover,
+  .app-nav button:hover {
     background: none;
   }
 
-  .app-nav a[aria-current="page"] {
+  .app-nav a[aria-current="page"],
+  .app-nav button[aria-current="true"],
+  .app-nav button[aria-expanded="true"] {
     background: none;
   }
 
@@ -1539,6 +1558,49 @@ ul.panel {
   background: var(--danger);
 }
 
+/* ---------- Ask (feature 006): law is green, filing guidance gold ---------- */
+
+.ask-form {
+  display: grid;
+  gap: var(--s-2);
+  max-width: 48rem;
+}
+
+.ask-form label {
+  margin-bottom: 0; /* the form's own gap spaces it */
+}
+
+.ask-form button {
+  justify-self: start;
+}
+
+.ask-answer {
+  margin-top: var(--s-3);
+}
+
+.sources {
+  display: grid;
+  gap: var(--s-2);
+  padding: 0;
+  list-style: none;
+}
+
+.badge[data-kind="law"] {
+  background: var(--accent-soft);
+}
+
+.badge[data-kind="law"]::before {
+  background: var(--accent);
+}
+
+.badge[data-kind="guidance"] {
+  background: var(--gold-soft);
+}
+
+.badge[data-kind="guidance"]::before {
+  background: var(--gold);
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1574,12 +1636,12 @@ button,
     box-shadow 150ms ease;
 }
 
-button:not(:disabled):active,
+button:not(:disabled, [aria-disabled="true"]):active,
 .button:active {
   transform: translateY(1px);
 }
 
-button[type="submit"]:not(:disabled):hover,
+button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
 .button-primary:hover {
   box-shadow: var(--lift);
 }
@@ -1699,4 +1761,127 @@ button[type="submit"]:not(:disabled):hover,
 
 .fold > .money-grid {
   padding: var(--s-4) var(--s-4) 0;
+}
+
+/* ---------- Account menu and phone sheets (feature 006, task T035) ---------- */
+
+.account {
+  position: relative;
+}
+
+.account-button {
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  font-size: var(--fs-1);
+}
+
+.account-button .nav-icon {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.account-button[aria-current="true"],
+.account-button[aria-expanded="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + var(--s-2));
+  right: 0;
+  z-index: 30;
+  min-width: 13rem;
+  padding: var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  box-shadow: var(--lift);
+  animation: page-in 120ms ease-out both;
+}
+
+.menu-panel ul,
+.sheet ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.menu-panel li,
+.sheet li {
+  margin: 0;
+}
+
+.menu-panel a,
+.sheet a {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-1);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.menu-panel a:hover,
+.sheet a:hover {
+  background: var(--sunken);
+}
+
+.menu-panel a[aria-current="page"],
+.sheet a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.menu-panel .logout,
+.sheet .logout {
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+
+.menu-panel .logout > button,
+.sheet .logout > button {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.sheet .nav-icon {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Phones: a sheet rises above the bar; the rest of the page dims behind it. */
+.sheet {
+  position: fixed;
+  right: 0;
+  bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
+  left: 0;
+  z-index: 25;
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: 1px solid var(--line);
+  border-radius: var(--r-2) var(--r-2) 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: sheet-up 180ms ease-out both;
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgb(0 0 0 / 35%);
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
 }

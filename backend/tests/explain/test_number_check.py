@@ -25,6 +25,13 @@ def test_numbers_are_read_as_values() -> None:
         ("Your net assets are Rs 2,566,000.", False),  # a number not in the source
         ("About 25 lakh in net assets.", False),  # a number word
         ("Two hundred thousand is owed.", False),
+        # A scale glued to digits or abbreviated, around a number that IS in the source (26):
+        ("Net assets of Rs 26m.", False),
+        ("Net assets of Rs 26million.", False),
+        ("Net assets of 26lakh.", False),
+        ("Net assets of Rs 26 mn.", False),
+        ("Net assets of Rs 26 cr.", False),
+        ("Tax year 2025-26 covers 26 months of records.", True),  # a word starting like "m"
     ],
 )
 def test_only_the_sources_numbers_and_no_number_words(summary: str, safe: bool) -> None:
