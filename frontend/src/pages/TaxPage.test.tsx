@@ -336,3 +336,22 @@ test("each side shows what was already taken off, so it reads as a sum", async (
   within(profit).getByText("− Rs 24,000");
   expect(screen.queryByText(/total/i)).toBeNull();
 });
+
+// ---- PDF export (feature 008, task T008) ----
+
+test("a calculated result offers its PDF", async () => {
+  showTax({});
+  renderApp("/tax");
+
+  const link = await screen.findByRole("link", { name: "Download PDF" });
+  expect(link.getAttribute("href")).toBe("/api/tax/2025-26/pdf");
+});
+
+test("a blocked result says why there is no PDF", async () => {
+  showTax(blocked("needs_atl_answer", "Set your ATL status in your profile."));
+  renderApp("/tax");
+
+  const button = await screen.findByRole("button", { name: "Download PDF" });
+  expect(button.getAttribute("aria-disabled")).toBe("true");
+  expect(screen.queryByRole("link", { name: "Download PDF" })).toBeNull();
+});

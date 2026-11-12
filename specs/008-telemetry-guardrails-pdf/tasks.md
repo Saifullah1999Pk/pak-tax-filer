@@ -46,13 +46,13 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 ### Tests for User Story 1 (write first, confirm they fail)
 
 - [x] T004 [P] [US1] Write `backend/tests/reports/test_pdfs.py` per [contracts/pdf-and-telemetry.md](contracts/pdf-and-telemetry.md), reading PDFs back with `pypdf`: tax, wealth and workflow PDFs return `application/pdf` with the attachment filename; every page (including a forced multi-page wealth statement) contains "Not yet reviewed by a tax practitioner. Not tax advice.", "Demo data only." and the validation status from T003; figures equal the JSON results; no text from the fake summary clients appears (FR-005); blocked tax, not-ready wealth and unapproved workflow → `409` with the reason; another user's data is never exported
-- [ ] T005 [P] [US1] Write `frontend/src/components/DownloadPdfButton.test.tsx`: downloads on click; disabled with the reason when the result is blocked, not ready or not approved
+- [x] T005 [P] [US1] Write `frontend/src/components/DownloadPdfButton.test.tsx`: downloads on click; disabled with the reason when the result is blocked, not ready or not approved
 
 ### Implementation for User Story 1
 
 - [x] T006 [US1] Create `backend/app/reports/templates/base.html` (CSS running header banner on every page, research R6), `tax.html` and `wealth.html`, and `backend/app/reports/render.py` (Jinja2 → WeasyPrint `write_pdf`)
 - [x] T007 [US1] Create `backend/app/reports/router.py` with `GET /api/tax/{tax_year}/pdf`, `GET /api/wealth/{tax_year}/pdf` and `GET /api/workflow/result/pdf` using 004's, 005's and 007's existing result functions and protections; include in `backend/app/main.py`; T004 passes
-- [ ] T008 [US1] Create `frontend/src/components/DownloadPdfButton.tsx` and add it to 007's `frontend/src/components/TaxResultView.tsx` (the Tax page and Guided filing's result, each with its own PDF address) and `WealthPage.tsx`; T005 passes
+- [x] T008 [US1] Create `frontend/src/components/DownloadPdfButton.tsx` and add it to 007's `frontend/src/components/TaxResultView.tsx` (the Tax page and Guided filing's result, each with its own PDF address) and `WealthPage.tsx`; T005 passes
 - [ ] T009 [US1] Run [quickstart.md](quickstart.md) scenario 1, including the 5-second check (SC-002)
 
 **Checkpoint**: labelled PDFs download from every result screen.

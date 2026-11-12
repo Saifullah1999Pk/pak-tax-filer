@@ -9,6 +9,7 @@ import {
   getWealth,
   getWealthSummary,
   saveWealth,
+  wealthPdfUrl,
 } from "../api/wealth";
 import type {
   AutoFilledLine,
@@ -16,6 +17,7 @@ import type {
   Wealth,
   WealthResult,
 } from "../api/wealth";
+import { DownloadPdfButton } from "../components/DownloadPdfButton";
 import { MoneyInput } from "../components/MoneyInput";
 import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
@@ -581,6 +583,14 @@ function Result({ result, label, taxYear, version }: ResultProps) {
     <section aria-labelledby="result-heading" className="result">
       <h2 id="result-heading">Result</h2>
       <p className="notice">{label}</p>
+      <DownloadPdfButton
+        href={wealthPdfUrl(taxYear)}
+        disabledReason={
+          result.not_ready_reason === null
+            ? null
+            : "No PDF until your statement can be reconciled (see above)."
+        }
+      />
       {result.message && <p className="result-message">{result.message}</p>}
       {result.not_ready_reason === null && (
         <>

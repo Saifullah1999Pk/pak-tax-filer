@@ -639,3 +639,27 @@ test("the personal expenses can be folded away and say how many are filled", asy
   });
   expect(summary.textContent).toBe("Personal expenses (2 of 16 filled)");
 });
+
+// ---- PDF export (feature 008, task T008) ----
+
+test("a reconciled statement offers its PDF", async () => {
+  serve();
+  await open();
+
+  const link = await screen.findByRole("link", { name: "Download PDF" });
+  expect(link.getAttribute("href")).toBe("/api/wealth/2025-26/pdf");
+});
+
+test("a statement not ready yet says why there is no PDF", async () => {
+  serve({
+    result: {
+      ...SAVED.result,
+      not_ready_reason: "needs_previous_net_assets",
+      message: "Enter last year's net assets to reconcile.",
+    },
+  });
+  await open();
+
+  const button = await screen.findByRole("button", { name: "Download PDF" });
+  expect(button.getAttribute("aria-disabled")).toBe("true");
+});
