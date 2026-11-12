@@ -87,6 +87,8 @@ async def workflow_pdf(ctx: Ctx) -> Response:
     if found is None:
         raise HTTPException(status.HTTP_409_CONFLICT, APPROVAL_NEEDED)
     run, tax, documents = found
+    if tax.blocked_reason is not None:  # approved, but 004 refuses to calculate (FR-007)
+        raise HTTPException(status.HTTP_409_CONFLICT, BLOCKED_MESSAGES[tax.blocked_reason])
     assert run.approved_at is not None  # result() checked the approval
     tax_year = ctx.profile.tax_year
     banner = [

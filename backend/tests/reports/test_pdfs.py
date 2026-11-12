@@ -238,3 +238,25 @@ async def test_another_users_figures_are_never_exported(
     response = await client.get(f"/api/tax/{PROFILE_YEAR}/pdf")
 
     assert response.status_code == 409  # the logged-in user has no certificate of their own
+
+
+async def test_an_approved_but_blocked_guided_run_exports_nothing(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a guided run approved for inputs 004 refuses to calculate (profit over the Rs 5
+    million limit) can be exported with empty figures (FR-007)."""
+    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+    await add_confirmed_document(
+        db,
+        user_with_profile.id,
+        DocType.BANK_PROFIT_CERTIFICATE,
+        {"profit_amount": "6000000", "tax_withheld": "0"},
+    )
+    run = (await client.post("/api/workflow/start", json={})).json()
+    await client.post("/api/workflow/approve", json={"fingerprint": run["fingerprint"]})
+    blocked = (await client.get("/api/workflow/result")).json()
+    assert blocked["blocked_reason"] is not None
+
+    response = await client.get("/api/workflow/result/pdf")
+
+    assert response.status_code == 409 and response.json() == {"detail": blocked["message"]}
