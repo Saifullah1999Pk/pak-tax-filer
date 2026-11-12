@@ -102,7 +102,7 @@ features 001–006 implemented.
 ## Phase 6: Polish
 
 - [x] T022 [P] Add a "Workflow" section to `backend/CLAUDE.md`: agents get read-only tools only; the gate is checked in `service.py`; never store the tax result; a run of steps 1–3 counts against 006's question limits; tests use the fake agent client (added to the `no_real_ai` fixture)
-- [ ] T023 Run the lint, format and type checks (001's CI), both test suites and all of [quickstart.md](quickstart.md); record results in the PR description
+- [x] T023 Run the lint, format and type checks (001's CI), both test suites and all of [quickstart.md](quickstart.md); record results in the PR description
 
 ---
 
