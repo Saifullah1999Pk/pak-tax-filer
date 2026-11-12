@@ -105,6 +105,8 @@ class ConfirmedDocument:
     # When it was uploaded: original file names aren't stored (R4), so other features name a
     # certificate by its type and this (005, auto-filled lines).
     uploaded_at: datetime | None = None
+    # When it was (last) confirmed: 007's fingerprint notices a re-confirmation by this.
+    confirmed_at: datetime | None = None
 
 
 async def create_document(  # pylint: disable=too-many-arguments  # all keyword-only
@@ -329,6 +331,7 @@ async def confirmed_documents(
             id=document.id,
             doc_type=document.doc_type,
             uploaded_at=document.created_at,
+            confirmed_at=document.confirmed_at,
             values={
                 f.name: value for f in document.fields if (value := field_value(f)) is not None
             },
