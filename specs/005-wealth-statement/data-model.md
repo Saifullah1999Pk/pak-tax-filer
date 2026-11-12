@@ -1,6 +1,6 @@
 # Data Model: Wealth Statement and Reconciliation (005)
 
-Created by Alembic migration `0005_wealth`. Money is `numeric(14,0)` (whole rupees, never a
+Created by Alembic migration `0006_wealth` (planned as 0005; that number went to 003's extraction limit). Money is `numeric(14,0)` (whole rupees, never a
 float, Principle I). Timestamps are UTC. Everything is deleted with the user.
 
 ## wealth_statements

@@ -73,4 +73,4 @@ Anything not listed falls back to Claude Code's default of asking. Covers spec F
   | violations (exit 1) | all non-manual tasks ticked | `{"decision": "block", "reason": "<violations>"}` |
   | setup error (exit 2) | any | `{"systemMessage": "Contract check could not run: <error>"}` |
 
-- Never runs per edit. Covers spec FR-024, User Story 5.
+- Never runs per edit. Covers spec FR-036, User Story 7.

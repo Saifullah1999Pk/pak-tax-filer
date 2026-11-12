@@ -21,6 +21,9 @@ services:
       - db-data:/var/lib/postgresql/data
 
   backend:
+    # Continuous deployment pulls the images CI built for a commit (IMAGE_TAG, set by
+    # deploy/deploy.sh); `up -d --build` on the VM still builds them here (the manual fallback).
+    image: ${IMAGE_REPO:-ghcr.io/awais786}/pak-tax-filer-backend:${IMAGE_TAG:-local}
     build: ./backend
     restart: unless-stopped
     # Migrate, then serve; no --reload in production.
@@ -41,6 +44,7 @@ services:
       - uploads:/data/uploads
 
   web:
+    image: ${IMAGE_REPO:-ghcr.io/awais786}/pak-tax-filer-web:${IMAGE_TAG:-local}
     build:
       context: ./frontend
       dockerfile: ../deploy/web.Dockerfile

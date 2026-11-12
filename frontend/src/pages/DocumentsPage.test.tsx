@@ -486,3 +486,60 @@ test("a retry over the daily limit shows why", async () => {
 
   expect((await screen.findByRole("alert")).textContent).toBe(DAILY_LIMIT);
 });
+
+// Feature 001, User Story 6, task T061 (FR-032): a drop area and a helpful empty list.
+
+test("a file dropped on the upload area is the one uploaded, and its name is shown", async () => {
+  let sent: unknown = null;
+  mockFetch(
+    routes({
+      "POST /api/documents": ({ body }) => {
+        sent = body;
+        return { status: 201, body: { ...SUMMARY, fields: [] } };
+      },
+      "GET /api/documents/d1": () => ({
+        status: 200,
+        body: { ...SUMMARY, fields: [] },
+      }),
+    }),
+  );
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  chooseType(/salary/);
+  const file = new File(["%PDF-1.7 synthetic"], "dropped.pdf", {
+    type: "application/pdf",
+  });
+  fireEvent.drop(screen.getByLabelText(/file/i), {
+    dataTransfer: { files: [file] },
+  });
+  screen.getByText("dropped.pdf");
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  await screen.findByRole("heading", { level: 1, name: /check the figures/i });
+  expect((sent as FormData).get("file")).toBe(file);
+});
+
+test("with no documents, the list says how to begin", async () => {
+  mockFetch(routes());
+  renderApp("/documents");
+
+  await screen.findByText("No documents yet.");
+  screen.getByText("Upload your salary certificate to begin.");
+});
+
+test("a drop clears any file chosen earlier in the file field, so only the dropped one counts", async () => {
+  mockFetch(routes());
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+
+  const input = screen.getByLabelText(/file/i) as HTMLInputElement;
+  const value = vi.spyOn(input, "value", "set");
+  fireEvent.drop(input, {
+    dataTransfer: {
+      files: [new File(["x"], "dropped.pdf", { type: "application/pdf" })],
+    },
+  });
+
+  expect(value).toHaveBeenCalledWith("");
+});

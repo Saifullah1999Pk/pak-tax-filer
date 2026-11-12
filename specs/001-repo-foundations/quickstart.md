@@ -59,10 +59,33 @@ Repeat sections 2 and 3 on a second OS (Windows and macOS/Linux). **Expected:** 
 5. Open `docs/api-conventions.md`. **Expected:** paths, bodies, errors, auth and keeping-in-step
    rules as in [contracts/api-conventions.md](contracts/api-conventions.md).
 
-## 6. Contract checks (User Story 5, SC-009 to SC-011)
+## 6. Continuous deployment (User Story 5, SC-009; added 2026-11-10)
+
+1. Merge a small change into `main`. CI runs; when it passes, the "Deploy" workflow starts,
+   builds both images, deploys them and checks the site. The live site serves the change within
+   10 minutes, and nobody signed in to the VM.
+2. In Actions → Deploy → Run workflow, enter an earlier commit: the site serves that one.
+3. A CI run for a pull request (or a failing one) starts no deploy.
+4. With the deploy key, `ssh <user>@<vm> whoami` doesn't run `whoami`: it is refused as an
+   invalid deploy request.
+
+## 7. Responsive redesign (User Story 6, SC-010, SC-011; added 2026-11-10)
+
+1. Start the app and log in as the demo user. In the browser's device toolbar, open every page
+   at 320, 768, 1024 and 1440 px wide, in light and dark mode. **Expected:** no sideways scroll;
+   the nav is in the header from 720 px and at the bottom below; the current page is marked.
+2. With no confirmed salary certificate for the profile's year, open Home. **Expected:**
+   Documents is next; Tax and Wealth say they need a confirmed salary certificate. Confirm one:
+   Tax becomes next.
+3. Tab through Home, Documents and Wealth with the keyboard only. **Expected:** a visible focus
+   ring everywhere, "Skip to content" first, every action reachable.
+4. Run Lighthouse (mobile) on the production build for login, home and wealth. **Expected:**
+   performance at least 90, accessibility at least 95.
+
+## 8. Contract checks (User Story 7, SC-012 to SC-014)
 
 1. `uv run --project backend python scripts/validate_contracts.py --all`. **Expected:** exit 0
-   in under 30 seconds; features 002–008 are skipped as not started (SC-010, SC-011).
+   in under 30 seconds; features 002–008 are skipped as not started (SC-013, SC-014).
 2. In a throwaway branch, plant each violation in turn and rerun: remove `GET /health` from the
    app; add an undocumented `GET /api/debug`; add a fourth tool name to a copy of 006's
    `mcp-tools.md` with 006 marked started. **Expected:** exit 1 each time, naming the feature,

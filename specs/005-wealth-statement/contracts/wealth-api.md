@@ -26,10 +26,10 @@ computed result.
     "saved_at": "2026-11-03T12:00:00Z"
   },
   "auto_filled": [
-    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["salary-cert-a.pdf"] },
-    { "line": "7032", "label": "Exempt part of salary (gross − taxable)", "amount": "200000", "certificates": ["salary-cert-a.pdf"], "provisional": true },
-    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["bank-cert-a.pdf"], "provisional": true },
-    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["salary-cert-a.pdf", "bank-cert-a.pdf"], "provisional": true }
+    { "line": "7031", "label": "Taxable salary", "amount": "1800000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC"] },
+    { "line": "7032", "label": "Exempt part of salary (gross - taxable)", "amount": "200000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC"], "provisional": true },
+    { "line": "7033", "label": "Bank profit", "amount": "50000", "certificates": ["Bank profit certificate uploaded 2026-11-03 10:20:41 UTC"], "provisional": true },
+    { "line": null, "label": "Tax deducted and withheld at source (outflow)", "amount": "85000", "certificates": ["Salary certificate uploaded 2026-11-03 10:15:02 UTC", "Bank profit certificate uploaded 2026-11-03 10:20:41 UTC"], "provisional": true }
   ],
   "certificates_changed": false,
   "result": {
@@ -40,14 +40,13 @@ computed result.
     "where_to_look": [],
     "steps": [
       { "description": "Net assets this year: Rs 2,765,000 − Rs 200,000 = Rs 2,565,000", "form_line": "703001", "result": "2565000" }
-    ],
-    "summary": null
+    ]
   },
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```
 
-`line` is the TY2026 form code, or `null` when the form has no separate code: the tax line is
+A certificate is named by its type and upload time (amended 2026-11-10): 003 never stores original file names (its research R4), and the Documents page shows the same two facts. `line` is the TY2026 form code, or `null` when the form has no separate code: the tax line is
 part of outflows (7099, the total) without a sub-code of its own (provisional rule 1).
 
 **Not ready:** `result` has `not_ready_reason` (`needs_previous_net_assets`,
@@ -63,6 +62,17 @@ direction and never contains an amount.
 Body: the `statement` object above without `saved_at`. Replaces the whole statement (rows
 included), records `saved_at` and the confirmed certificate ids, and returns the same body as
 GET.
+
+## GET /api/wealth/{tax_year}/summary
+
+Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same reconciliation,
+in its own request so GET and PUT never wait for the AI. Checked as before (the shared number
+check plus the wealth guards); `null` when dropped, late (12 s limit), failed, or when the
+statement is not ready.
+
+```json
+{ "summary": "Your wealth statement reconciles: …" }
+```
 
 ## Errors
 

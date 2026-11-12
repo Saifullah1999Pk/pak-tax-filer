@@ -88,7 +88,45 @@ the VM's own Google identity, so there is no key to create or store.
 
 Files uploaded before this stay on the disk volume and keep working.
 
+## 6. Continuous deployment (once; feature 001, User Story 5)
+
+After this, every merge into `main` whose CI passes deploys itself (`.github/workflows/deploy.yml`):
+GitHub builds both images, the VM pulls and starts them, and the run checks the live site.
+
+1. **A key just for deploys**, made on your own computer (Git Bash), in a temporary folder:
+   ```bash
+   mkdir -p ~/deploy-setup && cd ~/deploy-setup
+   ssh-keygen -t ed25519 -N "" -C github-deploy -f deploy_key
+   cat deploy_key.pub
+   ```
+2. **On the VM**, allow that key to run only the deploy (one line; paste the whole `.pub` line
+   where shown):
+   ```bash
+   echo 'command="bash /home/'"$USER"'/pak-tax-filer/pak-tax-filer/deploy/deploy.sh",restrict <paste deploy_key.pub here>' >> ~/.ssh/authorized_keys
+   ```
+   `restrict` turns off shells, terminals and forwarding for this key; the forced command means
+   it can run nothing but `deploy.sh`. Note the VM's host key fingerprint for step 3:
+   `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.
+3. **The VM's identity**, on your computer: `ssh-keyscan -t ed25519 34.55.150.199 > known_hosts`,
+   then `ssh-keygen -lf known_hosts` must show the same fingerprint as step 2. If not, stop.
+4. **Secrets and the site address**, on your computer (in `~/deploy-setup`):
+   ```bash
+   R=awais786/pak-tax-filer
+   gh secret set DEPLOY_SSH_KEY --repo $R < deploy_key
+   gh secret set DEPLOY_HOST --repo $R --body "<VM user>@34.55.150.199"
+   gh secret set DEPLOY_KNOWN_HOSTS --repo $R < known_hosts
+   gh variable set SITE_URL --repo $R --body "https://34-55-150-199.sslip.io"
+   ```
+   Then delete the private key: `cd ~ && rm -rf ~/deploy-setup`. GitHub keeps the only copy.
+5. **Check the lock:** `ssh -i <key> <user>@34.55.150.199 whoami` must print "Refused", not a
+   name (do this before deleting the key, or skip it; the deploy tests cover it).
+
+Deploys start from `main` only, so the first one runs after these changes are merged. To
+redeploy an earlier commit (rollback): Actions → Deploy → Run workflow → enter its SHA.
+
 ## Updating
+
+Automatic since section 6. By hand, if ever needed (it builds on the VM, which is slow):
 
 ```bash
 cd pak-tax-filer && git pull

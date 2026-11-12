@@ -1,4 +1,4 @@
-"""GET /api/tax/{tax_year} (feature 004, task T012; contracts/tax-api.md, research R6).
+"""GET /api/tax/{tax_year} and its summary (feature 004, task T012; contracts/tax-api.md, R6).
 
 GET because nothing changes on the server: the result is recalculated from the user's confirmed
 certificates and profile on every request. Money is returned as strings (docs/api-conventions.md).
@@ -56,16 +56,23 @@ class TaxOut(BaseModel):
     salary_balance: str | None
     profit_balance: str | None
     non_atl_extra_withheld: str | None
+    salary_credit: str | None
+    profit_credit: str | None
     steps: list[StepOut]
-    summary: str | None
     label: str
+
+
+class SummaryOut(BaseModel):
+    """The checked AI summary, or null (feature 001, US6: loaded after the figures)."""
+
+    summary: str | None
 
 
 def _text(amount: Decimal | None) -> str | None:
     return None if amount is None else str(amount)
 
 
-def tax_out(result: TaxResult, summary: str | None = None) -> TaxOut:
+def tax_out(result: TaxResult) -> TaxOut:
     """The API form of a result: money as decimal strings, never floats."""
     return TaxOut(
         tax_year=result.tax_year,
@@ -77,13 +84,23 @@ def tax_out(result: TaxResult, summary: str | None = None) -> TaxOut:
         salary_balance=_text(result.salary_balance),
         profit_balance=_text(result.profit_balance),
         non_atl_extra_withheld=_text(result.non_atl_extra_withheld),
+        salary_credit=_text(result.salary_credit),
+        profit_credit=_text(result.profit_credit),
         steps=[
             StepOut(description=s.description, rule_location=s.rule_location, result=str(s.result))
             for s in result.steps
         ],
-        summary=summary,
         label=LABEL,
     )
+
+
+async def _result(db: AsyncSession, user: User, tax_year: str) -> TaxResult:
+    """The user's result for a tax year the app has FBR rates for (else 404)."""
+    try:
+        rates = rates_for(tax_year)
+    except KeyError as missing:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No rates for that tax year.") from missing
+    return calculate(await tax_inputs(db, user, tax_year), rates)
 
 
 @router.get("/{tax_year}")
@@ -91,13 +108,19 @@ async def read_tax(
     tax_year: str,
     user: Annotated[User, Depends(current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    summariser: Annotated[Summariser, Depends(get_summariser)],
 ) -> TaxOut:
-    """The user's tax for the year, with every step; or why it can't be calculated."""
-    try:
-        rates = rates_for(tax_year)
-    except KeyError as missing:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "No rates for that tax year.") from missing
-    result = calculate(await tax_inputs(db, user, tax_year), rates)
-    # Optional and checked: no summary unless every number in it is in the breakdown.
-    return tax_out(result, await verified_summary(result, summariser))
+    """The user's tax for the year, with every step; or why it can't be calculated. Never waits
+    for the AI: the summary has its own request."""
+    return tax_out(await _result(db, user, tax_year))
+
+
+@router.get("/{tax_year}/summary")
+async def read_tax_summary(
+    tax_year: str,
+    user: Annotated[User, Depends(current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    summariser: Annotated[Summariser, Depends(get_summariser)],
+) -> SummaryOut:
+    """A short summary of the same result, checked: no summary unless every number in it is in
+    the breakdown (FR-011)."""
+    return SummaryOut(summary=await verified_summary(await _result(db, user, tax_year), summariser))

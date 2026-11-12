@@ -110,3 +110,14 @@ Each decision: what was chosen, why, and what else was considered. FBR sources a
   `signed_off_date`; a test fails if any is unsigned. Cases: reconciled; each direction of gap;
   a decrease; liabilities larger than assets; negative previous net assets; several certificates
   summed with paisa rounding; no bank certificate; each not-ready reason.
+
+## R11. Naming certificates (added 2026-11-10, during implementation)
+
+- **Decision:** auto-filled lines and the `gross_below_taxable` message name a certificate by
+  its type and upload time ("Salary certificate uploaded 2026-11-09 14:05:02 UTC"; seconds so two in one minute differ). 003's
+  `ConfirmedDocument` gains `uploaded_at` (defaulted, so 004 is unaffected).
+- **Rationale:** the plan assumed file names, but 003 stores uploads under random names and
+  never keeps the original (its research R4); type and upload time are what the Documents page
+  shows, so the user can find the certificate.
+- **Alternatives:** storing original file names in 003 (a migration and a privacy question for a
+  convenience); "Salary certificate 2" (numbers the Documents page doesn't show).

@@ -19,8 +19,16 @@
 ### Session 2026-11-04
 
 - Q: Now that the hooks are bash scripts (like the lead's #10), what automated checks run on them? → A: Tests only: CI runs each hook (ours and the lead's) against sample inputs and checks the response; no lint or type checks for bash.
-- Q: The lead's issue #16 asks for automated contract validation (machine-checkable contracts, hooks, reusable scripts, Spec Kit integration, CI); where does it go? → A: Into feature 001 as User Story 5 (FR-021 to FR-027), like issues #4/#5 became User Story 4. Contracts become a small machine-checkable file per feature checked against the app's generated API schema (design addendum, approach A).
+- Q: The lead's issue #16 asks for automated contract validation (machine-checkable contracts, hooks, reusable scripts, Spec Kit integration, CI); where does it go? → A: Into feature 001 as User Story 7 (FR-033 to FR-039), like issues #4/#5 became User Story 4. Contracts become a small machine-checkable file per feature checked against the app's generated API schema (design addendum, approach A).
 - Q: When should the check block the AI assistant from finishing? → A: Only when the current feature's last non-manual task is ticked (a completion claim); mid-feature it shows failures without blocking. Features not started are skipped, and tasks marked `(manual)` are never counted.
+
+### Session 2026-11-10
+
+- Q: The lead asked for a free deployment and then CI/CD ("once your tests pass deploy it also directly"); where does it go? → A: Into feature 001 as User Story 5 (FR-021 to FR-025): the production setup on one free Google Cloud VM (PR #30), and continuous deployment after CI passes on `main`. Design: `docs/superpowers/specs/2026-11-10-continuous-deployment-design.md`.
+
+- Q: The lead said the frontend "looks messy"; where does a whole-app redesign go, and how far does it go? → A: Into feature 001 as User Story 6 (FR-026 to FR-031), since it is shared frontend groundwork like the app skeleton. The user chose the middle path: one visual system, a shared frame with navigation and a guiding Home checklist, every page working at phone width; not a step-by-step flow. Design: `docs/superpowers/specs/2026-11-10-responsive-ui-design.md`.
+
+- Q: After the first pass the user found it "barebones": plain, or thin? → A: Plain. Direction B chosen (modern with a Pakistani touch: green and gold, one geometric pattern in two places), plus polish on every page (FR-032). Design addendum 2026-11-11.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -146,9 +154,69 @@ backend feature and a code review; the matching guide and reviewer are used.
 6. **Given** a new API endpoint, **When** it is designed, **Then** a written API convention
    defines its path, request and response shapes, errors and authentication.
 
+### User Story 5 - The live demo updates itself after a merge (Priority: P5, added 2026-11-10)
+
+The app runs on one free Google Cloud VM. When a change is merged into `main` and the
+automated checks pass there, the live site updates itself within minutes, with nobody signing in
+to the VM; and an earlier version can be redeployed on request.
+
+**Why this priority**: Requested by the lead after the first deployment; it builds on User Story
+4's checks.
+
+**Independent Test**: Merge a small change into `main`; after CI passes, the deploy run
+succeeds and the live site serves the change. Run the deploy manually with an earlier commit;
+the site serves that one.
+
+**Acceptance Scenarios**:
+
+1. **Given** a change merged into `main`, **When** CI passes for it, **Then** it is deployed
+   and the deploy run checks that the live site answers.
+2. **Given** CI fails for a change on `main`, or CI ran for a pull request (including from a
+   fork) or another branch, **When** it finishes, **Then** nothing is deployed.
+3. **Given** a deploy whose site doesn't come back, **When** the check runs out of time, **Then**
+   the run fails visibly.
+4. **Given** someone holding the deploy key, **When** they try to open a shell or run any other
+   command on the VM, **Then** only the deploy itself can run.
+
+### User Story 6 - A clean app that works on phone and computer (Priority: P6, added 2026-11-10)
+
+A taxpayer opens the app on a phone or a computer. Every page looks the same family: the same
+type, colours and spacing, a header with the tax year, and navigation that sits in the header on
+a computer and along the bottom of the screen on a phone. Home shows the four steps of filing
+(profile, documents, tax, wealth statement), what is done, and a button to the next step. Every
+page, including the long wealth statement, can be used at phone width without zooming or
+scrolling sideways.
+
+**Why this priority**: Requested by the lead after seeing the live app ("it looks messy"); it
+changes no behaviour, so it comes after the features it dresses.
+
+**Independent Test**: Open each page at 320 px, 768 px and 1440 px wide, in light and dark
+mode: nothing overflows sideways, the navigation is present and marks the current page, and
+Home's next step matches the user's documents.
+
+**Acceptance Scenarios**:
+
+1. **Given** a logged-in user with a profile, **When** they open any page other than login or
+   sign-up, **Then** they see the header (app name, tax year, Log out) and one navigation with
+   Home, Documents, Tax, Wealth statement and Profile, the current page marked.
+2. **Given** a screen narrower than 720 px, **When** a page is shown, **Then** the navigation sits
+   along the bottom of the screen with labels always visible, and no page scrolls sideways at
+   320 px.
+3. **Given** a user with no confirmed salary certificate for their tax year, **When** they open
+   Home, **Then** Documents is marked as the next step, and Tax and Wealth say they need a
+   confirmed salary certificate.
+4. **Given** a user whose salary certificate for the year is confirmed and nothing waits for
+   review, **When** they open Home, **Then** Profile and Documents are done and Tax is the next
+   step.
+5. **Given** the documents list can't be loaded, **When** Home is shown, **Then** it says so with
+   a "Try again" button and guesses no state.
+6. **Given** a tax or wealth result, **When** it is shown, **Then** the "not yet
+   practitioner-reviewed" label sits with the result's headline, and amounts are shown exactly as
+   the server gave them.
+
 ---
 
-### User Story 5 - Contracts are checked automatically (Priority: P5)
+### User Story 7 - Contracts are checked automatically (Priority: P7)
 
 Added at the lead's request (issue #16). Each feature's API, database tables and task list are
 checked automatically against what its spec promises: while the AI assistant implements a
@@ -257,25 +325,61 @@ pull request each report it by name and fail; remove it and check all pass.
 - **FR-020**: The repository MUST contain one written API convention covering paths, request
   and response shapes, errors, authentication and how changes are kept in step between backend
   and frontend.
-- **FR-021**: Each feature with an API MUST have a machine-checkable contract file, beside its
+- **FR-021** (added 2026-11-10): The app MUST run in production on one free-tier VM, from a
+  production configuration that serves the built frontend over HTTPS, keeps the database
+  unreachable from outside, and takes every secret only from the server's own uncommitted
+  settings file.
+- **FR-022**: After CI passes for a push to `main` in the project's repository, the app MUST be
+  deployed automatically; CI runs for pull requests (including from forks) or other branches
+  MUST never deploy. A deploy MUST also be startable by hand for a given commit.
+- **FR-023**: A deploy MUST end by checking that the live site answers, and MUST fail visibly if
+  it doesn't within a few minutes.
+- **FR-024**: The key the deploy uses to reach the VM MUST be usable only for the deploy (no
+  shell or other commands), and the VM's identity MUST be checked before connecting.
+- **FR-025**: No secret (keys, tokens, passwords) MUST appear in the repository, the built
+  images, command lines or logs.
+- **FR-026** (added 2026-11-10): Every page MUST use one shared set of colours, type sizes and
+  spacing values, in a light and a dark theme that follows the device setting, with text
+  contrast of at least 4.5:1.
+- **FR-027**: Every logged-in page with a profile MUST share one frame: a header with the app
+  name, the tax year and Log out, and one navigation (Home, Documents, Tax, Wealth statement,
+  Profile) marking the current page; below 720 px wide the navigation MUST sit at the bottom of
+  the screen. Login, sign-up, not-found and first-time profile setup MUST use a simpler frame
+  without the navigation.
+- **FR-028**: Home MUST show the four filing steps (profile, documents, tax, wealth statement)
+  for the profile's tax year, each with its state and one action, and mark the first step not
+  done as next, using only data the app already provides (the profile and the documents list).
+- **FR-029**: Every page MUST be usable from 320 px wide without sideways scrolling, with tap
+  targets at least 44 px, and MUST remain fully usable by keyboard and screen reader.
+- **FR-030**: The redesign MUST NOT change what any page does, what it sends to the server, or
+  its wording for errors, refusals and results, except where FR-027 and FR-028 say so.
+- **FR-031**: The redesign MUST NOT add a UI component library or CSS framework; the only new
+  dependency allowed is one self-hosted font.
+- **FR-032** (added 2026-11-11): The app MUST have a look of its own (design addendum,
+  direction B): a green and gold palette, a logo mark, and one geometric pattern used only on the
+  login and sign-up brand panel and Home's top band; money fields show "Rs" as a visual prefix;
+  uploads accept a dragged file; statuses show as badges whose words carry the meaning; empty
+  and loading states say what to do next; motion stays short and is off under "reduce motion".
+
+- **FR-033**: Each feature with an API MUST have a machine-checkable contract file, beside its
   written contract, listing every endpoint's path, method, success status and required request
   and response fields.
-- **FR-022**: One reusable check MUST compare the app with every started feature's contract
+- **FR-034**: One reusable check MUST compare the app with every started feature's contract
   file, the tables and columns in its data model, the assistant tools named in feature 006, and
   its task list; every problem MUST be reported with the feature, file and item, and any
   problem MUST give a failing result.
-- **FR-023**: Features with no ticked task MUST be skipped; tasks marked `(manual)` MUST NOT be
+- **FR-035**: Features with no ticked task MUST be skipped; tasks marked `(manual)` MUST NOT be
   counted; endpoints present in the app but in no contract MUST fail the check, except the
   framework's own documentation pages.
-- **FR-024**: When the AI assistant finishes a turn, the check MUST run for the current feature:
+- **FR-036**: When the AI assistant finishes a turn, the check MUST run for the current feature:
   mid-feature it MUST show failures without stopping work; once the feature's last non-manual
   task is ticked, it MUST refuse to let the assistant finish until every check passes. No check
   MUST run after every individual edit.
-- **FR-025**: CI MUST run the same check on every pull request and push to `main`; a failure MUST
+- **FR-037**: CI MUST run the same check on every pull request and push to `main`; a failure MUST
   mark the pull request failing.
-- **FR-026**: The comparison of code with spec, plan and tasks MUST use Spec Kit's own steps
+- **FR-038**: The comparison of code with spec, plan and tasks MUST use Spec Kit's own steps
   (converge, analyze) before a feature's pull request, kept separate from the pass/fail check.
-- **FR-027**: Documentation MUST explain how to define a contract, run the check locally and read
+- **FR-039**: Documentation MUST explain how to define a contract, run the check locally and read
   its failures.
 
 ## Success Criteria *(mandatory)*
@@ -296,12 +400,19 @@ pull request each report it by name and fail; remove it and check all pass.
   failing test or formatting error is marked as failing.
 - **SC-008**: Each of the six rule topics (in the lead's rule files or ours), both folder guides,
   the three reusable guides and both reviewers exists and is referenced from the root guide.
-- **SC-009**: 100% of planted contract violations (missing endpoint, wrong method, missing field,
+- **SC-009** (added 2026-11-10): A change merged into `main` is live within 10 minutes of CI
+  passing, with nobody signing in to the VM.
+- **SC-010** (added 2026-11-10): On mobile settings, Lighthouse scores the production build at
+  least 90 for performance and 95 for accessibility on the login, home and wealth pages.
+- **SC-011**: At 320 px, 768 px, 1024 px and 1440 px wide, in light and dark mode, no page
+  scrolls sideways and every page's main action is visible without zooming.
+
+- **SC-012**: 100% of planted contract violations (missing endpoint, wrong method, missing field,
   undocumented endpoint, missing column, extra assistant tool, unticked task at completion) are
   reported by name with a failing result, by the script, the assistant hook and CI.
-- **SC-010**: The check for all features finishes in under 30 seconds (no server started, no full
+- **SC-013**: The check for all features finishes in under 30 seconds (no server started, no full
   test suite run).
-- **SC-011**: With only feature 001 started, the check passes (no false failures from planned
+- **SC-014**: With only feature 001 started, the check passes (no false failures from planned
   features).
 
 ## Assumptions

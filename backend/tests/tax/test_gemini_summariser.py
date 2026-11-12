@@ -92,3 +92,26 @@ async def test_an_api_error_is_no_summary_and_logs_only_its_type(
     assert len(calls) == 1
     assert "secret detail" not in caplog.text
     assert "ServerError" in caplog.text
+
+
+async def test_another_page_can_send_its_own_instructions() -> None:
+    """Fails if the wealth page's instructions (005) aren't what reaches Gemini."""
+    sent: list[httpx2.Request] = []
+
+    def handle(request: httpx2.Request) -> httpx2.Response:
+        sent.append(request)
+        return reply("Your net assets are Rs 1.")
+
+    http = httpx2.AsyncClient(transport=httpx2.MockTransport(handle))
+    wealth = GeminiSummariser(
+        api_key=FAKE_KEY,
+        model="gemini-test-model",
+        effort="minimal",
+        http_client=http,
+        instructions="Explain a wealth reconciliation.",
+    )
+
+    await wealth.write("Wealth statement for tax year 2025-26.")
+
+    body = json.loads(sent[0].content)
+    assert body["systemInstruction"]["parts"][0]["text"] == "Explain a wealth reconciliation."

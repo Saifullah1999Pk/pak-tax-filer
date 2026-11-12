@@ -1,0 +1,131 @@
+# Continuous deployment (feature 001, User Story 5; FR-022 to FR-025). Design:
+# docs/superpowers/specs/2026-11-10-continuous-deployment-design.md
+#
+# After CI passes for a push to main in this repository, build both images, push them to GHCR,
+# and have the VM pull and start them; then check the live site. CI runs for pull requests
+# (including from forks) and other branches never deploy. "Run workflow" redeploys any commit.
+#
+# Needs the repository variable SITE_URL (deploys are off without it, e.g. in forks) and the
+# secrets DEPLOY_SSH_KEY, DEPLOY_HOST (user@host) and DEPLOY_KNOWN_HOSTS (docs/deployment.md).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to deploy (40 hex characters); empty for the latest main"
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+# One deploy at a time, in order; a newer merge waits instead of cancelling one half-done.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.SITE_URL != '' && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.event == 'push' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Inputs reach the shell only as environment variables, never pasted into commands.
+      RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+      INPUT_SHA: ${{ inputs.sha }}
+      SITE_URL: ${{ vars.SITE_URL }}
+    steps:
+      - name: Choose the commit
+        id: commit
+        run: |
+          sha="${RUN_SHA:-${INPUT_SHA:-$GITHUB_SHA}}"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Not a full commit SHA: $sha"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "repo=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.commit.outputs.sha }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the backend image
+        uses: docker/build-push-action@v7
+        with:
+          context: backend
+          push: true
+          tags: ${{ steps.commit.outputs.repo }}/pak-tax-filer-backend:${{ steps.commit.outputs.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Build and push the web image
+        uses: docker/build-push-action@v7
+        with:
+          context: frontend
+          file: deploy/web.Dockerfile
+          push: true
+          tags: ${{ steps.commit.outputs.repo }}/pak-tax-filer-web:${{ steps.commit.outputs.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+      - name: Deploy on the VM
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ steps.commit.outputs.sha }}
+          LOGIN: ${{ github.actor }}
+        run: |
+          for name in DEPLOY_SSH_KEY DEPLOY_HOST DEPLOY_KNOWN_HOSTS; do
+            if [ -z "${!name}" ]; then echo "::error::Secret $name is not set."; exit 1; fi
+          done
+          ssh_dir="$(mktemp -d)"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          (umask 077; printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key")
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          # The key's forced command on the VM runs deploy/deploy.sh with this request; the
+          # registry token goes on standard input, never on a command line.
+          printf '%s\n' "$REGISTRY_TOKEN" | ssh -i "$ssh_dir/key" \
+            -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            "$DEPLOY_HOST" "deploy $SHA $LOGIN"
+
+      - name: Check the live site
+        run: |
+          for attempt in $(seq 1 18); do
+            page="$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/" || true)"
+            api="$(curl -s -o /dev/null -w '%{http_code}' "$SITE_URL/api/auth/me" || true)"
+            if [ "$page" = 200 ] && [ "$api" = 401 ]; then
+              echo "Live: page $page, API $api"
+              exit 0
+            fi
+            echo "Attempt $attempt: page $page, API $api; waiting"
+            sleep 10
+          done
+          echo "::error::The site didn't come back within 3 minutes."
+          exit 1

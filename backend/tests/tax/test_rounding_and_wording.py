@@ -32,3 +32,16 @@ def test_paisa_are_shown_rounded_half_up() -> None:
 def test_a_negative_amount_reads_minus_rs() -> None:
     """Fails if a negative amount reads "Rs -4,000"."""
     assert money(Decimal(-4000)) == "-Rs 4,000"
+
+
+def test_credits_are_rounded_like_every_final_amount() -> None:
+    """Fails if a credit with paisa reaches the API unrounded, or rounds banker's-style
+    (feature 001 US6: the page shows tax - credit = balance; section 219)."""
+    inputs = TaxInputs(
+        "2025-26", True, Decimal(1800000), Decimal("60000.50"), Decimal(0), Decimal(0), True
+    )
+
+    result = calculate(inputs, rates_for("2025-26"))
+
+    assert str(result.salary_credit) == "60001"
+    assert str(result.profit_credit) == "0"

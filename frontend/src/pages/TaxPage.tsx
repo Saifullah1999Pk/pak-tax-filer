@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api/client";
-import { balanceWords, getTax, rupees } from "../api/tax";
+import { balanceWords, getTax, getTaxSummary, rupees } from "../api/tax";
 import type { TaxResult } from "../api/tax";
+import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
 
 // The user's tax for the profile's tax year (feature 004, tasks T013, T019, T023). Every figure
@@ -58,11 +59,17 @@ export function TaxPage() {
     <main>
       <h1>Your tax for {taxYear}</h1>
       {error !== null && <p role="alert">{error}</p>}
-      {result === null && error === null && <p role="status">Calculating…</p>}
+      {result === null && error === null && (
+        <>
+          <p role="status">Calculating…</p>
+          {/* The shape of the result while it loads (task T062). */}
+          <div className="headline-pair" aria-hidden="true">
+            <div className="skeleton skeleton-card" />
+            <div className="skeleton skeleton-card" />
+          </div>
+        </>
+      )}
       {result !== null && <Result result={result} />}
-      <nav>
-        <Link to="/">Home</Link>
-      </nav>
     </main>
   );
 }
@@ -73,7 +80,7 @@ function Result({ result }: { result: TaxResult }) {
     <>
       <p className="notice">{result.label}</p>
       {result.blocked_reason !== null ? (
-        <p>
+        <p className="panel">
           {result.message}
           {fix && (
             <>
@@ -93,11 +100,12 @@ function Result({ result }: { result: TaxResult }) {
 function Row({
   term,
   amount,
-  show = rupees,
+  less = false,
 }: {
   term: string;
   amount: string | null;
-  show?: (amount: string) => string;
+  /** Taken off: shown with a minus sign, as the API's figure (nothing is calculated here). */
+  less?: boolean;
 }) {
   if (amount === null) {
     return null;
@@ -105,58 +113,86 @@ function Row({
   return (
     <>
       <dt>{term}</dt>
-      <dd>{show(amount)}</dd>
+      <dd>{less ? `− ${rupees(amount)}` : rupees(amount)}</dd>
     </>
   );
 }
 
+/** A side's answer in large type, with what it is beneath; nothing if the API sent none. */
+function Headline({ text, caption }: { text: string | null; caption: string }) {
+  if (text === null) {
+    return null;
+  }
+  return (
+    <>
+      <p className="headline">{text}</p>
+      <p className="hint">{caption}</p>
+    </>
+  );
+}
+
+const words = (balance: string | null, overpaid: string) =>
+  balance === null ? null : balanceWords(balance, overpaid);
+
 function Figures({ result }: { result: TaxResult }) {
   return (
     <>
-      {result.summary !== null && (
-        <section aria-labelledby="summary-heading">
-          <h2 id="summary-heading">Summary</h2>
-          <p>{result.summary}</p>
-        </section>
-      )}
       {/* Shown separately: whether one side can be set off against the other is still
-          a question for the lead, so there is no combined total (spec clarification). */}
-      <section aria-labelledby="salary-heading">
-        <h2 id="salary-heading">Salary</h2>
-        <dl>
-          <Row term="Salary tax" amount={result.salary_tax} />
-          <Row term="Surcharge" amount={result.surcharge} />
-          <Row
-            term="After tax deducted by employers"
-            amount={result.salary_balance}
-            show={(balance) => balanceWords(balance, "over-deducted")}
+          a question for the lead, so there is no combined total (spec clarification). Each
+          side's balance is its headline, above the parts it is made of (001, task T054). */}
+      <div className="headline-pair">
+        <section aria-labelledby="salary-heading" className="panel">
+          <h2 id="salary-heading">Salary</h2>
+          <Headline
+            text={words(result.salary_balance, "over-deducted")}
+            caption="After tax deducted by employers"
           />
-        </dl>
-      </section>
-      <section aria-labelledby="profit-heading">
-        <h2 id="profit-heading">Bank profit</h2>
-        <dl>
-          <Row term="Tax on bank profit" amount={result.profit_tax} />
-          <Row
-            term="After tax withheld by banks"
-            amount={result.profit_balance}
-            show={(balance) => balanceWords(balance, "over-withheld")}
+          <dl className="figures">
+            <Row term="Salary tax" amount={result.salary_tax} />
+            <Row term="Surcharge" amount={result.surcharge} />
+            <Row
+              term="Less tax deducted by employers"
+              amount={result.salary_credit}
+              less
+            />
+          </dl>
+        </section>
+        <section aria-labelledby="profit-heading" className="panel">
+          <h2 id="profit-heading">Bank profit</h2>
+          <Headline
+            text={words(result.profit_balance, "over-withheld")}
+            caption="After tax withheld by banks"
           />
-          <Row
-            term="Not on the ATL"
-            amount={result.non_atl_extra_withheld}
-            show={(extra) =>
-              `${rupees(extra)} extra tax withheld; whether it can be reclaimed needs confirmation`
-            }
-          />
-        </dl>
-      </section>
+          <dl className="figures">
+            <Row term="Tax on bank profit" amount={result.profit_tax} />
+            <Row
+              term="Less tax withheld by banks"
+              amount={result.profit_credit}
+              less
+            />
+          </dl>
+          {result.non_atl_extra_withheld !== null && (
+            <p className="notice">
+              <strong>Not on the ATL:</strong>{" "}
+              <span>
+                {`${rupees(result.non_atl_extra_withheld)} extra tax withheld; whether it can be reclaimed needs confirmation`}
+              </span>
+            </p>
+          )}
+        </section>
+      </div>
+      {/* Loaded on its own, so the figures above never wait for the AI. */}
+      <SummaryPanel
+        key={result.tax_year}
+        fetchSummary={getTaxSummary}
+        taxYear={result.tax_year}
+        headingId="summary-heading"
+      />
       <h2 id="breakdown-heading">How it was worked out</h2>
-      <ol aria-labelledby="breakdown-heading">
+      <ol aria-labelledby="breakdown-heading" className="ledger" role="list">
         {result.steps.map((step, index) => (
           <li key={`${index}-${step.description}`}>
             {step.description}
-            <br />
             <small>Source: {step.rule_location}</small>
           </li>
         ))}

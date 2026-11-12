@@ -5,6 +5,7 @@ from app.documents.router import get_extractor
 from app.main import app
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
+from app.wealth.router import get_wealth_summariser
 
 
 def test_both_ai_services_are_faked_in_every_test() -> None:
@@ -12,3 +13,4 @@ def test_both_ai_services_are_faked_in_every_test() -> None:
     Google being up."""
     assert isinstance(app.dependency_overrides[get_extractor](), FakeExtractor)
     assert isinstance(app.dependency_overrides[get_summariser](), FakeSummariser)
+    assert isinstance(app.dependency_overrides[get_wealth_summariser](), FakeSummariser)

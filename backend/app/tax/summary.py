@@ -2,14 +2,15 @@
 
 Gemini writes 2-3 sentences from the breakdown. Then plain code checks every number in them: any
 number not in the breakdown, or any number word ("lakh", "1.8 million"), and the summary is
-dropped (constitution Principle I, FR-011). It has 4 seconds; late, refused or failed means no
-summary. The breakdown is always shown and never waits on it. No tax figure is produced here.
+dropped (constitution Principle I, FR-011). It has its own request (GET .../summary), so the
+figures never wait on it (feature 001, User Story 6); late, refused or failed means no summary.
+No tax figure is produced here.
 """
 
 import asyncio
 import logging
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Protocol
 
 import httpx2
@@ -17,29 +18,25 @@ from google import genai
 from google.genai import errors, types
 
 from app.documents.extraction.client import THINKING_LEVELS
-from app.tax.engine import TaxResult
+from app.explain.number_check import numbers_in, uses_only_numbers_from
+from app.tax.engine import TaxResult, rupees
 
 logger = logging.getLogger(__name__)
 
-LIMIT_SECONDS = 4.0
-# The deadline sent to Google. Gemini refuses anything under 10 s (400 INVALID_ARGUMENT), so the
-# 4-second limit is enforced here, by verified_summary's wait_for, not by the request.
+# The summary is loaded after the figures, so it can take longer than the 4 s it once had while
+# the page waited (from Pakistan Gemini often needed more, and the summary was always dropped).
+LIMIT_SECONDS = 12.0
+# The deadline sent to Google (Gemini refuses anything under 10 s, 400 INVALID_ARGUMENT); the
+# limit above is a little longer, so Google's own timeout is the one normally seen.
 GOOGLE_DEADLINE_MS = 10_000
 INSTRUCTIONS = """\
 You explain an income tax result to the taxpayer in 2 or 3 short, plain sentences. Use only the \
 numbers that appear in the breakdown you are given, written the same way (e.g. "Rs 72,000"). Do \
 not calculate, round or add any new number, and never write numbers as words (no "lakh", \
-"million", "thousand"). Do not give advice."""
-
-_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
-_NUMBER_WORDS = re.compile(
-    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|"
-    r"fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|"
-    r"seventy|eighty|ninety|hundred|thousand|lakh|lakhs|lac|lacs|crore|crores|million|millions|"
-    r"billion|billions)\b",
-    re.IGNORECASE,
-)
-
+"million", "thousand"). Do not give advice. The salary tax and the tax on bank profit are worked \
+out before anything is taken off; the tax deducted by employers and the tax withheld by banks are \
+then subtracted from them. Never describe a tax figure as being after, net of or accounting for \
+tax deducted or withheld."""
 
 # The balance's direction, in the words a summary might use. "Refund" is never allowed: the app
 # never promises one (FR-013), and an over-deduction isn't a refund until FBR says so.
@@ -49,16 +46,38 @@ _OVERPAID_WORDS = re.compile(
 )
 _REFUND = re.compile(r"\brefund", re.IGNORECASE)
 
+# Feature 001, User Story 6: a live summary said "salary tax Rs 1,666,193 after accounting for
+# Rs 213,016 deducted", every number right, the relation wrong (the tax is before the
+# deduction). Checked sentence by sentence, as the wealth summary's guards are: a sentence with
+# a tax figure, its credit and wording like this, that never reaches the balance, is dropped.
+# "After subtracting Rs 213,016 ... Rs 1,453,177 payable" reaches the balance, so it is kept.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+_NET_OF = re.compile(
+    r"\b(?:after|net of|accounting for|taking into account|inclusive of|including|less|minus)\b",
+    re.IGNORECASE,
+)
 
-def numbers_in(text: str) -> set[Decimal]:
-    """Every number written in digits, as a value: "Rs 72,000.00" and "72000" are the same."""
-    found: set[Decimal] = set()
-    for token in _NUMBER.findall(text):
-        try:
-            found.add(Decimal(token.replace(",", "")))
-        except InvalidOperation:
+
+def _names(numbers: set[Decimal], amount: Decimal | None) -> bool:
+    """True if the sentence writes this amount, exactly or before its s.219 rounding."""
+    return amount is not None and any(rupees(n) == abs(amount) for n in numbers)
+
+
+def _deduction_inside_the_tax(summary: str, result: TaxResult) -> bool:
+    sides = [
+        (result.salary_tax, result.salary_credit, result.salary_balance),
+        (result.profit_tax, result.profit_credit, result.profit_balance),
+    ]
+    for sentence in _SENTENCE_END.split(summary):
+        if not _NET_OF.search(sentence):
             continue
-    return found
+        numbers = numbers_in(sentence)
+        for tax, credit, balance in sides:
+            if not credit:  # nothing was taken off, so no relation to get wrong
+                continue
+            if _names(numbers, tax) and _names(numbers, credit) and not _names(numbers, balance):
+                return True
+    return False
 
 
 def breakdown_text(result: TaxResult) -> str:
@@ -73,14 +92,14 @@ def summary_is_safe(summary: str, result: TaxResult) -> bool:
 
     Known limit (research R8): a right number can still be attached to the wrong figure
     ("your tax is Rs 600,000"); the breakdown beside it is the authoritative answer."""
-    if _NUMBER_WORDS.search(summary) or _REFUND.search(summary):
+    if _REFUND.search(summary) or _deduction_inside_the_tax(summary, result):
         return False
     balances = [b for b in (result.salary_balance, result.profit_balance) if b is not None]
     if _PAYABLE_WORDS.search(summary) and not any(b > 0 for b in balances):
         return False
     if _OVERPAID_WORDS.search(summary) and not any(b < 0 for b in balances):
         return False
-    return numbers_in(summary) <= numbers_in(breakdown_text(result))
+    return uses_only_numbers_from(summary, breakdown_text(result))
 
 
 class Summariser(Protocol):  # pylint: disable=too-few-public-methods
@@ -100,8 +119,11 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
         model: str,
         effort: str,
         http_client: httpx2.AsyncClient | None = None,
+        instructions: str = INSTRUCTIONS,
     ) -> None:
         self._api_key = api_key
+        # The tax page's by default; the wealth page (005) passes its own.
+        self._instructions = instructions
         self._model = model
         self._effort = effort
         self._http_client = http_client
@@ -122,7 +144,7 @@ class GeminiSummariser:  # pylint: disable=too-few-public-methods
                 model=self._model,
                 contents=breakdown,
                 config=types.GenerateContentConfig(
-                    system_instruction=INSTRUCTIONS,
+                    system_instruction=self._instructions,
                     thinking_config=types.ThinkingConfig(
                         thinking_level=THINKING_LEVELS[self._effort]
                     ),

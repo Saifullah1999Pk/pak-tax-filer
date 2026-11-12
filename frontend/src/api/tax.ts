@@ -23,13 +23,22 @@ export type TaxResult = {
   profit_balance: string | null;
   /** Non-ATL users only: withholding above the profit tax, "to be confirmed". */
   non_atl_extra_withheld: string | null;
+  /** Tax deducted by employers (what the salary side was reduced by). */
+  salary_credit: string | null;
+  /** Tax withheld by banks, as counted against the profit tax. */
+  profit_credit: string | null;
   steps: TaxStep[];
-  summary: string | null;
   label: string;
 };
 
 export const getTax = (taxYear: string) =>
   apiFetch<TaxResult>(`/api/tax/${encodeURIComponent(taxYear)}`);
+
+/** The checked AI summary, on its own so the figures never wait for it (feature 001, US6). */
+export const getTaxSummary = (taxYear: string) =>
+  apiFetch<{ summary: string | null }>(
+    `/api/tax/${encodeURIComponent(taxYear)}/summary`,
+  );
 
 /**
  * "Rs 1,234,567.5" from "1234567.5": digit grouping on the string itself, so the value is
@@ -47,4 +56,24 @@ export function balanceWords(balance: string, overpaid: string): string {
     return "Nothing to pay";
   }
   return `${rupees(balance)} ${balance.startsWith("-") ? overpaid : "payable"}`;
+}
+
+// Feature 001, task T066: amounts repeated with digit grouping beneath their fields.
+
+/** A plain amount as typed or stored: digits, an optional "-" and decimals. */
+const PLAIN_AMOUNT = /^-?\d+(\.\d+)?$/;
+
+/**
+ * "Rs 7,635,000.00" for "7635000.00", or null when there's nothing worth repeating: not a plain
+ * amount, or too short to need grouping. String formatting only, never arithmetic (Principle I).
+ */
+export function groupedAmount(value: unknown): string | null {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (
+    !PLAIN_AMOUNT.test(text) ||
+    text.replace(/^-/, "").split(".")[0].length < 4
+  ) {
+    return null;
+  }
+  return `${text.startsWith("-") ? "−" : ""}${rupees(text)}`;
 }

@@ -44,7 +44,7 @@ export function LoginPage() {
   return (
     <main>
       <h1>Log in</h1>
-      <p>
+      <p className="notice">
         <strong>Demo data only.</strong> Do not enter real personal information.
       </p>
       {notice && <p role="status">{notice}</p>}
@@ -54,6 +54,7 @@ export function LoginPage() {
           <input
             type="email"
             autoComplete="username"
+            spellCheck={false}
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -83,7 +84,7 @@ export function LoginPage() {
       <p>
         New here? <Link to="/signup">Create an account</Link>
       </p>
-      <p>
+      <p className="hint">
         Password reset isn't available yet: this is a demo, so ask the developer
         for help.
       </p>

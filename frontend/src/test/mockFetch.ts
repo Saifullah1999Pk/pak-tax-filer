@@ -62,3 +62,6 @@ export const noProfile = (): FakeReply => ({
   status: 200,
   body: { profile: null, supported_tax_years: ["2025-26"] },
 });
+
+/** GET /api/documents with nothing uploaded: Home asks for it (feature 001, User Story 6). */
+export const noDocuments = (): FakeReply => ({ status: 200, body: [] });

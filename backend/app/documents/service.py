@@ -102,6 +102,9 @@ class ConfirmedDocument:
     id: uuid.UUID
     doc_type: DocType
     values: Mapping[FieldName, Decimal | str]
+    # When it was uploaded: original file names aren't stored (R4), so other features name a
+    # certificate by its type and this (005, auto-filled lines).
+    uploaded_at: datetime | None = None
 
 
 async def create_document(  # pylint: disable=too-many-arguments  # all keyword-only
@@ -325,6 +328,7 @@ async def confirmed_documents(
         ConfirmedDocument(
             id=document.id,
             doc_type=document.doc_type,
+            uploaded_at=document.created_at,
             values={
                 f.name: value for f in document.fields if (value := field_value(f)) is not None
             },

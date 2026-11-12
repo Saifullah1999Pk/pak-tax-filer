@@ -119,6 +119,9 @@ async def test_confirmed_certificates_are_summed_and_calculated(
     assert body["salary_balance"] == "3000"
     assert body["profit_balance"] == "0"
     assert body["non_atl_extra_withheld"] is None
+    # What was taken off each side, so the page can show tax - credit = balance (001 US6).
+    assert body["salary_credit"] == "69000"
+    assert body["profit_credit"] == "20000"
     assert len(body["steps"]) == 5
     assert set(body["steps"][0]) == {"description", "rule_location", "result"}
     assert body["steps"][0]["result"] == "72000"
@@ -157,6 +160,8 @@ async def test_atl_status_comes_from_the_profile_not_the_query(
 
     assert body["non_atl_extra_withheld"] == "40000"
     assert body["profit_balance"] == "0"
+    # Off the ATL only withholding up to the profit tax counts; the rest is the extra above.
+    assert body["profit_credit"] == "40000"
 
 
 async def test_without_a_profile_it_asks_for_the_atl_status(
@@ -169,8 +174,16 @@ async def test_without_a_profile_it_asks_for_the_atl_status(
 
     assert body["blocked_reason"] == "needs_atl_answer"
     assert body["message"] == "Set your ATL status in your profile."
-    money = ["salary_tax", "surcharge", "profit_tax", "salary_balance", "profit_balance"]
-    assert all(body[name] is None for name in [*money, "non_atl_extra_withheld", "summary"])
+    money = [
+        "salary_tax",
+        "surcharge",
+        "profit_tax",
+        "salary_balance",
+        "profit_balance",
+        "salary_credit",
+        "profit_credit",
+    ]
+    assert all(body[name] is None for name in [*money, "non_atl_extra_withheld"])
     assert body["steps"] == []
     assert body["label"] == LABEL
 
@@ -184,7 +197,40 @@ async def test_without_a_confirmed_salary_certificate_it_says_so(client: AsyncCl
     assert "salary certificate" in body["message"]
 
 
-async def test_a_checked_summary_is_returned_with_the_breakdown(
+class RecordingSummariser:  # pylint: disable=too-few-public-methods
+    """Counts how often the AI would be asked."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def write(self, breakdown: str) -> str | None:
+        """Count the call; write nothing."""
+        del breakdown
+        self.calls += 1
+        return None
+
+
+async def test_the_figures_never_wait_for_the_summary(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if the result asks the AI, or still carries a summary (feature 001, US6: the page
+    shows its figures at once and loads the summary separately)."""
+    await add_document(
+        db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
+    )
+    recorder = RecordingSummariser()
+    app.dependency_overrides[get_summariser] = lambda: recorder
+    try:
+        body = (await client.get("/api/tax/2025-26")).json()
+    finally:
+        app.dependency_overrides.pop(get_summariser, None)
+
+    assert recorder.calls == 0
+    assert "summary" not in body
+    assert body["salary_tax"] == "72000"
+
+
+async def test_the_summary_request_returns_a_checked_summary(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
     """Fails if a safe summary is lost, or an unsafe one reaches the user (FR-011)."""
@@ -197,12 +243,34 @@ async def test_a_checked_summary_is_returned_with_the_breakdown(
     ]:
         app.dependency_overrides[get_summariser] = lambda text=text: FakeSummariser(text)
         try:
-            body = (await client.get("/api/tax/2025-26")).json()
+            response = await client.get("/api/tax/2025-26/summary")
         finally:
             app.dependency_overrides.pop(get_summariser, None)
 
-        assert (body["summary"] == text) is expected
-        assert len(body["steps"]) == 5  # the breakdown is always there
+        assert response.status_code == 200
+        assert response.json() == {"summary": text if expected else None}
+
+
+async def test_a_blocked_result_has_no_summary(client: AsyncClient, logged_in_user: User) -> None:
+    """Fails if a refusal (here: no profile, so no ATL answer) gets an AI summary."""
+    del logged_in_user
+    app.dependency_overrides[get_summariser] = lambda: FakeSummariser("Rs 1")
+    try:
+        response = await client.get("/api/tax/2025-26/summary")
+    finally:
+        app.dependency_overrides.pop(get_summariser, None)
+
+    assert response.json() == {"summary": None}
+
+
+async def test_the_summary_request_needs_login_and_a_known_year(
+    client: AsyncClient, user_with_profile: User
+) -> None:
+    """Fails if the summary is open to anyone, or answers for a year without rates."""
+    del user_with_profile
+    assert (await client.get("/api/tax/2019-20/summary")).status_code == 404
+    await client.post("/api/auth/logout", json={})
+    assert (await client.get("/api/tax/2025-26/summary")).status_code == 401
 
 
 async def test_another_users_certificates_are_never_counted(

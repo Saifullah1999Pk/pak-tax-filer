@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TaxResult } from "../api/tax";
 import { hasProfile, mockFetch } from "../test/mockFetch";
@@ -21,6 +21,8 @@ const CALCULATED: TaxResult = {
   salary_balance: "12000",
   profit_balance: "-4000",
   non_atl_extra_withheld: null,
+  salary_credit: "60000",
+  profit_credit: "24000",
   steps: [
     {
       description:
@@ -35,7 +37,6 @@ const CALCULATED: TaxResult = {
       result: "20000",
     },
   ],
-  summary: null,
   label: LABEL,
 };
 
@@ -43,7 +44,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function showTax(result: Partial<TaxResult>) {
+/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
+type Summary = string | null | "pending";
+
+function showTax(result: Partial<TaxResult>, summary: Summary = null) {
   const reply = (): FakeReply => ({
     status: 200,
     body: { ...CALCULATED, ...result },
@@ -52,6 +56,10 @@ function showTax(result: Partial<TaxResult>) {
     "GET /api/auth/me": () => ME,
     "GET /api/profile": hasProfile,
     "GET /api/tax/2025-26": reply,
+    "GET /api/tax/2025-26/summary": () =>
+      summary === "pending"
+        ? new Promise<FakeReply>(() => {})
+        : { status: 200, body: { summary } },
   });
 }
 
@@ -73,7 +81,10 @@ test("asks for the profile's tax year and never asks for ATL status itself", asy
   renderApp("/tax");
 
   await screen.findByRole("heading", { name: /your tax for 2025-26/i });
-  expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything());
+  // The heading shows before the page asks for its tax, so wait for the request.
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26", expect.anything()),
+  );
   expect(screen.queryByText(/active taxpayer/i)).toBeNull();
   expect(screen.queryByRole("radio")).toBeNull();
 });
@@ -113,7 +124,7 @@ test("the breakdown shows every step with its rule location", async () => {
 });
 
 test("the summary is shown only when the API sends one", async () => {
-  showTax({ summary: "Your salary tax is Rs 72,000; Rs 12,000 is payable." });
+  showTax({}, "Your salary tax is Rs 72,000; Rs 12,000 is payable.");
   const first = renderApp("/tax");
   await screen.findByText(
     /Your salary tax is Rs 72,000; Rs 12,000 is payable\./,
@@ -121,10 +132,38 @@ test("the summary is shown only when the API sends one", async () => {
   first.unmount();
   vi.unstubAllGlobals();
 
-  showTax({ summary: null });
+  showTax({}, null);
   renderApp("/tax");
   await screen.findByRole("list", { name: /how it was worked out/i });
+  await waitFor(() =>
+    expect(screen.queryByText(/writing a short summary/i)).toBeNull(),
+  );
   expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+});
+
+// Feature 001, User Story 6: the figures never wait for the AI summary, which has its own request.
+
+test("the figures show while the summary is still being written", async () => {
+  showTax({}, "pending");
+  renderApp("/tax");
+
+  await screen.findByRole("region", { name: /salary/i });
+  const panel = screen.getByRole("region", { name: /summary/i });
+  within(panel).getByText("Writing a short summary…");
+});
+
+test("a refused calculation never asks for a summary", async () => {
+  const fake = showTax(
+    blocked("needs_atl_answer", "Set your ATL status in your profile."),
+    "Rs 1",
+  );
+  renderApp("/tax");
+
+  await screen.findByText("Set your ATL status in your profile.");
+  const asked = fake.mock.calls.some(([url]) =>
+    String(url).endsWith("/summary"),
+  );
+  expect(asked).toBe(false);
 });
 
 test("without ATL status it links to the profile, with no figures", async () => {
@@ -227,4 +266,73 @@ test("an error reply is shown instead of the result", async () => {
 
   const alert = await screen.findByRole("alert");
   expect(alert.textContent).toBe("No rates for that tax year.");
+});
+
+// Feature 001, User Story 6, task T054: the answer first. Each side's balance is its headline,
+// above the parts it is made of; the summary and the breakdown come after both sides.
+
+const follows = (first: Node, second: Node) =>
+  Boolean(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+
+test("the label comes first, then each side's balance as its headline, then the detail", async () => {
+  showTax({}, "Your tax is Rs 72,000.");
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  const profit = screen.getByRole("region", { name: /bank profit/i });
+  await screen.findByText("Your tax is Rs 72,000.");
+  expect(follows(screen.getByText(LABEL), salary)).toBe(true);
+  expect(
+    follows(
+      within(salary).getByText("Rs 12,000 payable"),
+      within(salary).getByText("Rs 72,000"),
+    ),
+  ).toBe(true);
+  expect(
+    follows(
+      within(profit).getByText("Rs 4,000 over-withheld"),
+      within(profit).getByText("Rs 20,000"),
+    ),
+  ).toBe(true);
+  expect(
+    follows(profit, screen.getByRole("region", { name: /summary/i })),
+  ).toBe(true);
+  expect(
+    follows(
+      profit,
+      screen.getByRole("list", { name: /how it was worked out/i }),
+    ),
+  ).toBe(true);
+  expect(screen.queryByText(/total/i)).toBeNull();
+});
+
+test("while the tax is worked out, 'Calculating…' is announced (task T062)", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/tax/2025-26": () => new Promise(() => {}),
+  });
+  renderApp("/tax");
+
+  // The page's own heading first: the profile's loading message is also a status.
+  await screen.findByRole("heading", { name: /your tax for 2025-26/i });
+  expect(screen.getByRole("status").textContent).toBe("Calculating…");
+});
+
+// Feature 001, User Story 6: each side reads as a sum (tax, less what was already taken, then
+// the balance), with the credits as the API gives them; the page adds nothing up itself.
+
+test("each side shows what was already taken off, so it reads as a sum", async () => {
+  showTax({});
+  renderApp("/tax");
+
+  const salary = await screen.findByRole("region", { name: /salary/i });
+  within(salary).getByText("Less tax deducted by employers");
+  within(salary).getByText("− Rs 60,000");
+  const profit = screen.getByRole("region", { name: /bank profit/i });
+  within(profit).getByText("Less tax withheld by banks");
+  within(profit).getByText("− Rs 24,000");
+  expect(screen.queryByText(/total/i)).toBeNull();
 });
