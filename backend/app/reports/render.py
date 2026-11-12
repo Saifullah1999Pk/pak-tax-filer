@@ -9,7 +9,6 @@ from typing import Any
 
 import anyio
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
-from weasyprint import HTML
 
 _TEMPLATES = Environment(
     loader=FileSystemLoader(Path(__file__).parent / "templates"),
@@ -57,6 +56,11 @@ def _no_fetching(url: str, *args: Any, **kwargs: Any) -> Any:
 
 def _render(template: str, context: dict[str, Any]) -> bytes:
     html = _TEMPLATES.get_template(template).render(**context)
+    # Imported here, not at the top: WeasyPrint loads Pango when imported, which only the Docker
+    # image and CI have, and the app (and the contract check, run on the developer's machine)
+    # must import without it.
+    from weasyprint import HTML  # pylint: disable=import-outside-toplevel
+
     pdf: bytes = HTML(string=html, url_fetcher=_no_fetching).write_pdf()
     return pdf
 

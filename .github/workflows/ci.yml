@@ -91,6 +91,23 @@ jobs:
       - name: Guardrail suite
         run: uv run pytest tests/guardrails
 
+  # Every started feature's contracts against the app (feature 001, User Story 7; issue #16):
+  # endpoints, tables, MCP tools and finished task lists. docs/contracts.md explains the messages.
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.13.6"
+      - run: uv sync --frozen --project backend
+      - name: The check's own tests
+        run: uv run --project backend pytest scripts/tests
+      - name: Contract check
+        env:
+          OTEL_EXPORTER: none
+        run: uv run --project backend python scripts/validate_contracts.py --all
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

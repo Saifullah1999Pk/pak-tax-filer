@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from app.auth.router import router as auth_router
 from app.documents.router import router as documents_router
@@ -44,7 +45,13 @@ async def validation_error(_request: Request, exc: RequestValidationError) -> JS
     )
 
 
+class HealthOut(BaseModel):
+    """The health reply (declared, as every route's response is: docs/api-conventions.md)."""
+
+    status: str
+
+
 @app.get("/health")
-def health() -> dict[str, str]:
+def health() -> HealthOut:
     """Liveness check: specs/001-repo-foundations/contracts/health.md (spec FR-003)."""
-    return {"status": "ok"}
+    return HealthOut(status="ok")
