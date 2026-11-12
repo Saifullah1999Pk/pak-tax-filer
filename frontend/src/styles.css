@@ -1566,8 +1566,16 @@ ul.panel {
   max-width: 48rem;
 }
 
+.ask-form label {
+  margin-bottom: 0; /* the form's own gap spaces it */
+}
+
 .ask-form button {
   justify-self: start;
+}
+
+.ask-answer {
+  margin-top: var(--s-3);
 }
 
 .sources {
