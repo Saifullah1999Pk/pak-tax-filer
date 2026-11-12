@@ -45,7 +45,8 @@ Each decision: what was chosen, why, and what else was considered.
 
 - **Decision:** `.importlinter` "forbidden" contracts: `app.tax.engine`, `app.tax.rates` and
   `app.wealth.reconcile` may not import `google.genai`, `app.documents.extraction`, `app.rag`,
-  `app.workflow.agents` or `app.workflow.client` (amended 2026-11-12: was `anthropic`).
+  `app.workflow.agents` or `app.workflow.client` (amended 2026-11-12: was `anthropic`; import-linter
+  can only forbid an outside package whole, so the rule names `google`).
   Run by `lint-imports` in the guardrails job. 005's
   `test_reconcile_imports.py` stays and is listed in the suite README.
 - **Rationale:** enforces Principle I by structure (design approach B).

@@ -65,7 +65,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 **Independent Test**: [quickstart.md](quickstart.md) scenario 2.
 
-- [ ] T010 [P] [US2] Create `.importlinter` with forbidden contracts per research R4 (`app.tax.engine`, `app.tax.rates`, `app.wealth.reconcile` may not import `google.genai`, `app.documents.extraction`, `app.rag`, `app.workflow.agents`, `app.workflow.client`); `lint-imports` passes
+- [x] T010 [P] [US2] Create `backend/.importlinter` with forbidden contracts per research R4 (`app.tax.engine`, `app.tax.rates`, `app.wealth.reconcile` may not import `google` (whole: import-linter refuses `google.genai`), `app.documents.extraction`, `app.rag`, `app.workflow.agents`, `app.workflow.client`); `lint-imports` passes
 - [ ] T011 [P] [US2] Write `backend/tests/guardrails/test_principle_1.py` per research R5: fake clients from 003–007 return made-up numbers; tax, wealth and workflow results equal the worked-example values
 - [ ] T012 [P] [US2] Write `backend/tests/guardrails/test_principle_3.py`: a user with one confirmed and one `needs_review` certificate; the unconfirmed one is absent from `GET /api/tax`, `GET /api/wealth`, `calculate_income_tax` and the workflow gate; `GET /api/workflow/result` and its PDF without approval → `409`
 - [ ] T013 [P] [US2] Write `backend/tests/guardrails/test_principle_4.py`: assistant answers in corpus are cited and number-checked (including scales such as "10m") and out-of-corpus and Urdu questions are refused (fake client); 007's research passages come only from search; every result endpoint returns the label; every PDF page carries the banner
