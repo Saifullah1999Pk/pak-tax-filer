@@ -23,11 +23,11 @@ from opentelemetry.sdk.trace.export import (
     SimpleSpanProcessor,
     SpanExporter,
 )
-from opentelemetry.trace import SpanKind, Status
+from opentelemetry.trace import SpanKind, Status, StatusCode
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.settings import get_settings
+from app.settings import otel_exporter
 
 _db_tracer = trace.get_tracer("app.db")
 
@@ -103,20 +103,28 @@ def _provider() -> TracerProvider:
     os.environ.setdefault("OTEL_SEMCONV_STABILITY_OPT_IN", "http")
     provider = TracerProvider(resource=Resource.create({"service.name": "pak-tax-filer-backend"}))
     trace.set_tracer_provider(provider)
-    exporter = exporter_for(get_settings().otel_exporter)
-    if exporter is not None:
-        provider.add_span_processor(_Filtered(BatchSpanProcessor(exporter)))
     return provider
 
 
 def add_exporter(exporter: SpanExporter, *, batch: bool = True) -> None:
-    """Send spans to one more exporter, through the same filter (tests add an in-memory one)."""
+    """Send spans to an exporter, through the filter: the only way any exporter is added (the
+    logs' own, and tests' in-memory one), so none can get unfiltered spans."""
     inner = BatchSpanProcessor(exporter) if batch else SimpleSpanProcessor(exporter)
     _provider().add_span_processor(_Filtered(inner))
 
 
+@lru_cache(maxsize=1)
+def _logs() -> None:
+    """The logs' exporter, added once (unless OTEL_EXPORTER is "none")."""
+    # Read on its own, not through get_settings(), so importing the app needs no DATABASE_URL.
+    exporter = exporter_for(otel_exporter(os.environ))
+    if exporter is not None:
+        add_exporter(exporter)
+
+
 def configure(app: FastAPI) -> None:
-    """Instrument the app's requests (database engines: `instrument_engine`)."""
+    """Spans to the logs, and the app's requests instrumented (engines: `instrument_engine`)."""
+    _logs()
     # One span per request, not one per ASGI message as well.
     FastAPIInstrumentor.instrument_app(
         app, tracer_provider=_provider(), exclude_spans=["receive", "send"]
@@ -164,11 +172,13 @@ def _after(  # pylint: disable=too-many-arguments,too-many-positional-arguments
 
 
 def _failed(exception_context: Any) -> None:
-    _end(exception_context.execution_context)
+    _end(exception_context.execution_context, failed=True)
 
 
-def _end(context: Any) -> None:
+def _end(context: Any, *, failed: bool = False) -> None:
     span = getattr(context, _SPAN, None)
     if span is not None:
+        if failed:
+            span.set_status(Status(StatusCode.ERROR))  # the code only: no error text
         span.end()
         setattr(context, _SPAN, None)

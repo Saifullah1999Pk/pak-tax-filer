@@ -1,8 +1,9 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { TaxResult } from "../api/tax";
 import { hasProfile, mockFetch } from "../test/mockFetch";
 import type { FakeReply } from "../test/mockFetch";
+import { catchDownloads } from "../test/downloads";
 import { renderApp } from "../test/renderApp";
 
 // The tax result page, per specs/004-tax-engine/contracts/tax-api.md (tasks T013, T019, T023).
@@ -56,6 +57,7 @@ function showTax(result: Partial<TaxResult>, summary: Summary = null) {
     "GET /api/auth/me": () => ME,
     "GET /api/profile": hasProfile,
     "GET /api/tax/2025-26": reply,
+    "GET /api/tax/2025-26/pdf": () => ({ status: 200, body: {} }),
     "GET /api/tax/2025-26/summary": () =>
       summary === "pending"
         ? new Promise<FakeReply>(() => {})
@@ -339,19 +341,26 @@ test("each side shows what was already taken off, so it reads as a sum", async (
 
 // ---- PDF export (feature 008, task T008) ----
 
-test("a calculated result offers its PDF", async () => {
-  showTax({});
+test("a calculated result downloads its PDF", async () => {
+  const fetch = showTax({});
+  const saved = catchDownloads();
   renderApp("/tax");
 
-  const link = await screen.findByRole("link", { name: "Download PDF" });
-  expect(link.getAttribute("href")).toBe("/api/tax/2025-26/pdf");
+  const button = await screen.findByRole("button", { name: "Download PDF" });
+  expect(button.getAttribute("aria-disabled")).toBe("false");
+  fireEvent.click(button);
+
+  await waitFor(() => expect(saved).toHaveLength(1));
+  expect(fetch).toHaveBeenCalledWith("/api/tax/2025-26/pdf", expect.anything());
 });
 
 test("a blocked result says why there is no PDF", async () => {
   showTax(blocked("needs_atl_answer", "Set your ATL status in your profile."));
   renderApp("/tax");
 
-  const button = await screen.findByRole("button", { name: "Download PDF" });
+  const button = await screen.findByRole("button", {
+    name: "Download PDF",
+    description: "No PDF until this result can be calculated.",
+  });
   expect(button.getAttribute("aria-disabled")).toBe("true");
-  expect(screen.queryByRole("link", { name: "Download PDF" })).toBeNull();
 });

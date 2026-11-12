@@ -75,11 +75,14 @@ def ai_call(
         except (TimeoutError, asyncio.CancelledError):
             call.outcome = "timeout"
             raise
-        except Exception:
+        except BaseException:  # any other error, or the coroutine closed or interrupted
             call.outcome = "fallback"
             raise
         finally:
-            _current.reset(token)
+            try:
+                _current.reset(token)
+            except ValueError:  # a coroutine closed from another context (garbage collection)
+                pass
             span.set_attribute("app.outcome", call.outcome)
 
 

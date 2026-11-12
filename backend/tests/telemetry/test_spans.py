@@ -8,8 +8,12 @@ the fake AI clients, as everywhere else.
 # pytest fixtures receive other fixtures by name.
 # pylint: disable=redefined-outer-name
 
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import httpx2
@@ -18,7 +22,10 @@ from document_helpers import PROFILE_YEAR, add_confirmed_document, make_pdf, upl
 from httpx2 import AsyncClient
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import ConsoleSpanExporter
+from opentelemetry.trace import StatusCode
 from rag_helpers import QUESTION, a_corpus, a_user, reply
+from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from telemetry_helpers import Spans
 from wealth_statement import STATEMENT
@@ -35,7 +42,7 @@ from app.settings import get_settings
 from app.tax.engine import TaxInputs, calculate
 from app.tax.rates import rates_for
 from app.tax.summary import FakeSummariser, GeminiSummariser, verified_summary
-from app.telemetry.setup import exporter_for
+from app.telemetry.setup import _Filtered, _provider, exporter_for
 from app.wealth.router import get_wealth_summariser
 from app.workflow.client import FakeAgentClient, Script
 from app.workflow.router import get_agent_client
@@ -262,3 +269,39 @@ def test_the_default_exporter_is_the_console_and_none_records_nothing() -> None:
     """Fails if spans go anywhere but the logs by default, or "none" still exports (FR-013)."""
     assert isinstance(exporter_for("console"), ConsoleSpanExporter)
     assert exporter_for("none") is None
+
+
+def test_every_exporter_gets_only_filtered_spans() -> None:
+    """Fails if any exporter (the logs' included) is added without the attribute filter, which
+    would let full URLs, addresses or SQL reach the logs (FR-012)."""
+    # pylint: disable=protected-access  # the provider's processors aren't public
+    processors = _provider()._active_span_processor._span_processors
+    assert processors
+    assert all(isinstance(processor, _Filtered) for processor in processors)
+
+
+def test_importing_the_app_needs_no_database_url() -> None:
+    """Fails if telemetry's setup makes importing the app need DATABASE_URL (it reads only
+    OTEL_EXPORTER), which would break test collection outside Docker."""
+    environ = {k: v for k, v in os.environ.items() if k != "DATABASE_URL"}
+    environ["OTEL_EXPORTER"] = "none"
+    done = subprocess.run(
+        [sys.executable, "-c", "import app.main"],
+        env=environ,
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr.decode()[-500:]
+
+
+async def test_a_failed_statement_ends_its_span_as_an_error(db: AsyncSession, spans: Spans) -> None:
+    """Fails if a statement that errors leaves no span, or one marked as a success, or one
+    holding the statement or the error's text."""
+    with pytest.raises(DBAPIError):
+        await db.execute(text("SELECT 1 / 0"))
+
+    (failed,) = [s for s in spans.all() if s.status.status_code is StatusCode.ERROR]
+    assert failed.name == "SELECT"
+    assert dict(failed.attributes or {}) == {"db.system.name": "postgresql"}
+    assert failed.status.description is None

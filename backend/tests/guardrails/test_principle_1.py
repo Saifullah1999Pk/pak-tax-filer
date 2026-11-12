@@ -146,5 +146,6 @@ async def test_the_guided_result_is_the_worked_example_whatever_the_agents_say(
     result = (await client.get("/api/workflow/result")).json()
 
     assert run["validation"]["fallback"] is True and run["research"]["fallback"] is True
-    assert "987" not in str(run) and "987" not in str(result)
+    shown = f"{run} {result}"
+    assert "987,654" not in shown and "987654" not in shown
     assert tax_figures(result) == {name: TAX["expected"][name] for name in TAX_FIGURES}

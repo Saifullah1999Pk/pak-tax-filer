@@ -5,7 +5,7 @@ data), is built from that same result recalculated now, and is never stored. Blo
 and unapproved results export nothing (409 with the reason). No AI-written text is included.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -18,7 +18,13 @@ from app.documents.service import confirmed_documents
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
 from app.reports.render import render_pdf
-from app.reports.status import banner_head, tax_status, wealth_status, workflow_status
+from app.reports.status import (
+    PAKISTAN,
+    banner_head,
+    tax_status,
+    wealth_status,
+    workflow_status,
+)
 from app.tax.engine import calculate
 from app.tax.rates import rates_for
 from app.tax.router import tax_out
@@ -50,7 +56,8 @@ def _known_year(tax_year: str) -> None:
 
 
 def _today() -> datetime:
-    return datetime.now(UTC)
+    """Today in Pakistan (the "generated" date)."""
+    return datetime.now(PAKISTAN)
 
 
 @router.get("/api/tax/{tax_year}/pdf")
@@ -61,7 +68,8 @@ async def tax_pdf(tax_year: str, user: CurrentUser, profile: Profile, db: DbSess
     result = calculate(tax_inputs_from(documents, tax_year, profile.on_atl), rates_for(tax_year))
     if result.blocked_reason is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, BLOCKED_MESSAGES[result.blocked_reason])
-    banner = [*banner_head(tax_year, _today()), *tax_status(documents, profile.tax_year)]
+    banner = [*banner_head(tax_year, _today()), *tax_status(documents, tax_year)]
+    await db.commit()  # end the read transaction; nothing waits in it while the PDF renders
     content = await render_pdf("tax.html", banner=banner, result=tax_out(result), passages=[])
     return _pdf(content, f"tax-{tax_year}.pdf")
 
@@ -75,6 +83,7 @@ async def wealth_pdf(tax_year: str, user: CurrentUser, profile: Profile, db: DbS
     if wealth.result.not_ready_reason is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, wealth.result.message or "Not ready.")
     banner = [*banner_head(tax_year, _today()), *wealth_status(wealth.auto_filled)]
+    await db.commit()  # end the read transaction; nothing waits in it while the PDF renders
     content = await render_pdf("wealth.html", banner=banner, wealth=wealth)
     return _pdf(content, f"wealth-{tax_year}.pdf")
 
@@ -96,5 +105,6 @@ async def workflow_pdf(ctx: Ctx) -> Response:
         *workflow_status(documents, tax_year, run.approved_at),
     ]
     passages = ((run.step_outputs or {}).get("research") or {}).get("passages", [])
+    await ctx.db.commit()  # end the read transaction; nothing waits in it while the PDF renders
     content = await render_pdf("tax.html", banner=banner, result=tax_out(tax), passages=passages)
     return _pdf(content, f"tax-{tax_year}.pdf")

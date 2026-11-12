@@ -6,7 +6,7 @@ starts with the same practitioner label the result screens show, so one string i
 """
 
 from collections.abc import Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 from app.documents.extraction.rules import check_rules
 from app.documents.models import DocType
@@ -15,6 +15,8 @@ from app.wealth.schemas import AutoFilledLine
 
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
 DEMO = "Demo data only."
+# Pakistan Standard Time (no daylight saving): dates read as the user's own day, not UTC's.
+PAKISTAN = timezone(timedelta(hours=5), "PKT")
 NO_WARNINGS = "No warnings"
 _TYPE_NAMES = {
     DocType.SALARY_CERTIFICATE: "Salary certificate",
@@ -44,7 +46,8 @@ def workflow_status(
     documents: Sequence[ConfirmedDocument], profile_tax_year: str, approved_at: datetime
 ) -> list[str]:
     """As the tax status, plus when the user approved the guided run's inputs."""
-    return [*tax_status(documents, profile_tax_year), f"Approved by you on {approved_at:%d %b %Y}"]
+    approved = approved_at.astimezone(PAKISTAN)
+    return [*tax_status(documents, profile_tax_year), f"Approved by you on {approved:%d %b %Y}"]
 
 
 def wealth_status(auto_filled: Sequence[AutoFilledLine]) -> list[str]:
@@ -63,7 +66,9 @@ def wealth_status(auto_filled: Sequence[AutoFilledLine]) -> list[str]:
 
 def _name(document: ConfirmedDocument) -> str:
     name = _TYPE_NAMES.get(document.doc_type, "Certificate")
-    return f"{name} uploaded {document.uploaded_at:%d %b %Y}" if document.uploaded_at else name
+    if document.uploaded_at is None:
+        return name
+    return f"{name} uploaded {document.uploaded_at.astimezone(PAKISTAN):%d %b %Y}"
 
 
 def _non_zero(amount: str) -> bool:

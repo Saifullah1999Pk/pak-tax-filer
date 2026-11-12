@@ -31,11 +31,11 @@ export function TaxResultView({
     <>
       <p className="notice">{result.label}</p>
       <DownloadPdfButton
-        href={pdfUrl}
+        url={pdfUrl}
         disabledReason={
           result.blocked_reason === null
             ? null
-            : "No PDF for a result that couldn't be calculated (see above)."
+            : "No PDF until this result can be calculated."
         }
       />
       {result.blocked_reason !== null ? (

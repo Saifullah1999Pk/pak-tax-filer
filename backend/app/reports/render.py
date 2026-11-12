@@ -7,13 +7,15 @@ Jinja2 HTML, then WeasyPrint. Figures are only formatted for reading, never calc
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from starlette.concurrency import run_in_threadpool
+import anyio
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 from weasyprint import HTML
 
 _TEMPLATES = Environment(
     loader=FileSystemLoader(Path(__file__).parent / "templates"),
     autoescape=select_autoescape(["html"]),
+    # A missing or renamed field fails the test rather than printing blank (FR-006).
+    undefined=StrictUndefined,
 )
 
 
@@ -41,13 +43,24 @@ def balance(amount: str | None, overpaid: str) -> str:
 
 _TEMPLATES.globals.update(rupees=rupees, balance=balance)
 
+# At most two renders at once: each takes about 70 MB, and the deployment is an e2-micro. Its own
+# limiter, so PDFs never use up the thread pool the rest of the app shares.
+_RENDERS = anyio.CapacityLimiter(2)
+
+
+def _no_fetching(url: str, *args: Any, **kwargs: Any) -> Any:
+    """Refuse every URL: the templates need none, so a template mistake can't make WeasyPrint
+    read a local file or the network."""
+    del args, kwargs
+    raise ValueError(f"PDFs fetch nothing (asked for {url[:40]}).")
+
 
 def _render(template: str, context: dict[str, Any]) -> bytes:
     html = _TEMPLATES.get_template(template).render(**context)
-    pdf: bytes = HTML(string=html).write_pdf()
+    pdf: bytes = HTML(string=html, url_fetcher=_no_fetching).write_pdf()
     return pdf
 
 
 async def render_pdf(template: str, **context: Any) -> bytes:
     """The PDF for a template and its context, rendered off the event loop."""
-    return await run_in_threadpool(_render, template, context)
+    return await anyio.to_thread.run_sync(_render, template, context, limiter=_RENDERS)

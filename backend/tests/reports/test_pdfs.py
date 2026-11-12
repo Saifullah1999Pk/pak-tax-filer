@@ -218,15 +218,21 @@ async def test_an_unapproved_guided_run_exports_nothing(
 async def test_pdfs_need_a_login_and_a_profile(client: AsyncClient, logged_in_user: User) -> None:
     """Fails if a PDF can be had without logging in, or without a profile."""
     del logged_in_user
-    for path in (f"/api/tax/{PROFILE_YEAR}/pdf", f"/api/wealth/{PROFILE_YEAR}/pdf"):
-        assert (await client.get(path)).status_code == 409  # logged in, no profile
+    paths = (
+        f"/api/tax/{PROFILE_YEAR}/pdf",
+        f"/api/wealth/{PROFILE_YEAR}/pdf",
+        "/api/workflow/result/pdf",
+    )
+    for path in paths:
+        assert (await client.get(path)).status_code == 409, path  # logged in, no profile
     await client.post("/api/auth/logout", json={})
-    for path in (f"/api/tax/{PROFILE_YEAR}/pdf", "/api/workflow/result/pdf"):
+    for path in paths:
         assert (await client.get(path)).status_code == 401
 
 
+@pytest.mark.parametrize("kind", ["tax", "wealth"])
 async def test_another_users_figures_are_never_exported(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User
+    client: AsyncClient, db: AsyncSession, user_with_profile: User, kind: str
 ) -> None:
     """Fails if one user's certificates could appear in another's PDF."""
     other = User(email="other-pdf@example.com", password_hash="not-a-real-hash")
@@ -235,9 +241,21 @@ async def test_another_users_figures_are_never_exported(
     await add_confirmed_document(db, other.id, DocType.SALARY_CERTIFICATE, SALARY)
     del user_with_profile
 
-    response = await client.get(f"/api/tax/{PROFILE_YEAR}/pdf")
+    response = await client.get(f"/api/{kind}/{PROFILE_YEAR}/pdf")
 
-    assert response.status_code == 409  # the logged-in user has no certificate of their own
+    # The logged-in user has no certificate of their own: the other user's isn't used.
+    assert response.status_code == 409
+    assert "profile" not in response.json()["detail"].lower()
+
+
+@pytest.mark.parametrize("kind", ["tax", "wealth"])
+@pytest.mark.usefixtures("user_with_profile")
+async def test_a_tax_year_without_rates_is_404(client: AsyncClient, kind: str) -> None:
+    """Fails if a PDF is attempted for a year the app has no rates for."""
+    response = await client.get(f"/api/{kind}/2019-20/pdf")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "No rates for that tax year."}
 
 
 async def test_an_approved_but_blocked_guided_run_exports_nothing(

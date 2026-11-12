@@ -28,5 +28,9 @@ merge (constitution, merge gates).
 
 ## Frontend
 
-`DownloadPdfButton` on the Tax page, the Wealth page and the workflow's result step: downloads
-the PDF; disabled with the reason when the endpoint would return `409`.
+`DownloadPdfButton` on the Tax page, the Wealth page and the workflow's result step: fetches the
+PDF through the API helper (`apiDownload`) and saves it under the server's file name; disabled with
+the reason when the endpoint would return `409` (on the Wealth page also while there are unsaved
+changes, since the PDF is of the saved statement); an error that arrives anyway (e.g. `409` after
+a change in another tab, `401`) is shown on the page, never as a broken download (review
+2026-11-12).

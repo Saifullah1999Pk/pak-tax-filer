@@ -83,7 +83,7 @@ async def test_no_span_holds_user_content(
         "summary": SUMMARY,
         "agent text": AGENT_TEXT,
         "SQL": "FROM ",
-        "SQL parameters": "%(",
+        "SQL parameters": "$1",
     }
     for what, text in forbidden.items():
         assert text not in recorded, what

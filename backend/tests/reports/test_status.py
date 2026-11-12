@@ -95,3 +95,13 @@ def test_the_wealth_status_lists_provisional_lines_in_use() -> None:
         "Salary figures are from your confirmed certificates; other rows were entered by you",
         "No warnings",
     ]
+
+
+def test_dates_are_the_users_day_in_pakistan() -> None:
+    """Fails if a late-evening approval (after 19:00 UTC, already the next day in Pakistan)
+    shows the UTC date."""
+    late = datetime(2026, 11, 12, 20, 30, tzinfo=UTC)  # 01:30 on 13 Nov in Pakistan
+
+    status = workflow_status([salary("1800000")], "2025-26", late)
+
+    assert status[-1] == "Approved by you on 13 Nov 2026"

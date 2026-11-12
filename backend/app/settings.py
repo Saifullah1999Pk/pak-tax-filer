@@ -85,12 +85,13 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         ask_daily_limit=_positive_int(environ, "ASK_DAILY_LIMIT", default=200),
         workflow_model=environ.get("WORKFLOW_MODEL", "").strip() or "gemini-3.5-flash-lite",
         workflow_effort=_effort(environ, "WORKFLOW_EFFORT", default="minimal"),
-        otel_exporter=_exporter(environ),
+        otel_exporter=otel_exporter(environ),
     )
 
 
-def _exporter(environ: Mapping[str, str]) -> str:
-    """Where telemetry goes; anything but console or none is refused (no viewer in 008)."""
+def otel_exporter(environ: Mapping[str, str]) -> str:
+    """Where telemetry goes; anything but console or none is refused (no viewer in 008). Read
+    on its own by app.telemetry, so importing the app needs no DATABASE_URL."""
     exporter = environ.get("OTEL_EXPORTER", "console").strip().lower()
     if exporter not in ("console", "none"):
         raise ValueError(f"OTEL_EXPORTER must be console or none, not {exporter!r}.")
