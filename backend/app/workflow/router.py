@@ -4,6 +4,8 @@ HTTP only: the service runs the steps and enforces the gate. Every endpoint need
 taxpayer profile (002's require_profile: 409 "Set up your profile first.").
 """
 
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -12,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
-from app.db import get_db
+from app.db import get_db, get_sessionmaker
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
 from app.rag.embed import Embedder
@@ -26,7 +28,9 @@ from app.workflow.state import InvalidTransition
 
 router = APIRouter(prefix="/api/workflow", tags=["workflow"])
 
-NO_RUN = "No guided run yet."
+Sessions = Callable[[], AbstractAsyncContextManager[AsyncSession]]
+
+NO_RUN = service.NO_RUN
 APPROVAL_NEEDED = "Approval needed."
 _GATE_ONWARDS = (Step.GATE, Step.RESULT, Step.DONE)
 
@@ -41,21 +45,34 @@ def get_agent_client() -> AgentClient:
     )
 
 
-async def get_context(
+def get_tool_sessions() -> Sessions:
+    """Sessions for the agents' tools, separate from the request's (tests use their own)."""
+    return get_sessionmaker()
+
+
+async def get_context(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     user: Annotated[User, Depends(current_user)],
     profile: Annotated[TaxpayerProfile, Depends(require_profile)],
     db: Annotated[AsyncSession, Depends(get_db)],
     client: Annotated[AgentClient, Depends(get_agent_client)],
     embedder: Annotated[Embedder, Depends(get_embedder)],
+    tool_sessions: Annotated[Sessions, Depends(get_tool_sessions)],
 ) -> service.Context:
     """The request's user, profile, session and AI services, for the service."""
-    return service.Context(db=db, user=user, profile=profile, client=client, embedder=embedder)
+    return service.Context(
+        db=db,
+        user=user,
+        profile=profile,
+        client=client,
+        embedder=embedder,
+        tool_sessions=tool_sessions,
+    )
 
 
 Ctx = Annotated[service.Context, Depends(get_context)]
 
 
-async def run_out(ctx: service.Context, run: WorkflowRun) -> dict[str, Any]:
+def run_out(run: WorkflowRun) -> dict[str, Any]:
     """The contract's run object."""
     outputs = run.step_outputs or {}
     return {
@@ -66,7 +83,7 @@ async def run_out(ctx: service.Context, run: WorkflowRun) -> dict[str, Any]:
         "validation": outputs.get("validation"),
         "research": outputs.get("research"),
         "inputs_changed": bool(outputs.get("inputs_changed", False)),
-        "gate": await service.gate_view(ctx) if run.step in _GATE_ONWARDS else None,
+        "gate": outputs.get("gate") if run.step in _GATE_ONWARDS else None,
         "approved_at": run.approved_at.isoformat() if run.approved_at else None,
         "done_at": run.done_at.isoformat() if run.done_at else None,
     }
@@ -78,13 +95,13 @@ async def read_run(ctx: Ctx) -> dict[str, Any]:
     run = await service.get_run(ctx)
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, NO_RUN)
-    return await run_out(ctx, run)
+    return run_out(run)
 
 
 @router.post("/start", dependencies=[Depends(require_json)])
 async def start_run(ctx: Ctx) -> dict[str, Any]:
     """Start (or restart) the run: steps 1-3, then the gate or what's missing."""
-    return await run_out(ctx, await service.start(ctx))
+    return run_out(await service.start(ctx))
 
 
 class ApproveIn(BaseModel):
@@ -101,7 +118,9 @@ def _refused(error: InvalidTransition) -> HTTPException:
 async def approve_run(body: ApproveIn, ctx: Ctx) -> dict[str, Any]:
     """Record approval at the gate; 409 away from it or if the inputs changed since shown."""
     try:
-        return await run_out(ctx, await service.approve(ctx, body.fingerprint))
+        return run_out(await service.approve(ctx, body.fingerprint))
+    except service.NoRun as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_RUN) from error
     except InvalidTransition as error:
         raise _refused(error) from error
 
@@ -110,7 +129,9 @@ async def approve_run(body: ApproveIn, ctx: Ctx) -> dict[str, Any]:
 async def back_run(ctx: Ctx) -> dict[str, Any]:
     """Leave the gate for step 1."""
     try:
-        return await run_out(ctx, await service.back(ctx))
+        return run_out(await service.back(ctx))
+    except service.NoRun as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_RUN) from error
     except InvalidTransition as error:
         raise _refused(error) from error
 
@@ -131,6 +152,8 @@ async def read_result(ctx: Ctx) -> dict[str, Any]:
 async def mark_done(ctx: Ctx) -> dict[str, Any]:
     """Mark the run done; 409 before its result."""
     try:
-        return await run_out(ctx, await service.mark_done(ctx))
+        return run_out(await service.mark_done(ctx))
+    except service.NoRun as error:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, NO_RUN) from error
     except InvalidTransition as error:
         raise HTTPException(status.HTTP_409_CONFLICT, "Not at the result step.") from error

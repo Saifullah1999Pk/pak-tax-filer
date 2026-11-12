@@ -55,6 +55,9 @@ async def call_tool(
         return await getattr(tools, name)(**arguments)
     except TypeError as exc:
         raise AgentError(f"The agent called {name} with the wrong arguments.") from exc
+    except (AttributeError, ValueError) as exc:
+        # E.g. a number where the tool expects text (backend review M2).
+        raise AgentError(f"The agent called {name} with unusable arguments.") from exc
 
 
 @dataclass

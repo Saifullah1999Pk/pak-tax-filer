@@ -112,3 +112,16 @@ Each decision: what was chosen, why, and what else was considered.
   simple, and the messages tell the user why it takes several seconds.
 - **Alternatives:** one request per step (three round trips and partial runs to handle);
   streaming step results (shows text before its checks pass).
+
+## Amendments 2026-11-12 (from the backend review)
+
+- **R3:** the result is checked and calculated from one read of the certificates; the gate's
+  figures are stored with the step outputs from the same read as their fingerprint. Before steps
+  1–3 re-run, the outputs' fingerprint is cleared (so a run interrupted mid-way re-runs on the
+  next request) and the run row is locked (so a concurrent approval can't survive a restart).
+- **R4:** the agents' tools open their own short-lived database sessions, so a step cut off at
+  its time limit cancels only a tool's query, never the request's session. Any failure in an
+  agent step (including a tool argument of the wrong type) gives the plain result.
+- **R7:** `GET /api/workflow` can re-run steps 1–3 after an input change (one counted question
+  per change), a side effect of a GET accepted for simplicity; moving it behind a POST is
+  possible later.

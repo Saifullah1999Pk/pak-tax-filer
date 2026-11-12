@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 import yaml
@@ -22,10 +23,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.documents.models import DocType, Document
+from app.documents.models import DocType, Document, ExtractedField, FieldName
 from app.main import app
 from app.profile.service import save_profile
 from app.rag.models import AskRequest
+from app.workflow import service
 from app.workflow.client import FakeAgentClient, Script
 from app.workflow.models import WorkflowRun
 from app.workflow.router import get_agent_client
@@ -319,3 +321,138 @@ async def test_starting_a_done_run_resets_it(
     assert run["inputs_changed"] is False
     count = (await db.execute(select(func.count()).select_from(WorkflowRun))).scalar_one()
     assert count == 1
+
+
+# ---- Backend review fixes ----
+
+
+async def test_an_agent_passing_a_number_where_text_is_expected_falls_back(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a tool argument of the wrong type (Gemini sends a number) crashes the run
+    instead of giving the plain result (backend review M2)."""
+    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+    fake = FakeAgentClient(
+        {
+            "validation": Script(
+                calls=[
+                    (
+                        "validate_salary_information",
+                        {
+                            "tax_year": PROFILE_YEAR,
+                            "gross_salary": 2000000,
+                            "taxable_salary": "1800000",
+                            "tax_deducted": "75000",
+                        },
+                    )
+                ],
+                reply={"message": "Fine."},
+            )
+        }
+    )
+    app.dependency_overrides[get_agent_client] = lambda: fake
+    try:
+        response = await client.post(f"{URL}/start", json={})
+    finally:
+        app.dependency_overrides.pop(get_agent_client, None)
+
+    assert response.status_code == 200
+    assert response.json()["validation"]["fallback"] is True
+
+
+async def test_a_run_that_crashed_mid_way_re_runs_on_the_next_request(
+    client: AsyncClient,
+    db: AsyncSession,
+    user_with_profile: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fails if a failure between the reset and the end leaves a half-reset run that never
+    re-runs (backend review M2)."""
+    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+    await client.post(f"{URL}/start", json={})  # a finished run, then a restart that crashes
+    real = getattr(service, "research_step")
+
+    async def crash(*args: object, **kwargs: object) -> object:
+        raise RuntimeError("database went away")
+
+    monkeypatch.setattr("app.workflow.service.research_step", crash)
+    with pytest.raises(RuntimeError):
+        await client.post(f"{URL}/start", json={})
+    monkeypatch.setattr("app.workflow.service.research_step", real)
+
+    run = (await client.get(URL)).json()
+
+    assert run["step"] == "gate" and run["research"] is not None
+
+
+async def test_a_second_change_keeps_the_notice_and_approval_clears_it(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if "inputs changed" disappears on a second change before re-approving, or stays
+    after approving (backend review L6)."""
+    await approved_run(client, db, user_with_profile)
+    await save_profile(db, user_with_profile, PROFILE_YEAR, on_atl=False)
+    await client.get(URL)
+    await save_profile(db, user_with_profile, PROFILE_YEAR, on_atl=True)
+
+    run = (await client.get(URL)).json()
+    approved = (
+        await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
+    ).json()
+
+    assert run["inputs_changed"] is True
+    assert approved["inputs_changed"] is False
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [("post", "/approve"), ("post", "/back"), ("post", "/done")],
+)
+async def test_acting_on_no_run_is_404(
+    client: AsyncClient, user_with_profile: User, method: str, path: str
+) -> None:
+    """Fails if an action before any run answers differently from GET (backend review L8)."""
+    del user_with_profile
+    body = {"fingerprint": "x"} if path == "/approve" else {}
+
+    response = await getattr(client, method)(f"{URL}{path}", json=body)
+
+    assert response.status_code == 404 and response.json() == {"detail": "No guided run yet."}
+
+
+async def test_straight_after_a_change_the_result_and_done_are_refused(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if /result or /done (without a GET first) could use an approval for older inputs
+    (backend review L10)."""
+    await approved_run(client, db, user_with_profile)
+    await add_confirmed_document(
+        db, user_with_profile.id, DocType.BANK_PROFIT_CERTIFICATE, {"profit_amount": "1000"}
+    )
+
+    assert (await client.get(f"{URL}/result")).status_code == 409
+    assert (await client.post(f"{URL}/done", json={})).status_code == 409
+
+
+async def test_editing_a_confirmed_figure_after_approval_returns_to_the_gate(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if a changed figure on a confirmed certificate keeps the old approval (FR-013)."""
+    await approved_run(client, db, user_with_profile)
+    field = (
+        await db.execute(
+            select(ExtractedField)
+            .join(Document)
+            .where(
+                Document.user_id == user_with_profile.id,
+                ExtractedField.name == FieldName.TAXABLE_SALARY,
+            )
+        )
+    ).scalar_one()
+    field.amount = Decimal("1900000")
+    await db.flush()
+
+    run = (await client.get(URL)).json()
+
+    assert run["step"] == "gate" and run["approved_at"] is None
+    assert run["gate"]["figures"]["taxable_salary"] == "1900000.00"

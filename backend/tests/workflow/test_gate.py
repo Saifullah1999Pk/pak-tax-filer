@@ -140,6 +140,7 @@ async def test_two_approvals_at_once_record_one(test_database_url: str) -> None:
             profile=await get_profile(setup, user),  # type: ignore[arg-type]
             client=FakeAgentClient({}),
             embedder=FakeEmbedder(),
+            tool_sessions=sessions,
         )
         seen = (await service.start(ctx)).outputs_fingerprint
         await setup.commit()
@@ -154,6 +155,7 @@ async def test_two_approvals_at_once_record_one(test_database_url: str) -> None:
                 profile=profile,
                 client=FakeAgentClient({}),
                 embedder=FakeEmbedder(),
+                tool_sessions=sessions,
             )
             try:
                 await service.approve(ctx, seen or "")
@@ -192,3 +194,36 @@ async def test_back_from_the_gate_returns_to_the_start_and_needs_a_new_approval(
 def test_the_step_values_used_here_exist() -> None:
     """Guards the literals above against a renamed step."""
     assert Step.GATE.value == "gate" and Step.DOCUMENT.value == "document"
+
+
+async def test_the_result_uses_exactly_the_inputs_it_checked(
+    client: AsyncClient,
+    db: AsyncSession,
+    user_with_profile: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fails if a certificate confirmed between the gate check and the calculation reaches the
+    "approved" result (backend review H1): one read of the certificates must serve both."""
+    run = await at_the_gate(client, db, user_with_profile)
+    await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
+    real = getattr(service, "confirmed_documents")
+    inserted: list[bool] = []
+
+    async def read_then_someone_confirms(*args: object, **kwargs: object) -> object:
+        documents = await real(*args, **kwargs)
+        if not inserted:
+            inserted.append(True)
+            await add_confirmed_document(
+                db,
+                user_with_profile.id,
+                DocType.BANK_PROFIT_CERTIFICATE,
+                {"profit_amount": "50000", "tax_withheld": "0"},
+            )
+        return documents
+
+    monkeypatch.setattr(service, "confirmed_documents", read_then_someone_confirms)
+
+    response = await client.get(f"{URL}/result")
+
+    assert response.status_code == 200 and inserted
+    assert response.json()["profit_tax"] == "0"  # the bank certificate wasn't approved

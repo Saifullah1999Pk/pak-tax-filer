@@ -10,6 +10,7 @@ is unavailable, slow or not allowed (a question limit), the step shows its plain
 
 import asyncio
 import json
+import logging
 from collections.abc import Sequence
 from typing import Any, TypeVar
 
@@ -27,6 +28,7 @@ from app.workflow.settings import STEP_SECONDS
 from app.workflow.tools import AGENT_TOOLS, UPLOAD_PAGE, Toolbox
 
 Reply = TypeVar("Reply", bound=BaseModel)
+logger = logging.getLogger(__name__)
 
 COMMON = (
     "You help a salaried taxpayer in Pakistan through a guided tax return. Write 1 to 3 short, "
@@ -90,6 +92,11 @@ async def _ask(  # pylint: disable=too-many-arguments,too-many-positional-argume
         )
     except (AgentError, EmbeddingError, TimeoutError):
         return None
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        # Any other failure (a bad tool argument, the SDK, the database) also gives the plain
+        # result rather than a half-finished run (backend review M2). The type only is logged.
+        logger.warning("Workflow agent %s failed: %s", agent, type(exc).__name__)
+        return None
 
 
 # ---- Document step (FR-003) ----
@@ -100,7 +107,11 @@ async def document_step(client: AgentClient, tools: Toolbox, *, use_ai: bool) ->
     listed = await tools.list_confirmed_documents()
     types = {c["type"] for c in listed["certificates"]}
     missing = [] if DocType.SALARY_CERTIFICATE.value in types else ["salary_certificate"]
-    source = json.dumps(listed)
+    # Only what the message may mention: the labels and what's missing, not ids or timestamps,
+    # whose digits would otherwise count as allowed numbers (backend review L5).
+    source = json.dumps(
+        {"labels": [c["label"] for c in listed["certificates"]], "missing": missing}
+    )
     if use_ai:
         answer = await _ask(
             client, "document", DOCUMENT_INSTRUCTIONS, f"Missing: {missing}", tools, _Message
@@ -258,7 +269,8 @@ async def _plain_research(tools: Toolbox, income: list[DocType]) -> dict[str, An
 
 
 async def _search(tools: Toolbox, query: str) -> list[RetrievedPassage]:
-    result = await search(tools.db, tools.embedder, query)
+    async with tools.sessions() as db:
+        result = await search(db, tools.embedder, query)
     return list(result.passages) if result.covered else []
 
 

@@ -1,5 +1,7 @@
 """Shared test data for feature 006: a small corpus, a user and a faithful model reply."""
 
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,3 +93,14 @@ class SpyEmbedder(FakeEmbedder):
         """Record the question, then embed it as the fake does."""
         self.questions.append(text)
         return await super().embed_query(text)
+
+
+def sessions_of(db: AsyncSession) -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
+    """A session factory that always hands out the test's own (rolled-back) session, for code
+    that opens its own sessions (007's agent tools)."""
+
+    @asynccontextmanager
+    async def sessions() -> AsyncIterator[AsyncSession]:
+        yield db
+
+    return sessions

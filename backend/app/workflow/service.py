@@ -8,6 +8,8 @@ their plain results. Re-running clears any approval, so the result is only ever 
 the user approved (Principle III). The tax result itself is never stored.
 """
 
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -18,13 +20,13 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.documents.service import confirmed_documents
+from app.documents.service import ConfirmedDocument, confirmed_documents
 from app.profile.models import TaxpayerProfile
 from app.rag.embed import Embedder
 from app.rag.service import use_question
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
-from app.tax.service import tax_inputs
+from app.tax.service import tax_inputs_from
 from app.workflow.agents import document_step, research_step, validation_step
 from app.workflow.client import AgentClient
 from app.workflow.fingerprint import fingerprint
@@ -44,20 +46,34 @@ class Context:
     profile: TaxpayerProfile
     client: AgentClient
     embedder: Embedder
+    # Sessions for the agents' tools, separate from the request's (backend review M3).
+    tool_sessions: Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 
 async def get_run(ctx: Context) -> WorkflowRun | None:
     """The user's run for the profile's tax year, re-running steps 1-3 first if the inputs
     changed since they ran; None if no run was started."""
-    run = await _find(ctx)
-    if run is None:
-        return None
-    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
-    current = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
-    if run.outputs_fingerprint != current:
-        # Says so on the page if an approval is being cleared (FR-013).
-        await _run_steps(ctx, run, Event.INPUTS_CHANGED, after_approval=run.approved_at is not None)
+    run, _ = await _current(ctx)
     return run
+
+
+async def _current(ctx: Context) -> tuple[WorkflowRun | None, list[ConfirmedDocument]]:
+    """The run, brought up to date with the inputs, and the one read of the certificates it is
+    now up to date with: callers check the gate and calculate from this same read, so nothing
+    confirmed in between can reach an approved result (backend review H1)."""
+    run = await _find(ctx)
+    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
+    if run is not None and run.outputs_fingerprint != _fingerprint(ctx, documents):
+        # Says so on the page if an approval is being cleared, until approve or start (FR-013).
+        after_approval = run.approved_at is not None or bool(
+            (run.step_outputs or {}).get("inputs_changed")
+        )
+        await _run_steps(ctx, run, documents, Event.INPUTS_CHANGED, after_approval=after_approval)
+    return run, documents
+
+
+def _fingerprint(ctx: Context, documents: list[ConfirmedDocument]) -> str:
+    return fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
 
 
 async def start(ctx: Context) -> WorkflowRun:
@@ -77,33 +93,45 @@ async def start(ctx: Context) -> WorkflowRun:
     )
     run = await _find(ctx)
     assert run is not None  # just inserted, or already there
-    await _run_steps(ctx, run, Event.START)
+    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
+    await _run_steps(ctx, run, documents, Event.START)
     return run
 
 
-async def _find(ctx: Context) -> WorkflowRun | None:
-    return (
-        await ctx.db.execute(
-            select(WorkflowRun).where(
-                WorkflowRun.user_id == ctx.user.id, WorkflowRun.tax_year == ctx.profile.tax_year
-            )
-        )
-    ).scalar_one_or_none()
+async def _find(ctx: Context, *, lock: bool = False) -> WorkflowRun | None:
+    """The run; with `lock`, re-read and locked until the transaction ends."""
+    query = select(WorkflowRun).where(
+        WorkflowRun.user_id == ctx.user.id, WorkflowRun.tax_year == ctx.profile.tax_year
+    )
+    if lock:
+        query = query.with_for_update().execution_options(populate_existing=True)
+    return (await ctx.db.execute(query)).scalar_one_or_none()
 
 
 async def _run_steps(
-    ctx: Context, run: WorkflowRun, event: Event, *, after_approval: bool = False
+    ctx: Context,
+    run: WorkflowRun,
+    documents: list[ConfirmedDocument],
+    event: Event,
+    *,
+    after_approval: bool = False,
 ) -> None:
-    """Run the document, validation and research steps on the current inputs."""
+    """Run the document, validation and research steps on these inputs (one read)."""
+    await _find(ctx, lock=True)  # re-read under a lock: a concurrent approval can't survive
     run.step = next_step(run.step, event)
     run.approved_at = run.approved_fingerprint = run.done_at = None
+    # Cleared before anything can fail: until this run finishes, no approval can match it and
+    # the next request re-runs it (backend review M2).
+    run.outputs_fingerprint = None
     # Counted (and committed) before any AI is used, under 006's lock (research R9).
     use_ai = await use_question(ctx.db, ctx.user.id) is None
     await ctx.db.commit()
 
-    documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
     tools = Toolbox(
-        db=ctx.db, user_id=ctx.user.id, profile_tax_year=ctx.profile.tax_year, embedder=ctx.embedder
+        sessions=ctx.tool_sessions,
+        user_id=ctx.user.id,
+        profile_tax_year=ctx.profile.tax_year,
+        embedder=ctx.embedder,
     )
     outputs: dict[str, Any] = {"document": await document_step(ctx.client, tools, use_ai=use_ai)}
     if outputs["document"]["missing"]:
@@ -111,20 +139,22 @@ async def _run_steps(
     else:
         outputs["validation"] = await validation_step(ctx.client, tools, documents, use_ai=use_ai)
         outputs["research"] = await research_step(ctx.client, tools, documents, use_ai=use_ai)
+        outputs["gate"] = _gate(ctx, documents)
         for _ in AGENT_STEPS:
             run.step = next_step(run.step, Event.STEPS_OK)
     # True when this re-run cleared an approval: the page asks for a fresh one (T020).
     outputs["inputs_changed"] = after_approval
     run.step_outputs = outputs
-    run.outputs_fingerprint = fingerprint(documents, ctx.profile.tax_year, ctx.profile.on_atl)
+    run.outputs_fingerprint = _fingerprint(ctx, documents)
     run.updated_at = datetime.now(UTC)
     await ctx.db.commit()
 
 
-async def gate_view(ctx: Context) -> dict[str, Any]:
-    """What the gate shows the user before they approve: the confirmed figures the calculation
-    would use (summed per type, as 004 sums them) and the profile's ATL status (FR-008)."""
-    inputs = await tax_inputs(ctx.db, ctx.user, ctx.profile.tax_year)
+def _gate(ctx: Context, documents: list[ConfirmedDocument]) -> dict[str, Any]:
+    """What the gate shows before approval, from the same read as the run's fingerprint: the
+    confirmed figures the calculation would use (summed as 004 sums them) and the ATL status
+    (FR-008)."""
+    inputs = tax_inputs_from(documents, ctx.profile.tax_year, ctx.profile.on_atl)
     return {
         "figures": {
             "taxable_salary": _money(inputs.taxable_salary),
@@ -142,6 +172,11 @@ def _money(amount: Decimal) -> str:
 
 
 STALE = "Your inputs changed; please review and approve again."
+NO_RUN = "No guided run yet."
+
+
+class NoRun(Exception):
+    """There is no run to act on (404, as GET answers before the first start)."""
 
 
 async def approve(ctx: Context, seen: str) -> WorkflowRun:
@@ -149,7 +184,7 @@ async def approve(ctx: Context, seen: str) -> WorkflowRun:
     fingerprint when shown). The run's row is locked, so two approvals together record one."""
     run = await _locked(ctx)  # steps 1-3 re-run first if the inputs changed
     if run is None:
-        raise InvalidTransition("No guided run yet.")
+        raise NoRun(NO_RUN)
     if seen != run.outputs_fingerprint:
         raise InvalidTransition(STALE)
     run.step = next_step(run.step, Event.APPROVE)
@@ -164,7 +199,7 @@ async def back(ctx: Context) -> WorkflowRun:
     """Leave the gate for step 1; a new approval is needed after the next start."""
     run = await _locked(ctx)
     if run is None:
-        raise InvalidTransition("No guided run yet.")
+        raise NoRun(NO_RUN)
     run.step = next_step(run.step, Event.BACK)
     run.approved_at = run.approved_fingerprint = None
     run.updated_at = datetime.now(UTC)
@@ -176,7 +211,7 @@ async def mark_done(ctx: Context) -> WorkflowRun:
     """Mark the run done; only at the result, with a current approval (FR-014)."""
     run = await get_run(ctx)
     if run is None:
-        raise InvalidTransition("No guided run yet.")
+        raise NoRun(NO_RUN)
     run.step = next_step(
         run.step,
         Event.MARK_DONE,
@@ -189,14 +224,15 @@ async def mark_done(ctx: Context) -> WorkflowRun:
 
 
 async def result(ctx: Context) -> tuple[WorkflowRun, TaxResult] | None:
-    """004's result for the run's inputs, or None without an approval for exactly them. Never
+    """004's result for the run's inputs, or None without an approval for exactly them. The
+    check and the calculation use one read of the certificates (backend review H1). Never
     stored: recalculated from the confirmed certificates on every request (as 004)."""
-    run = await get_run(ctx)  # re-runs steps 1-3 (clearing the approval) if inputs changed
+    run, documents = await _current(ctx)  # re-runs steps 1-3 (clearing any approval) if changed
     if run is None or not result_allowed(
-        run.step, run.approved_fingerprint, run.outputs_fingerprint
+        run.step, run.approved_fingerprint, _fingerprint(ctx, documents)
     ):
         return None
-    inputs = await tax_inputs(ctx.db, ctx.user, ctx.profile.tax_year)
+    inputs = tax_inputs_from(documents, ctx.profile.tax_year, ctx.profile.on_atl)
     return run, calculate(inputs, rates_for(ctx.profile.tax_year))
 
 
@@ -204,11 +240,4 @@ async def _locked(ctx: Context) -> WorkflowRun | None:
     """The run, re-checked against the inputs, then locked until the transaction ends."""
     if await get_run(ctx) is None:
         return None
-    return (
-        await ctx.db.execute(
-            select(WorkflowRun)
-            .where(WorkflowRun.user_id == ctx.user.id, WorkflowRun.tax_year == ctx.profile.tax_year)
-            .with_for_update()
-            .execution_options(populate_existing=True)
-        )
-    ).scalar_one_or_none()
+    return await _find(ctx, lock=True)

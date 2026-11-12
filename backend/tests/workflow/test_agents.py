@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 from document_helpers import PROFILE_YEAR, add_confirmed_document
-from rag_helpers import QUESTION, a_corpus, a_user
+from rag_helpers import QUESTION, a_corpus, a_user, sessions_of
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +37,12 @@ async def setup(
     await a_corpus(db)
     for doc_type, values in certificates:
         await add_confirmed_document(db, user.id, doc_type, values)
-    tools = Toolbox(db=db, user_id=user.id, profile_tax_year=PROFILE_YEAR, embedder=FakeEmbedder())
+    tools = Toolbox(
+        sessions=sessions_of(db),
+        user_id=user.id,
+        profile_tax_year=PROFILE_YEAR,
+        embedder=FakeEmbedder(),
+    )
     return tools, await confirmed_documents(db, user.id, PROFILE_YEAR)
 
 
@@ -171,7 +176,12 @@ async def test_with_nothing_above_the_cut_off_research_says_so_and_goes_on(
 ) -> None:
     """Fails if a run stops, or invents passages, when the corpus has nothing relevant."""
     user = await a_user(db)  # no corpus at all
-    tools = Toolbox(db=db, user_id=user.id, profile_tax_year=PROFILE_YEAR, embedder=FakeEmbedder())
+    tools = Toolbox(
+        sessions=sessions_of(db),
+        user_id=user.id,
+        profile_tax_year=PROFILE_YEAR,
+        embedder=FakeEmbedder(),
+    )
 
     step = await research_step(FakeAgentClient(), tools, [], use_ai=True)
 

@@ -18,6 +18,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from document_helpers import PROFILE_YEAR, SALARY_RESULT
+from rag_helpers import sessions_of
 from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -35,7 +36,7 @@ from app.rag.answer import AnswerError, FakeAnswerer
 from app.rag.embed import FakeEmbedder
 from app.rag.router import get_answerer, get_embedder
 from app.workflow.client import FakeAgentClient
-from app.workflow.router import get_agent_client
+from app.workflow.router import get_agent_client, get_tool_sessions
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
 from app.wealth.router import get_wealth_summariser
@@ -121,11 +122,14 @@ async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
             raise
 
     app.dependency_overrides[get_db] = _test_db
+    # 007's agent tools open their own sessions; in tests they get this one too.
+    app.dependency_overrides[get_tool_sessions] = lambda: sessions_of(db)
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as http:
             yield http
     finally:
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_tool_sessions, None)
 
 
 TEST_PASSWORD = "s3cret-pass"

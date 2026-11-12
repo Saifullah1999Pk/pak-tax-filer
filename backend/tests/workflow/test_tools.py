@@ -6,7 +6,7 @@ confirms, approves or calculates; they call the app's own functions.
 
 import pytest
 from document_helpers import PROFILE_YEAR, add_confirmed_document
-from rag_helpers import QUESTION, a_corpus, a_user
+from rag_helpers import QUESTION, a_corpus, a_user, sessions_of
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.documents.models import DocStatus, DocType
@@ -47,7 +47,10 @@ async def toolbox(db: AsyncSession) -> tuple[Toolbox, object]:
         {"gross_salary": "2000000", "taxable_salary": "1800000", "tax_deducted": "75000"},
     )
     return Toolbox(
-        db=db, user_id=user.id, profile_tax_year=PROFILE_YEAR, embedder=FakeEmbedder()
+        sessions=sessions_of(db),
+        user_id=user.id,
+        profile_tax_year=PROFILE_YEAR,
+        embedder=FakeEmbedder(),
     ), user
 
 

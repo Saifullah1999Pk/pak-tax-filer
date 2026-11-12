@@ -7,10 +7,10 @@ Base path `/api/workflow`. All endpoints need `current_user` and 002's `require_
 ## Run object
 
 ```json
-{ "step": "gate", "tax_year": "2025-26", "fingerprint": "…",
-  "document": { "message": "…", "missing": [] },
-  "validation": { "message": "…", "issues": [] },
-  "research": { "note": "…", "passages": [{ "source": "Income Tax Ordinance 2001", "location": "§149(1)", "page": 12, "text": "…" }] },
+{ "step": "gate", "tax_year": "2025-26", "fingerprint": "…", "inputs_changed": false,
+  "document": { "message": "…", "missing": [], "fallback": false },
+  "validation": { "message": "…", "issues": [{ "document_id": "…", "certificate": "Salary certificate uploaded 05 Nov 2026", "field": "taxable_salary", "reason": "…" }], "fallback": false },
+  "research": { "note": "…", "passages": [{ "id": "…", "source": "Income Tax Ordinance 2001", "kind": "law", "location": "§149(1)", "page": 12, "text": "…" }], "fallback": false },
   "gate": { "figures": { "taxable_salary": "1800000.00", "tax_deducted": "75000.00", "gross_profit": "0.00", "tax_withheld": "0.00" }, "on_atl": true },
   "approved_at": null, "done_at": null }
 ```
@@ -61,3 +61,13 @@ Each run of steps 1–3 (`POST /start`, or a `GET` that re-runs them after an in
 as one question against feature 006's limits (30 an hour per user, the app's daily cap). Past a
 limit, the response is still `200`: the steps carry their code-written results with
 `fallback: true`, and the run reaches the gate as usual (research R9).
+
+## Amendments 2026-11-12 (from the review)
+
+- `POST /approve`, `/back` and `/done` before any run was started answer `404` "No guided run
+  yet.", as `GET` does.
+- The gate's `figures` are stored with the step outputs, from the same read of the certificates
+  as the run's `fingerprint`, and `GET /result` checks the approval and calculates from one
+  read: a certificate confirmed in between can't reach an approved result.
+- `GET /api/workflow` may re-run steps 1–3 (one counted question) when the inputs changed since
+  they ran; it is safe to repeat and bounded to one re-run per change.

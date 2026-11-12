@@ -8,7 +8,7 @@ be called, and a scripted failure is raised as the real client would raise it.
 import pytest
 from document_helpers import PROFILE_YEAR
 from pydantic import BaseModel
-from rag_helpers import QUESTION, a_corpus, a_user
+from rag_helpers import QUESTION, a_corpus, a_user, sessions_of
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rag.embed import FakeEmbedder
@@ -29,7 +29,12 @@ async def a_toolbox(db: AsyncSession) -> Toolbox:
     """Tools for a synthetic user over the small test corpus."""
     user = await a_user(db)
     await a_corpus(db)
-    return Toolbox(db=db, user_id=user.id, profile_tax_year=PROFILE_YEAR, embedder=FakeEmbedder())
+    return Toolbox(
+        sessions=sessions_of(db),
+        user_id=user.id,
+        profile_tax_year=PROFILE_YEAR,
+        embedder=FakeEmbedder(),
+    )
 
 
 async def test_scripted_tool_calls_go_through_the_real_toolbox(db: AsyncSession) -> None:

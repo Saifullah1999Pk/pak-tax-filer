@@ -6,6 +6,8 @@ documents and rules (through the check shared with 006's MCP tool) and 006's sea
 """
 
 import uuid
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,7 +43,9 @@ class Toolbox:
     """One run's tools. `found` keeps every passage search returned, in order, so the research
     agent's citations (P1, P2, ...) can be checked against exactly these."""
 
-    db: AsyncSession
+    # A fresh session per tool call (backend review M3): a step that times out cancels only
+    # that session's query, never the request's own session.
+    sessions: Callable[[], AbstractAsyncContextManager[AsyncSession]]
     user_id: uuid.UUID
     profile_tax_year: str
     embedder: Embedder
@@ -50,7 +54,8 @@ class Toolbox:
     async def list_confirmed_documents(self) -> dict[str, Any]:
         """The user's confirmed certificates for the profile's tax year (type, label, when
         confirmed), and the page where more are uploaded."""
-        documents = await confirmed_documents(self.db, self.user_id, self.profile_tax_year)
+        async with self.sessions() as db:
+            documents = await confirmed_documents(db, self.user_id, self.profile_tax_year)
         return {
             "certificates": [
                 {
@@ -97,7 +102,8 @@ class Toolbox:
     async def search_tax_documents(self, query: str) -> dict[str, Any]:
         """006's search: up to five passages with their citation and a label (P1, P2, ...) to
         cite them by, or none and not_covered below the relevance cut-off."""
-        result = await search(self.db, self.embedder, query)
+        async with self.sessions() as db:
+            result = await search(db, self.embedder, query)
         if not result.covered:
             return {"passages": [], "not_covered": True}
         passages = []
