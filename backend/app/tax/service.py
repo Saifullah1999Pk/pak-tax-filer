@@ -38,16 +38,24 @@ def _amount(value: Decimal | str | None) -> Decimal:
 async def tax_inputs(db: AsyncSession, user: User, tax_year: str) -> TaxInputs:
     """The user's confirmed figures for the year, summed per certificate type, and ATL status."""
     documents = await confirmed_documents(db, user.id, tax_year)
+    profile = await get_profile(db, user)
+    return tax_inputs_from(documents, tax_year, None if profile is None else profile.on_atl)
+
+
+def tax_inputs_from(
+    documents: list[ConfirmedDocument], tax_year: str, atl: bool | None
+) -> TaxInputs:
+    """The engine's inputs from certificates already read: 007 checks its gate and calculates
+    from one read, so nothing confirmed in between can slip into an approved result."""
     salary = [d for d in documents if d.doc_type is DocType.SALARY_CERTIFICATE]
     bank = [d for d in documents if d.doc_type is DocType.BANK_PROFIT_CERTIFICATE]
-    profile = await get_profile(db, user)
 
     def total(certificates: list[ConfirmedDocument], name: FieldName) -> Decimal:
         return sum((_amount(c.values.get(name)) for c in certificates), Decimal(0))
 
     return TaxInputs(
         tax_year=tax_year,
-        atl=None if profile is None else profile.on_atl,
+        atl=atl,
         taxable_salary=total(salary, FieldName.TAXABLE_SALARY),
         tax_deducted=total(salary, FieldName.TAX_DEDUCTED),
         gross_profit=total(bank, FieldName.PROFIT_AMOUNT),

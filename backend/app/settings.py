@@ -44,6 +44,9 @@ class Settings:  # pylint: disable=too-many-instance-attributes  # one field per
     answer_effort: str = "minimal"
     # Feature 006, FR-009b: questions a day for the whole app (the free Gemini quota is shared).
     ask_daily_limit: int = 200
+    # Feature 007, research R6: the model behind the guided run's agents (never the figures).
+    workflow_model: str = "gemini-3.5-flash-lite"
+    workflow_effort: str = "minimal"
 
 
 def load_settings(environ: Mapping[str, str]) -> Settings:
@@ -78,6 +81,8 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         answer_model=environ.get("ANSWER_MODEL", "").strip() or "gemini-3.5-flash-lite",
         answer_effort=_effort(environ, "ANSWER_EFFORT", default="minimal"),
         ask_daily_limit=_positive_int(environ, "ASK_DAILY_LIMIT", default=200),
+        workflow_model=environ.get("WORKFLOW_MODEL", "").strip() or "gemini-3.5-flash-lite",
+        workflow_effort=_effort(environ, "WORKFLOW_EFFORT", default="minimal"),
     )
 
 

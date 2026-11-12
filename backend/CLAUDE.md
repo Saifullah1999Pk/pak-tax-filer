@@ -103,3 +103,20 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
 - MCP: the token comes only from `PAKTAX_TOKEN` in the developer's environment, never a file;
   tools call the app's own functions (search, 004's engine, 003's rules) and refuse an invalid
   token on every call. Setup: `docs/mcp.md`.
+
+## Guided filing (feature 007)
+
+- The gate is a backend rule: `app/workflow/service.py` returns a result only while the
+  approval's fingerprint equals the inputs' current one (`state.result_allowed`); never add a
+  path to the tax engine from the workflow that skips it. The result is recalculated, never
+  stored.
+- Agents get read-only tools only (`app/workflow/tools.py`; a test fails on anything else). Code
+  decides each step's facts (what's missing, 003's rule issues, which passages exist); an agent
+  only explains them, and its text is shown only after 004's number check or 006's citation
+  checks. Otherwise the step shows its plain result (`fallback: true`).
+- Each run of steps 1-3 counts as one question against 006's limits (`use_question`, committed
+  before any AI is used); past a limit the steps use their plain results.
+- Fingerprints and money read from the database compare amounts in one form (`1800000` and
+  `1800000.00` are equal); tests that pass alone but fail in the full suite usually mean this.
+- Tests use `FakeAgentClient` (faked for every test by `no_real_ai`); the real
+  `GeminiAgentClient` is tested through the SDK with an httpx2 `MockTransport`.

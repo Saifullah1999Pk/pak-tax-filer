@@ -9,7 +9,6 @@ check. No tool writes an answer or produces a tax figure of its own (Principle I
 
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
 from mcp.server.mcpserver import MCPServer
@@ -18,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
-from app.documents.extraction.rules import check_rules
+from app.documents.certificate_check import check_figures
 from app.documents.models import DocType, FieldName
 from app.profile.service import get_profile
 from app.rag.checks import written_in_english
@@ -149,26 +148,8 @@ def build_server(token: str | None, sessions: Sessions, embedder: Embedder) -> M
                 FieldName.TAXABLE_SALARY: taxable_salary,
                 FieldName.TAX_DEDUCTED: tax_deducted,
             }
-            issues = [
-                Issue(field=name.value, reason="Not an amount.")
-                for name, text in amounts.items()
-                if _decimal(text) is None
-            ]
-            values: dict[FieldName, Decimal | str | None] = {
-                name: _decimal(text) for name, text in amounts.items()
-            }
-            values[FieldName.TAX_YEAR] = tax_year.strip()
-            reasons = check_rules(DocType.SALARY_CERTIFICATE, values, profile_year)
-            issues += [Issue(field=name.value, reason=reason) for name, reason in reasons.items()]
+            found = check_figures(DocType.SALARY_CERTIFICATE, tax_year, amounts, profile_year)
+            issues = [Issue(field=field, reason=reason) for field, reason in found]
             return ValidationOut(ok=not issues, issues=issues)
 
     return server
-
-
-def _decimal(text: str) -> Decimal | None:
-    """The amount, or None if it isn't a plain decimal number."""
-    try:
-        value = Decimal(text.strip().replace(",", ""))
-    except InvalidOperation:
-        return None
-    return value if value.is_finite() else None

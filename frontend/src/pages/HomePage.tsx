@@ -94,6 +94,10 @@ export function HomePage() {
           />
         ))}
       </ol>
+      <p className="guided-offer">
+        Prefer to be walked through it?{" "}
+        <Link to="/workflow">Let PakTaxFiler guide you</Link>
+      </p>
     </main>
   );
 }
