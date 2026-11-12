@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 from conftest import TEST_PASSWORD
 from document_helpers import add_confirmed_document
+from wealth_statement import STATEMENT
 from httpx2 import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,22 +25,6 @@ pytestmark = pytest.mark.anyio
 URL = "/api/wealth/2025-26"
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
 
-# The signed-off "reconciled" example (tests/wealth/worked_examples.yaml).
-STATEMENT: dict[str, Any] = {
-    "previous_net_assets": "2100000",
-    "assets": [
-        {"category": "bank_account", "description": "Savings account", "amount": "1350000"},
-        {"category": "motor_vehicle", "description": "Car", "amount": "1400000"},
-    ],
-    "liabilities": [{"description": "Car loan", "creditor": "Bank", "amount": "200000"}],
-    "other_exempt_income": "0",
-    "foreign_remittance": "0",
-    "inheritance": "0",
-    "gifts_received": "0",
-    "family_contribution": "0",
-    "gifts_given": "0",
-    "expenses": {"rent": "600000", "electricity": "150000", "other_household": "768000"},
-}
 SALARY = {"gross_salary": "2000000", "taxable_salary": "1800000", "tax_deducted": "72000"}
 BANK = {"profit_amount": "50000", "tax_withheld": "10000"}
 

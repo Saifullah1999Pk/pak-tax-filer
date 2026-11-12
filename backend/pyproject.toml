@@ -71,7 +71,7 @@ strict = true
 # reportlab (the eval's generator) and PyYAML (the tax worked examples), both dev-only, ship no
 # type information.
 [[tool.mypy.overrides]]
-module = ["reportlab.*", "yaml"]
+module = ["reportlab.*", "yaml", "weasyprint"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
