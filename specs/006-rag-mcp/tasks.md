@@ -120,7 +120,7 @@ for the eval gate.
 - [ ] T029 [US4] (Removed 2026-11-11: no token page; tokens come from commands, FR-016 amended)
 - [x] T030 [US4] Create `backend/app/mcp_server/__main__.py` per research R9 and [contracts/mcp-tools.md](contracts/mcp-tools.md): stdio, token check on every call (updating `last_used_at`), three tools calling `app.rag.search`, 004's `app.tax.service` and 003's `app/documents/extraction/rules.py`; T027 passes
 - [x] T031 [US4] Add `.mcp.json` at the repo root for Claude Code, and document connecting from Gemini CLI (its settings file; current setup confirmed, not assumed) in `docs/mcp.md`; the token comes only from the developer's environment
-- [ ] T032 [US4] Run [quickstart.md](quickstart.md) section 4 from Gemini CLI and from Claude Code
+- [x] T032 [US4] Run [quickstart.md](quickstart.md) section 4 from Gemini CLI and from Claude Code (2026-11-12: done from Claude Code, all three tools as demo@example.com; Gemini CLI optional, setup in `docs/mcp.md`)
 
 **Checkpoint**: all four user stories work.
 
