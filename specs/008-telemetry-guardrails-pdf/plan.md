@@ -6,7 +6,8 @@
 
 ## Summary
 
-OpenTelemetry instruments FastAPI (route templates), SQLAlchemy (timings, no statement text) and
+OpenTelemetry instruments FastAPI (route templates), the database (timings, no statement text;
+our own listener, research R2) and
 every Gemini call through one wrapper that adds GenAI attributes, the feature and the outcome;
 spans go to the backend logs, for developers only (amended 2026-11-12: no viewer in 008; one can
 be added later by a setting). A `guardrails` CI job runs
@@ -20,8 +21,7 @@ HTML templates rendered by WeasyPrint with the banner as a repeated page header,
 **Language/Version**: Python 3.13, TypeScript on Node 26 (as in 001's CI)
 
 **Primary Dependencies**: added (libraries): `opentelemetry-sdk`,
-`opentelemetry-instrumentation-fastapi`, `opentelemetry-instrumentation-sqlalchemy`,
-`weasyprint`, `jinja2`; dev: `import-linter`. Existing: FastAPI, SQLAlchemy, `google-genai`
+`opentelemetry-instrumentation-fastapi`, `weasyprint`, `jinja2`; dev: `import-linter`. Existing: FastAPI, SQLAlchemy, `google-genai`
 (003–007), `pypdf` (003). No new stack component (amended 2026-11-12: no Jaeger, no OTLP exporter).
 
 **Storage**: none added (PDFs and telemetry are not stored in the database)

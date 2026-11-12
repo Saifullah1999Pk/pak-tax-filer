@@ -12,7 +12,6 @@ dependencies = [
     "jinja2>=3.1.6",
     "mcp>=2.3.0",
     "opentelemetry-instrumentation-fastapi>=0.66b2",
-    "opentelemetry-instrumentation-sqlalchemy>=0.66b2",
     "opentelemetry-sdk>=1.45.2",
     "pgvector>=0.5.1",
     "pwdlib[argon2]>=0.3.1",

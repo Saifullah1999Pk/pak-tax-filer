@@ -24,7 +24,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 ## Phase 1: Setup
 
-- [x] T001 Add `weasyprint`, `jinja2`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi` and `opentelemetry-instrumentation-sqlalchemy` (no OTLP exporter) to `backend/pyproject.toml` with `uv add`, and `import-linter` as a dev dependency; install WeasyPrint's system packages (Pango, HarfBuzz) in `backend/Dockerfile`
+- [x] T001 Add `weasyprint`, `jinja2`, `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi` and `opentelemetry-instrumentation-sqlalchemy` (no OTLP exporter; the SQLAlchemy one removed in T019, research R2) to `backend/pyproject.toml` with `uv add`, and `import-linter` as a dev dependency; install WeasyPrint's system packages (Pango, HarfBuzz) in `backend/Dockerfile`
 - [x] T002 [P] Add `OTEL_EXPORTER` (`console` default, or `none`) to `backend/app/settings.py` with tests in `backend/tests/test_settings.py`
 
 ---
@@ -85,12 +85,12 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 ### Tests for User Story 3 (write first, confirm they fail)
 
-- [ ] T017 [P] [US3] Write `backend/tests/telemetry/test_spans.py` with an in-memory span exporter: a request gives a span named by route template; each of the eight `app.feature` values (including `embeddings`) appears with `gen_ai.provider.name="gcp.gemini"`, `gen_ai.operation.name`, `gen_ai.request.model`, token counts and `app.outcome` (`passed`, `check_failed`, `timeout`, `fallback`, `limit_reached` all exercised via fake clients); the default exporter is console and `none` records nothing (FR-013)
-- [ ] T018 [P] [US3] Write `backend/tests/telemetry/test_no_content.py`: after a synthetic run (upload, tax, ask, workflow), no span attribute or name contains the demo email, a user or document id, a figure, prompt or reply text, or SQL text (SC-005)
+- [x] T017 [P] [US3] Write `backend/tests/telemetry/test_spans.py` with an in-memory span exporter: a request gives a span named by route template; each of the eight `app.feature` values (including `embeddings`) appears with `gen_ai.provider.name="gcp.gemini"`, `gen_ai.operation.name`, `gen_ai.request.model`, token counts (from a real client through a mock transport) and `app.outcome` (`passed`, `check_failed`, `timeout`, `fallback`, `limit_reached` all exercised via fake clients); the default exporter is console and `none` records nothing (FR-013)
+- [x] T018 [P] [US3] Write `backend/tests/telemetry/test_no_content.py`: after a synthetic run (upload, tax, ask, workflow), no span attribute or name contains the demo email, a user or document id, a figure, prompt or reply text, or SQL text (SC-005)
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Create `backend/app/telemetry/setup.py` (tracer provider, console exporter unless `OTEL_EXPORTER=none`, FastAPI instrumentation with route templates, SQLAlchemy instrumentation with statement text dropped, research R1–R2) and `backend/app/telemetry/ai.py` (`ai_call(feature, model, operation)`, research R3); call it at the five places that call Gemini: 003's `extraction/client.py`, 004's `tax/summary.py` (also used by 005), 006's `rag/answer.py` and `rag/embed.py`, and 007's `workflow/client.py` (its tool calls as `execute_tool`); T017 and T018 pass
+- [x] T019 [US3] Create `backend/app/telemetry/setup.py` (tracer provider, console exporter unless `OTEL_EXPORTER=none`, FastAPI instrumentation with route templates, database spans with the duration only (our own listener: the SQLAlchemy instrumentation doesn't support SQLAlchemy 2.1, research R2 amended), an attribute filter on every exporter, research R1–R2) and `backend/app/telemetry/ai.py` (`ai_call(feature, model, operation)`, `record_refusal`, `tool_call`, `record_gemini_usage`, research R3); open the AI span where each use's outcome is decided (research R3 amended): 004's `tax/summary.py` and 005's `wealth/summary.py`, 006's `rag/service.py`, `rag/search.py` and `rag/build.py` (embeddings), 003's `documents/service.py` (extraction) and 007's `workflow/agents.py`; token counts from the real clients in `tax/summary.py`, `rag/answer.py` and `workflow/client.py` (its tool calls as `execute_tool`); T017 and T018 pass
 - [ ] T020 [US3] (Removed 2026-11-12: no viewer in 008; telemetry goes to the logs, design addendum)
 - [ ] T021 [US3] Run [quickstart.md](quickstart.md) scenario 3
 

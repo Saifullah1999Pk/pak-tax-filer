@@ -4,8 +4,8 @@ Each decision: what was chosen, why, and what else was considered.
 
 ## R1. Telemetry standard and exporter
 
-- **Decision** (amended 2026-11-12): OpenTelemetry SDK with the FastAPI and SQLAlchemy
-  instrumentations, spans printed to the backend logs by the SDK's console exporter (batched).
+- **Decision** (amended 2026-11-12): OpenTelemetry SDK with the FastAPI instrumentation and
+  database spans of our own (R2), spans printed to the backend logs by the SDK's console exporter (batched).
   The `OTEL_EXPORTER` setting is `console` (default) or `none` (tests, or to silence it); no OTLP
   exporter and no viewer in 008. Telemetry is for developers only; there is no page in the app.
 - **Rationale:** the vendor-neutral industry standard (design approach A), with nothing new in
@@ -18,9 +18,16 @@ Each decision: what was chosen, why, and what else was considered.
 ## R2. What is recorded, and what never is
 
 - **Decision:** request spans named by **route template** (`GET /api/documents/{id}`), status and
-  duration; SQLAlchemy spans with `enable_commenter=False` and statement text dropped by a span
-  processor; no user or session id attributes; request/response bodies and headers never
-  captured.
+  duration; database spans with the duration only; no user or session id attributes;
+  request/response bodies and headers never captured. Every exporter receives spans through one
+  filter that keeps only the attributes listed in data-model.md and drops events and status
+  descriptions, so content an instrumentation adds can't reach the logs.
+- **Amended 2026-11-12 (implementation):** `opentelemetry-instrumentation-sqlalchemy` (0.66b2)
+  supports SQLAlchemy below 2.1 only and silently records nothing with our 2.1.8. Database spans
+  come instead from a few lines of our own on SQLAlchemy's cursor events
+  (`app/telemetry/setup.py`, `instrument_engine`): a span per statement named by its first word
+  (`SELECT`, `INSERT`, ...), with the duration and `db.system.name`, never the statement or its
+  parameters. The package was removed.
 - **Rationale:** FR-010 and FR-012 (Principle V); the conservative choice from the design.
 
 ## R3. AI call spans
@@ -35,6 +42,13 @@ Each decision: what was chosen, why, and what else was considered.
   `wealth_summary`, `assistant`, `embeddings`, `workflow_document`, `workflow_validation`,
   `workflow_research`) and `app.outcome` (`passed`, `check_failed`, `timeout`, `fallback`,
   `limit_reached`).
+- **Amended 2026-11-12 (implementation):** the span is opened where the app decides how the use
+  ended, around the call and the checks on its answer (`verified_summary`, the wealth summary,
+  the assistant's answer step, search and the corpus build for embeddings, document extraction,
+  and each guided-run step), and `record_refusal` records a use a limit stopped before any call.
+  So the outcome is known, and the spans appear with the fake clients too. The real Gemini clients
+  add their token counts to that span (`record_gemini_usage`; extraction already reports its
+  counts); Gemini's embeddings API returns none. Tool calls are child spans from `tool_call`.
 - **Rationale:** one place to keep attributes consistent; the GenAI conventions are still
   "Development" and recently moved to their own repository, so their names live only in this
   module.

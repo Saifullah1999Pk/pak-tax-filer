@@ -1572,22 +1572,6 @@ wheels = [
 ]
 
 [[package]]
-name = "opentelemetry-instrumentation-sqlalchemy"
-version = "0.66b2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "opentelemetry-api" },
-    { name = "opentelemetry-instrumentation" },
-    { name = "opentelemetry-semantic-conventions" },
-    { name = "packaging" },
-    { name = "wrapt" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/1e/ccf69453217deba3f0ce58d3d2985676c623122b0ae0520def7365c894c6/opentelemetry_instrumentation_sqlalchemy-0.66b2.tar.gz", hash = "sha256:463bb3b0e185b65d8728d62de717e94374276497d7632622a6a873edbc0d7f90", size = 18181, upload-time = "2026-10-29T17:38:44.733Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/8c/345e931ed9ce96099c917461abcbb0f91328feb0091806ee7f7cabf47d07/opentelemetry_instrumentation_sqlalchemy-0.66b2-py3-none-any.whl", hash = "sha256:8c6388bb6d72d74eebe034ad132b6c198a7bad5e0462057807edf543454cb21e", size = 14423, upload-time = "2026-10-29T17:37:52.475Z" },
-]
-
-[[package]]
 name = "opentelemetry-sdk"
 version = "1.45.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1645,7 +1629,6 @@ dependencies = [
     { name = "jinja2" },
     { name = "mcp" },
     { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-sqlalchemy" },
     { name = "opentelemetry-sdk" },
     { name = "pgvector" },
     { name = "pwdlib", extra = ["argon2"] },
@@ -1679,7 +1662,6 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "mcp", specifier = ">=2.3.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.66b2" },
-    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = ">=0.66b2" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.2" },
     { name = "pgvector", specifier = ">=0.5.1" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.1" },
