@@ -53,7 +53,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 - [x] T006 [US1] Create `backend/app/reports/templates/base.html` (CSS running header banner on every page, research R6), `tax.html` and `wealth.html`, and `backend/app/reports/render.py` (Jinja2 → WeasyPrint `write_pdf`)
 - [x] T007 [US1] Create `backend/app/reports/router.py` with `GET /api/tax/{tax_year}/pdf`, `GET /api/wealth/{tax_year}/pdf` and `GET /api/workflow/result/pdf` using 004's, 005's and 007's existing result functions and protections; include in `backend/app/main.py`; T004 passes
 - [x] T008 [US1] Create `frontend/src/components/DownloadPdfButton.tsx` and add it to 007's `frontend/src/components/TaxResultView.tsx` (the Tax page and Guided filing's result, each with its own PDF address) and `WealthPage.tsx`; T005 passes
-- [ ] T009 [US1] Run [quickstart.md](quickstart.md) scenario 1, including the 5-second check (SC-002)
+- [x] T009 [US1] Run [quickstart.md](quickstart.md) scenario 1, including the 5-second check (SC-002)
 
 **Checkpoint**: labelled PDFs download from every result screen.
 
