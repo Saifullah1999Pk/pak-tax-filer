@@ -31,7 +31,7 @@ telemetry to the logs only (T020 removed), WeasyPrint confirmed by measurement.
 
 ## Phase 2: Foundational (blocking)
 
-- [ ] T003 Create `backend/app/reports/status.py` per research R7: validation-status lines for tax, wealth and workflow PDFs from 003's `rules.py` warnings, 005's provisional notes and 007's `approved_at`, with `backend/tests/reports/test_status.py` covering warnings, "No warnings" and the approval line
+- [x] T003 Create `backend/app/reports/status.py` per research R7: validation-status lines for tax, wealth and workflow PDFs from 003's `rules.py` warnings, 005's provisional notes and 007's `approved_at`, with `backend/tests/reports/test_status.py` covering warnings, "No warnings" and the approval line
 
 **Checkpoint**: banner text can be built for every PDF type.
 
