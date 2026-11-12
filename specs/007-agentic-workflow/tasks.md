@@ -93,7 +93,7 @@ features 001–006 implemented.
 - [x] T018 [P] [US3] Extend `backend/tests/workflow/test_workflow_api.py`: a re-run of steps 1–3 after an input change adds one `ask_requests` row (research R9); after approval, confirming a bank certificate, deleting a certificate or changing the profile → next `GET` shows `step: "gate"` (or `document` without a salary certificate), re-run outputs, `approved_at` null, and `GET /result` → `409`; a change before approval also re-runs steps 1–3; `POST /start` on a done run resets it (still one row)
 - [x] T019 [US3] Make `get_run` in `backend/app/workflow/service.py` apply `inputs_changed` (clear approval, re-run, move step) per research R3; T018 passes
 - [x] T020 [US3] Show "Your inputs changed; please review and approve again." on `frontend/src/pages/WorkflowPage.tsx` when the run returns to the gate after an approval; extend its test
-- [ ] T021 [US3] Run [quickstart.md](quickstart.md) scenario 3
+- [x] T021 [US3] Run [quickstart.md](quickstart.md) scenario 3
 
 **Checkpoint**: all three stories work.
 
@@ -101,7 +101,7 @@ features 001–006 implemented.
 
 ## Phase 6: Polish
 
-- [ ] T022 [P] Add a "Workflow" section to `backend/CLAUDE.md`: agents get read-only tools only; the gate is checked in `service.py`; never store the tax result; a run of steps 1–3 counts against 006's question limits; tests use the fake agent client (added to the `no_real_ai` fixture)
+- [x] T022 [P] Add a "Workflow" section to `backend/CLAUDE.md`: agents get read-only tools only; the gate is checked in `service.py`; never store the tax result; a run of steps 1–3 counts against 006's question limits; tests use the fake agent client (added to the `no_real_ai` fixture)
 - [ ] T023 Run the lint, format and type checks (001's CI), both test suites and all of [quickstart.md](quickstart.md); record results in the PR description
 
 ---
