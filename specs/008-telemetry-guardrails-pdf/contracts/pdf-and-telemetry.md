@@ -16,10 +16,8 @@ Content and banner per [data-model.md](../data-model.md). Generated per request;
 
 ## Telemetry
 
-- Setting `OTEL_EXPORTER`: `console` (default) or `otlp`; `OTEL_EXPORTER_OTLP_ENDPOINT` default
-  `http://jaeger:4317`.
-- `docker compose --profile telemetry up -d` starts Jaeger; its UI is at `http://localhost:16686`
-  (pending the lead's approval).
+- Setting `OTEL_EXPORTER`: `console` (default, spans in the backend logs) or `none` (amended
+  2026-11-12: no viewer in 008; telemetry is for developers only, with no page in the app).
 - Span attributes per [data-model.md](../data-model.md).
 
 ## Guardrails CI job

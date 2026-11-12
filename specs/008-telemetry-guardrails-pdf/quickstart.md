@@ -23,7 +23,7 @@ certificate, a bank certificate and a saved wealth statement.
    ```
 
    Expected: both pass. Then, in a throwaway branch, plant one break per principle and check each
-   fails, reverting after each: add `import anthropic` to `app/tax/engine.py` (`lint-imports`
+   fails, reverting after each: add `import google.genai` to `app/tax/engine.py` (`lint-imports`
    fails, I); let `confirmed_documents` return `needs_review` documents too
    (`test_principle_3.py` fails, III); remove the banner from `base.html`
    (`test_principle_4.py` fails, IV).
