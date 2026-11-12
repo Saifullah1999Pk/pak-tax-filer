@@ -227,7 +227,7 @@ async def approved_run(client: AsyncClient, db: AsyncSession, user: User) -> dic
     """A run approved at the gate, with its result available."""
     await add_confirmed_document(db, user.id, DocType.SALARY_CERTIFICATE, SALARY)
     run = (await client.post(f"{URL}/start", json={})).json()
-    approved = (
+    approved: dict[str, Any] = (
         await client.post(f"{URL}/approve", json={"fingerprint": run["fingerprint"]})
     ).json()
     assert (await client.get(f"{URL}/result")).status_code == 200
