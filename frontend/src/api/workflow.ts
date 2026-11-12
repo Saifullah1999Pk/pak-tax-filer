@@ -41,6 +41,8 @@ export type Run = {
   } | null;
   approved_at: string | null;
   done_at: string | null;
+  /** Steps 1-3 re-ran because the inputs changed after an approval (which they cleared). */
+  inputs_changed: boolean;
 };
 
 export const getRun = () => apiFetch<Run>("/api/workflow");

@@ -56,6 +56,7 @@ const AT_GATE: Run = {
   },
   approved_at: null,
   done_at: null,
+  inputs_changed: false,
 };
 
 const MISSING: Run = {
@@ -296,4 +297,25 @@ test("marking the run done shows the date", async () => {
 
   expect(await screen.findByText("Done on 12 Nov 2026.")).toBeDefined();
   expect(screen.queryByRole("button", { name: "Mark done" })).toBeNull();
+});
+
+// ---- User Story 3 (T020) ----
+
+test("back at the gate after an approval, the page says the inputs changed", async () => {
+  showWorkflow({ ...AT_GATE, inputs_changed: true });
+  renderApp("/workflow");
+
+  expect(
+    await screen.findByText(
+      "Your inputs changed; please review and approve again.",
+    ),
+  ).toBeDefined();
+});
+
+test("a run that was never approved doesn't claim its inputs changed", async () => {
+  showWorkflow(AT_GATE);
+  renderApp("/workflow");
+
+  await screen.findByRole("region", { name: "Before you approve" });
+  expect(screen.queryByText(/Your inputs changed/)).toBeNull();
 });

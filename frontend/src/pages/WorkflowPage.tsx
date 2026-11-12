@@ -208,6 +208,11 @@ function Gate({ run }: { run: Run }) {
   return (
     <section className="panel" aria-labelledby="gate-heading">
       <h2 id="gate-heading">Before you approve</h2>
+      {run.inputs_changed && (
+        <p className="notice">
+          Your inputs changed; please review and approve again.
+        </p>
+      )}
       <dl className="gate-figures">
         <dt>Tax year</dt>
         <dd>{run.tax_year}</dd>
