@@ -23,7 +23,8 @@ router = APIRouter(prefix="/api", tags=["ask"])
 
 def get_embedder() -> Embedder:
     """The question embedder the app uses (tests replace it with a FakeEmbedder)."""
-    return GeminiEmbedder(api_key=get_settings().gemini_api_key)
+    # One attempt: a question has 15 s in all, so no time for the build's slow retries.
+    return GeminiEmbedder(api_key=get_settings().gemini_api_key, attempts=1)
 
 
 def get_answerer() -> Answerer:

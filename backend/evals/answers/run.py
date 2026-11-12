@@ -3,10 +3,11 @@
     docker compose exec backend python -m evals.answers.run
 
 Local only, never in CI: it calls Gemini for every question that passes the cut-off, so it uses
-the free quota. Each question goes through the same steps as app.rag.service.ask() (language,
-search and cut-off, Gemini, the plain-code checks) without counting against the question limits,
-and the report says which step refused it, so a check failure isn't mistaken for the model's own
-refusal. Exit code 0 when it ran (the report is for reading, not a gate), 2 when it can't run.
+the free quota. Each question goes through ask()'s own steps (app.rag.service.answer_question:
+language, search and cut-off, Gemini, the plain-code checks) without counting against the
+question limits, and the report says which step refused it, so a check failure isn't mistaken
+for the model's own refusal. Exit code 0 when it ran (the report is for reading, not a gate), 2
+when it can't run.
 """
 
 import argparse
@@ -19,11 +20,9 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_sessionmaker
-from app.rag.answer import AnswerError, GeminiAnswerer
-from app.rag.checks import checked_citations, written_in_english
-from app.rag.embed import Embedder, EmbeddingError, GeminiEmbedder
-from app.rag.search import search
-from app.rag.service import ANSWER_SECONDS, Answerer
+from app.rag.answer import GeminiAnswerer
+from app.rag.embed import Embedder, GeminiEmbedder
+from app.rag.service import Answerer, answer_question
 from app.settings import get_settings
 from evals.retrieval.run import QUESTIONS, load_questions
 
@@ -49,27 +48,10 @@ async def ask_one(
     question: str,
     expected: tuple[str, ...] | None,
 ) -> Row:
-    """One question through ask()'s steps, without the limits."""
-
-    def row(outcome: str, detail: str = "") -> Row:
-        return Row(question, expected, outcome, detail)
-
-    if not written_in_english(question):
-        return row("refused: not English")
-    try:
-        found = await search(db, embedder, question)
-        if not found.covered:
-            top = found.passages[0].score if found.passages else 0.0
-            return row("refused: cut-off", f"top score {top:.3f}")
-        reply = await asyncio.wait_for(answerer.answer(question, found.passages), ANSWER_SECONDS)
-    except (EmbeddingError, AnswerError, TimeoutError) as exc:
-        return row("unavailable", type(exc).__name__)
-    if reply.not_covered:
-        return row("refused: model")
-    cited = checked_citations(reply, found.passages)
-    if cited is None:
-        return row("refused: checks", f"{reply.citations}: {reply.answer}")
-    return row("answered", f"{', '.join(p.location for p in cited)}: {reply.answer}")
+    """One question through ask()'s own steps (app.rag.service.answer_question), without the
+    limits."""
+    outcome = await answer_question(db, question, embedder, answerer)
+    return Row(question, expected, outcome.step, outcome.detail)
 
 
 def render(rows: Sequence[Row], model: str) -> str:

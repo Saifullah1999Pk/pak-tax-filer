@@ -103,7 +103,9 @@ async def test_every_tool_refuses_an_invalid_token(db: AsyncSession, tool: str, 
     if state == "revoked":
         stored.revoked_at = datetime.now(UTC)
     await db.flush()
-    presented = {"missing": None, "wrong": token[:-1] + "x"}.get(state, token)
+    presented = {"missing": None, "wrong": token[:-1] + ("y" if token.endswith("x") else "x")}.get(
+        state, token
+    )
 
     result = await call(db, presented, tool, CALLS[tool])
 
@@ -246,3 +248,80 @@ async def test_validate_passes_consistent_figures(db: AsyncSession) -> None:
     )
 
     assert result == {"ok": True, "issues": []}
+
+
+async def test_a_token_acts_only_for_its_own_user(db: AsyncSession) -> None:
+    """Fails if a token's tools can see another user's certificates or profile (SC-006,
+    backend review M5): A's token must give A's tax, never B's."""
+    alice = await a_user(db, "alice@example.com")
+    bob = await a_user(db, "bob@example.com")
+    await save_profile(db, alice, PROFILE_YEAR, on_atl=True)
+    await save_profile(db, bob, PROFILE_YEAR, on_atl=False)
+    await add_confirmed_document(
+        db, alice.id, DocType.SALARY_CERTIFICATE, {"taxable_salary": "1800000"}
+    )
+    await add_confirmed_document(
+        db, bob.id, DocType.SALARY_CERTIFICATE, {"taxable_salary": "5000000"}
+    )
+    token = await create_token(db, alice.id, "MCP client")
+
+    result = body(await call(db, token, "calculate_income_tax", {}))
+
+    # 1,800,000 is in row 3: 6,000 + 11% of 600,000 = 72,000 (004's worked examples).
+    assert result["salary_tax"] == "72000"
+
+
+async def test_a_search_in_urdu_is_not_covered_and_not_counted(db: AsyncSession) -> None:
+    """Fails if MCP search treats an Urdu question differently from Ask (English only)."""
+    await a_corpus(db)
+    user = await a_user(db)
+    token = await create_token(db, user.id, "MCP client")
+
+    result = body(await call(db, token, "search_tax_documents", {"query": "کیا ٹیکس کٹتا ہے؟"}))
+
+    assert result == {"passages": [], "not_covered": True}
+    count = (await db.execute(select(func.count()).select_from(AskRequest))).scalar_one()
+    assert count == 0
+
+
+async def test_searches_stop_at_the_apps_daily_cap(db: AsyncSession) -> None:
+    """Fails if MCP searches can go on after the whole app has used today's questions."""
+    await a_corpus(db)
+    others = [await a_user(db, f"other{i}@example.com") for i in range(5)]
+    now = datetime.now(UTC)
+    db.add_all(
+        AskRequest(user_id=others[i % 5].id, created_at=now - timedelta(minutes=i))
+        for i in range(200)
+    )
+    user = await a_user(db)
+    token = await create_token(db, user.id, "MCP client")
+
+    result = await call(db, token, "search_tax_documents", {"query": QUESTION})
+
+    assert result.is_error and "today's limit" in result.content[0].text
+
+
+async def test_validate_reports_a_figure_that_is_not_an_amount(db: AsyncSession) -> None:
+    """Fails if a non-number reaches the rule check unreported."""
+    user = await a_user(db)
+    await save_profile(db, user, PROFILE_YEAR, on_atl=True)
+    token = await create_token(db, user.id, "MCP client")
+    arguments = {**CALLS["validate_salary_information"], "gross_salary": "twelve lakh"}
+
+    result = body(await call(db, token, "validate_salary_information", arguments))
+
+    assert result["ok"] is False
+    assert {"field": "gross_salary", "reason": "Not an amount."} in result["issues"]
+
+
+async def test_a_blank_search_is_not_covered_and_not_counted(db: AsyncSession) -> None:
+    """Fails if a query of spaces is searched or counted (it's trimmed, as Ask trims)."""
+    await a_corpus(db)
+    user = await a_user(db)
+    token = await create_token(db, user.id, "MCP client")
+
+    result = body(await call(db, token, "search_tax_documents", {"query": "   "}))
+
+    assert result == {"passages": [], "not_covered": True}
+    count = (await db.execute(select(func.count()).select_from(AskRequest))).scalar_one()
+    assert count == 0

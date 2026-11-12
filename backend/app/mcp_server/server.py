@@ -95,6 +95,7 @@ def build_server(token: str | None, sessions: Sessions, embedder: Embedder) -> M
     ) -> SearchOut:
         """Search FBR's Income Tax Ordinance and return-filing manual: up to 5 passages with
         their document, location and page, or not_covered. Returns passages, never an answer."""
+        query = query.strip()
         async with as_owner() as (db, user):
             if not written_in_english(query):
                 return SearchOut(passages=[], not_covered=True)

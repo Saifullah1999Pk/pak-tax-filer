@@ -20,7 +20,7 @@ def main() -> None:
     server = build_server(
         os.environ.get("PAKTAX_TOKEN", "").strip() or None,
         get_sessionmaker(),
-        GeminiEmbedder(api_key=get_settings().gemini_api_key),
+        GeminiEmbedder(api_key=get_settings().gemini_api_key, attempts=1),
     )
     server.run("stdio")
 

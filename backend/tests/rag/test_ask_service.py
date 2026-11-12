@@ -188,12 +188,12 @@ async def test_the_whole_app_daily_cap_stops_every_user(db: AsyncSession) -> Non
     await db.flush()
     user = await a_user(db)
     answerer = FakeAnswerer(reply())
-    embedder = FakeEmbedder()
+    embedder = SpyEmbedder()
 
     result = await ask(db, user.id, QUESTION, embedder, answerer)
 
     assert result.status == "daily_limit" and result.answer == DAILY_LIMIT_MESSAGE
-    assert not answerer.calls
+    assert not answerer.calls and not embedder.questions
 
 
 async def test_before_the_first_build_it_is_not_ready(db: AsyncSession) -> None:
@@ -228,9 +228,10 @@ async def test_an_ai_failure_is_logged_without_the_question(
     user = await a_user(db)
 
     with caplog.at_level(logging.WARNING, logger="app.rag.service"):
-        await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(AnswerError("ServerError")))
+        # An error whose text holds the question must not put it in the log.
+        await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(AnswerError(QUESTION)))
 
-    assert "ServerError" in caplog.text
+    assert "AnswerError" in caplog.text
     assert QUESTION not in caplog.text
 
 
@@ -246,3 +247,37 @@ async def test_a_refused_own_tax_question_still_points_to_the_tax_page(db: Async
 
     assert result.status == "not_covered" and result.answer == NOT_COVERED_MESSAGE
     assert result.tax_page_line == TAX_PAGE_LINE
+
+
+class SlowEmbedder(FakeEmbedder):
+    """An embedder that takes longer than the whole time limit."""
+
+    async def embed_query(self, text: str) -> list[float]:
+        """Wait, then embed as the fake does."""
+        await asyncio.sleep(1)
+        return await super().embed_query(text)
+
+
+async def test_the_time_limit_covers_embedding_too(
+    db: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fails if a slow embedding call can push a question past the time limit, which once
+    covered only the answer (SC-004 amended: an answer or a refusal within 15 s; review M2)."""
+    monkeypatch.setattr("app.rag.service.ASK_SECONDS", 0.05)
+    await a_corpus(db)
+    user = await a_user(db)
+    answerer = FakeAnswerer(reply())
+
+    result = await ask(db, user.id, QUESTION, SlowEmbedder(), answerer)
+
+    assert result.status == "unavailable" and not answerer.calls
+
+
+async def test_a_question_still_counts_when_the_ai_fails(db: AsyncSession) -> None:
+    """Fails if a failed answer isn't counted, so retrying could get round the limits."""
+    await a_corpus(db)
+    user = await a_user(db)
+
+    await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(AnswerError("down")))
+
+    assert await questions_recorded(db) == 1

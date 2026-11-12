@@ -102,7 +102,9 @@ async def test_only_a_valid_token_has_an_owner(db: AsyncSession, state: str) -> 
     if state == "revoked":
         stored.revoked_at = datetime.now(UTC)
     await db.flush()
-    presented = {"wrong": token[:-1] + "x", "missing": None}.get(state, token)
+    presented = {"wrong": token[:-1] + ("y" if token.endswith("x") else "x"), "missing": None}.get(
+        state, token
+    )
 
     assert await owner_of(db, presented) is None
 

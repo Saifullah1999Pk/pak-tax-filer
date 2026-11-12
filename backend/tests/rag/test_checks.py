@@ -133,3 +133,37 @@ def test_a_number_in_words_passes_only_as_a_cited_passage_writes_it(
     """Fails if the law's own "Rs. 10 million" is refused (eval run, 2026-11-11: 2 of 30
     answers), or if a number phrase the cited passage doesn't contain can slip through."""
     assert (checked_citations(answer(text, ["P1"]), PENSION) is not None) is passes
+
+
+@pytest.mark.parametrize(
+    ("text", "passes"),
+    [
+        ("Rs. 10million is exempt.", False),  # glued: still 10 million, not in the passage
+        ("Rs. 10m is exempt.", False),  # abbreviated
+        ("Rs. 10 mn is exempt.", False),
+        ("Rs. 10 is exempt.", False),  # the scale word dropped
+        ("Rs. 10 thousand is exempt.", True),
+        ("Rs. 10k is exempt.", True),  # the same figure, abbreviated
+    ],
+)
+def test_a_number_is_checked_with_its_scale(text: str, passes: bool) -> None:
+    """Fails if "10m", "10million" or a bare "10" passes because the cited passage has a 10 with
+    another scale ("Rs. 10 thousand"): each is a figure it doesn't contain (backend review M1)."""
+    cited = [passage("§12(9)", "Amounts up to Rs. 10 thousand are exempt.")]
+
+    assert (checked_citations(answer(text, ["P1"]), cited) is not None) is passes
+
+
+def test_a_section_letter_must_match_the_cited_location() -> None:
+    """Fails if §12(2B) passes when only §12(2A) is cited (backend review L8)."""
+    cited = [passage("§12(2A)", "In case of pension, the pension shall be charged to tax.")]
+
+    assert checked_citations(answer("Under §12(2A), pension is taxed.", ["P1"]), cited)
+    assert checked_citations(answer("Under §12(2B), pension is taxed.", ["P1"]), cited) is None
+
+
+def test_an_ordinal_written_apart_or_together_is_the_same_number() -> None:
+    """Fails if "1st" is refused when the passage's PDF text reads "1 st" (seen in §13(7))."""
+    cited = [passage("§13(7)", "Where a loan is made, on or after the 1 st day of July, 2002.")]
+
+    assert checked_citations(answer("Loans made on or after 1st July, 2002.", ["P1"]), cited)

@@ -39,7 +39,8 @@ NOT_READY_MESSAGE = "The tax assistant isn't ready yet."
 TAX_PAGE_LINE = "To see your own calculated tax, open the Tax page."
 
 HOURLY_LIMIT = 30  # per user (FR-009a)
-ANSWER_SECONDS = 15.0  # SC-004 (amended): an answer or a refusal within 15 seconds
+# SC-004 (amended): an answer or a refusal within 15 seconds, embedding and answer together.
+ASK_SECONDS = 15.0
 _KEEP = timedelta(days=1)
 
 Status = Literal["answered", "not_covered", "limited", "daily_limit", "unavailable", "not_ready"]
@@ -107,40 +108,72 @@ async def ask(
         # Out of scope (English questions only): refused before it counts or reaches any AI.
         return _refusal("not_covered")
     refused = await use_question(db, user_id)
+    # Committed either way: the question counts even if what follows fails, old records stay
+    # deleted, and the app-wide lock is released before the slow part.
+    await db.commit()
     if refused is not None:
         return _refusal(refused)
-    # Committed now, so the question counts even if what follows fails, and the lock is
-    # released before the slow part.
-    await db.commit()
+    return (await answer_question(db, question, embedder, answerer)).result
+
+
+@dataclass(frozen=True)
+class Outcome:
+    """A question's result and the step that decided it (for the answers eval)."""
+
+    result: AskResult
+    step: str  # answered, or refused: not English / cut-off / model / checks, or unavailable
+    detail: str = ""
+
+
+async def answer_question(
+    db: AsyncSession, question: str, embedder: Embedder, answerer: Answerer
+) -> Outcome:
+    """Search, answer and check one question, all within ASK_SECONDS; not counted here (ask()
+    counts it first). A failure or timeout is "unavailable"."""
     try:
-        found = await search(db, embedder, question)
-        if not found.covered:
-            return _refusal("not_covered")
-        reply = await asyncio.wait_for(answerer.answer(question, found.passages), ANSWER_SECONDS)
+        return await asyncio.wait_for(_answer(db, question, embedder, answerer), ASK_SECONDS)
     except (EmbeddingError, AnswerError, TimeoutError) as exc:
-        # The error type only (e.g. ServerError for Gemini's 503 "high demand"): never the
-        # question, which isn't kept (FR-009).
-        logger.warning("Ask unavailable: %s %s", type(exc).__name__, exc)
-        return _refusal("unavailable")
-    return _checked(reply, found.passages)
-
-
-def _checked(reply: ModelAnswer, retrieved: Sequence[RetrievedPassage]) -> AskResult:
-    """The answer, if the model gave one and it passes every check; otherwise not covered."""
-    tax_page_line = TAX_PAGE_LINE if reply.asks_own_tax_figure else None
-    cited = None if reply.not_covered else checked_citations(reply, retrieved)
-    if cited is None:
-        # Still pointed to the Tax page when they asked for their own figure (FR-007).
-        return AskResult(
-            status="not_covered", answer=NOT_COVERED_MESSAGE, tax_page_line=tax_page_line
+        # Error types only (e.g. AnswerError from ServerError, Gemini's 503 "high demand"): an
+        # error's text could hold the question, which is never kept (FR-009).
+        cause = exc.__cause__
+        logger.warning(
+            "Ask unavailable: %s%s",
+            type(exc).__name__,
+            f" from {type(cause).__name__}" if cause is not None else "",
         )
-    return AskResult(
+        return Outcome(_refusal("unavailable"), "unavailable", type(exc).__name__)
+
+
+async def _answer(
+    db: AsyncSession, question: str, embedder: Embedder, answerer: Answerer
+) -> Outcome:
+    if not written_in_english(question):
+        return Outcome(_refusal("not_covered"), "refused: not English")
+    found = await search(db, embedder, question)
+    # End the read transaction now, so no connection waits idle in it during the AI call.
+    await db.commit()
+    if not found.covered:
+        top = found.passages[0].score if found.passages else 0.0
+        return Outcome(_refusal("not_covered"), "refused: cut-off", f"top score {top:.3f}")
+    reply = await answerer.answer(question, found.passages)
+    # Still pointed to the Tax page when they asked for their own figure (FR-007).
+    tax_page_line = TAX_PAGE_LINE if reply.asks_own_tax_figure else None
+    not_covered = AskResult(
+        status="not_covered", answer=NOT_COVERED_MESSAGE, tax_page_line=tax_page_line
+    )
+    if reply.not_covered:
+        return Outcome(not_covered, "refused: model")
+    cited = checked_citations(reply, found.passages)
+    if cited is None:
+        return Outcome(not_covered, "refused: checks", f"{reply.citations}: {reply.answer}")
+    answered = AskResult(
         status="answered",
         answer=reply.answer,
         citations=[Citation(p.title, p.kind.value, p.location, p.page) for p in cited],
         uncovered_part=reply.uncovered_part,
         tax_page_line=tax_page_line,
     )
+    return Outcome(answered, "answered", f"{', '.join(p.location for p in cited)}: {reply.answer}")
 
 
 async def use_question(db: AsyncSession, user_id: uuid.UUID) -> Status | None:
