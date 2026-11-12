@@ -6,7 +6,9 @@ import { DownloadPdfButton } from "./DownloadPdfButton";
 // the backend with the practitioner label on every page; this only offers it, or says why not.
 
 test("downloads the PDF from its address", () => {
-  render(<DownloadPdfButton href="/api/tax/2025-26/pdf" disabledReason={null} />);
+  render(
+    <DownloadPdfButton href="/api/tax/2025-26/pdf" disabledReason={null} />,
+  );
 
   const link = screen.getByRole("link", { name: "Download PDF" });
   expect(link.getAttribute("href")).toBe("/api/tax/2025-26/pdf");
