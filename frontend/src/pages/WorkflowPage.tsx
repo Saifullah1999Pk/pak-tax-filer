@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api/client";
 import { rupees } from "../api/tax";
@@ -13,10 +13,10 @@ import {
 import type { Passage, Run, Step, WorkflowResult } from "../api/workflow";
 import { TaxResultView } from "../components/TaxResultView";
 
-// The guided run (feature 007, tasks T011, T016): documents, figures and the law that applies,
-// the approval gate, then the result. Every message and figure comes from the backend, which
-// checked them and enforces the gate; the page computes nothing (Principle I) and shows which
-// texts the app wrote without the AI.
+// The guided run (feature 007, tasks T011, T016, T020): documents, figures and the law that
+// applies, the approval gate, then the result. Every message and figure comes from the
+// backend, which checked them and enforces the gate; the page computes nothing (Principle I)
+// and shows which texts the app wrote without the AI.
 
 /** Shown in turn while steps 1-3 run in one request (FR-019, research R10). */
 const PROGRESS = [
@@ -27,7 +27,10 @@ const PROGRESS = [
 const PROGRESS_STEP_MS = 2000;
 const PLAIN = "Written by the app (the AI wasn't used)";
 
-/** The indicator's labels; validate and research both show as their own step. */
+/**
+ * The indicator's labels. Steps 1-3 run in one request, so "Figures" and "Law" are never the
+ * current step on their own; they show as done once the run is past them.
+ */
 const STEPS: { label: string; steps: Step[] }[] = [
   { label: "Documents", steps: ["document"] },
   { label: "Figures", steps: ["validate"] },
@@ -36,33 +39,70 @@ const STEPS: { label: string; steps: Step[] }[] = [
   { label: "Result", steps: ["result", "done"] },
 ];
 
+/** Where focus goes after an action lands on each step (the result's heading waits for it). */
+const FOCUS: Partial<Record<Step, string>> = {
+  document: "documents-heading",
+  gate: "gate-heading",
+  done: "done-notice",
+};
+
 type Loaded =
-  { kind: "loading" } | { kind: "none" } | { kind: "run"; run: Run };
+  | { kind: "loading" }
+  | { kind: "failed" }
+  | { kind: "none" }
+  | { kind: "run"; run: Run };
 
 export function WorkflowPage() {
   const [loaded, setLoaded] = useState<Loaded>({ kind: "loading" });
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // After an action, focus follows the new content (keyboard and screen-reader users).
+  const [focusNext, setFocusNext] = useState(false);
   const timer = useRef<number | undefined>(undefined);
+  const mounted = useRef(true);
+
+  /** Load (or reload) the run; a 404 means none was started. */
+  const load = useCallback(async () => {
+    try {
+      const run = await getRun();
+      if (mounted.current) setLoaded({ kind: "run", run });
+    } catch (caught: unknown) {
+      if (!mounted.current) return;
+      if (caught instanceof ApiError && caught.status === 404) {
+        setLoaded({ kind: "none" });
+      } else {
+        setError(message(caught));
+        setLoaded((now) => (now.kind === "run" ? now : { kind: "failed" }));
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    let current = true;
-    getRun()
-      .then((run) => current && setLoaded({ kind: "run", run }))
-      .catch((caught: unknown) => {
-        if (!current) return;
-        if (caught instanceof ApiError && caught.status === 404) {
-          setLoaded({ kind: "none" });
-        } else {
-          setError(message(caught));
-        }
-      });
+    mounted.current = true;
+    void load();
     return () => {
-      current = false;
+      mounted.current = false;
       window.clearInterval(timer.current);
     };
-  }, []);
+  }, [load]);
+
+  const run = loaded.kind === "run" ? loaded.run : null;
+
+  useEffect(() => {
+    if (!focusNext || run === null) return;
+    const target = FOCUS[run.step];
+    if (target !== undefined) {
+      document.getElementById(target)?.focus();
+      setFocusNext(false);
+    }
+  }, [focusNext, run]);
+
+  async function retry() {
+    setError(null);
+    setLoaded({ kind: "loading" });
+    await load();
+  }
 
   async function start() {
     if (progress !== null || busy) return;
@@ -76,12 +116,15 @@ export function WorkflowPage() {
       PROGRESS_STEP_MS,
     );
     try {
-      setLoaded({ kind: "run", run: await startRun() });
+      const started = await startRun();
+      if (!mounted.current) return;
+      setLoaded({ kind: "run", run: started });
+      setFocusNext(true);
     } catch (caught: unknown) {
-      setError(message(caught));
+      if (mounted.current) setError(message(caught));
     } finally {
       window.clearInterval(timer.current);
-      setProgress(null);
+      if (mounted.current) setProgress(null);
     }
   }
 
@@ -91,22 +134,20 @@ export function WorkflowPage() {
     setBusy(true);
     setError(null);
     try {
-      setLoaded({ kind: "run", run: await action() });
+      const next = await action();
+      if (!mounted.current) return;
+      setLoaded({ kind: "run", run: next });
+      setFocusNext(true);
     } catch (caught: unknown) {
+      if (!mounted.current) return;
       setError(message(caught));
-      if (caught instanceof ApiError && caught.status === 409) {
-        try {
-          setLoaded({ kind: "run", run: await getRun() });
-        } catch {
-          // The error above already says what went wrong.
-        }
-      }
+      if (caught instanceof ApiError && caught.status === 409) await load();
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
 
-  const run = loaded.kind === "run" ? loaded.run : null;
+  const missing = (run?.document?.missing.length ?? 0) > 0;
   const canStart = loaded.kind === "none" || run?.step === "document";
   return (
     <main>
@@ -117,18 +158,27 @@ export function WorkflowPage() {
         anything is calculated.
       </p>
       {run && <StepIndicator step={run.step} />}
-      <p role="status">{progress !== null && PROGRESS[progress]}</p>
+      <p role="status">
+        {progress !== null
+          ? PROGRESS[progress]
+          : loaded.kind === "loading" && "Loading your guided run…"}
+      </p>
       {error !== null && <p role="alert">{error}</p>}
+      {loaded.kind === "failed" && (
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      )}
       {run && run.step !== "result" && run.step !== "done" && (
         <RunView run={run} />
       )}
-      {run?.step === "gate" && (
+      {run?.step === "gate" && run.fingerprint !== null && (
         <div className="actions">
           <button
             type="button"
             className="button-primary"
             aria-disabled={busy}
-            onClick={() => act(() => approveRun(run.fingerprint ?? ""))}
+            onClick={() => act(() => approveRun(run.fingerprint!))}
           >
             Approve
           </button>
@@ -142,12 +192,20 @@ export function WorkflowPage() {
         </div>
       )}
       {run && (run.step === "result" || run.step === "done") && (
-        <ResultView run={run} busy={busy} onDone={() => act(markDone)} />
+        <ResultView
+          run={run}
+          busy={busy}
+          focusOnLoad={focusNext}
+          onFocused={() => setFocusNext(false)}
+          onDone={() => act(markDone)}
+          onRefused={load}
+        />
       )}
       {canStart && (
         <button
           type="button"
-          className="button-primary"
+          // With a certificate missing, "Go to documents" is the main action.
+          className={missing ? undefined : "button-primary"}
           aria-disabled={progress !== null}
           onClick={start}
         >
@@ -165,14 +223,17 @@ function message(caught: unknown): string {
 }
 
 function StepIndicator({ step }: { step: Step }) {
+  const current = STEPS.findIndex(({ steps }) => steps.includes(step));
   return (
     <ol className="run-steps" aria-label="Steps" role="list">
-      {STEPS.map(({ label, steps }) => (
+      {STEPS.map(({ label }, index) => (
         <li
           key={label}
-          aria-current={steps.includes(step) ? "step" : undefined}
+          aria-current={index === current ? "step" : undefined}
+          data-done={index < current || undefined}
         >
           {label}
+          {index < current && <span className="visually-hidden"> (done)</span>}
         </li>
       ))}
     </ol>
@@ -184,7 +245,9 @@ function RunView({ run }: { run: Run }) {
     <>
       {run.document && (
         <section className="panel" aria-labelledby="documents-heading">
-          <h2 id="documents-heading">Your documents</h2>
+          <h2 id="documents-heading" tabIndex={-1}>
+            Your documents
+          </h2>
           <p>{run.document.message}</p>
           {run.document.fallback && <PlainNote />}
           {run.document.missing.length > 0 && (
@@ -194,7 +257,7 @@ function RunView({ run }: { run: Run }) {
           )}
         </section>
       )}
-      {run.step === "gate" && run.gate && <Gate run={run} />}
+      {run.step === "gate" && run.gate && <Gate run={run} gate={run.gate} />}
     </>
   );
 }
@@ -203,11 +266,12 @@ function PlainNote() {
   return <p className="plain-note">{PLAIN}</p>;
 }
 
-function Gate({ run }: { run: Run }) {
-  const gate = run.gate!;
+function Gate({ run, gate }: { run: Run; gate: NonNullable<Run["gate"]> }) {
   return (
     <section className="panel" aria-labelledby="gate-heading">
-      <h2 id="gate-heading">Before you approve</h2>
+      <h2 id="gate-heading" tabIndex={-1}>
+        Before you approve
+      </h2>
       {run.inputs_changed && (
         <p className="notice">
           Your inputs changed; please review and approve again.
@@ -259,29 +323,54 @@ function Gate({ run }: { run: Run }) {
 function ResultView({
   run,
   busy,
+  focusOnLoad,
+  onFocused,
   onDone,
+  onRefused,
 }: {
   run: Run;
   busy: boolean;
+  focusOnLoad: boolean;
+  onFocused: () => void;
   onDone: () => void;
+  /** The result was refused (e.g. inputs changed since the approval): reload the run. */
+  onRefused: () => void;
 }) {
   const [result, setResult] = useState<WorkflowResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     let current = true;
     getResult()
       .then((loaded) => current && setResult(loaded))
-      .catch((caught: unknown) => current && setError(message(caught)));
+      .catch((caught: unknown) => {
+        if (!current) return;
+        if (caught instanceof ApiError && caught.status === 409) {
+          onRefused();
+        } else {
+          setError(message(caught));
+        }
+      });
     return () => {
       current = false;
     };
-  }, [run.approved_at]);
+  }, [run.approved_at, onRefused]);
+
+  useEffect(() => {
+    if (result !== null && focusOnLoad) {
+      heading.current?.focus();
+      onFocused();
+    }
+  }, [result, focusOnLoad, onFocused]);
 
   if (error !== null) return <p role="alert">{error}</p>;
-  if (result === null) return <p>Calculating…</p>;
+  if (result === null) return <p role="status">Calculating…</p>;
   return (
     <>
+      <h2 id="result-heading" ref={heading} tabIndex={-1}>
+        Your result
+      </h2>
       <TaxResultView result={result} />
       {result.passages.length > 0 && (
         <section className="panel" aria-labelledby="sources-heading">
@@ -290,7 +379,9 @@ function ResultView({
         </section>
       )}
       {run.step === "done" ? (
-        <p className="notice">Done on {dateOf(run.done_at)}.</p>
+        <p id="done-notice" className="notice" tabIndex={-1}>
+          Done on {dateOf(run.done_at)}.
+        </p>
       ) : (
         <button
           type="button"

@@ -1905,9 +1905,18 @@ button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
   font-weight: 600;
 }
 
+.run-steps li[data-done] {
+  color: var(--ink);
+}
+
 .run-steps li[aria-current="step"] {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* The global `li + li` margin would push every pill after the first one down. */
+.run-steps li + li {
+  margin-top: 0;
 }
 
 .gate-figures {
@@ -1924,6 +1933,17 @@ button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
 .gate-figures dd {
   margin: 0;
   font-weight: 600;
+  white-space: nowrap; /* "Rs 1,800,000.00" stays on one line */
+}
+
+@media (max-width: 719px) {
+  .gate-figures {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .gate-figures dd {
+    text-align: right;
+  }
 }
 
 .plain-note {

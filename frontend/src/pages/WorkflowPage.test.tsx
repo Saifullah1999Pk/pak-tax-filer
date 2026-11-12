@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import type { Run } from "../api/workflow";
 import { hasProfile, mockFetch, noProfile } from "../test/mockFetch";
@@ -125,13 +131,21 @@ test("while the steps run, it shows what each is doing in turn", async () => {
   expect(status.textContent).toBe("Finding the law that applies…");
 });
 
-test("the step indicator marks where the run is", async () => {
+test("the step indicator marks where the run is and the steps already done", async () => {
   showWorkflow(AT_GATE);
   renderApp("/workflow");
 
   const steps = await screen.findByRole("list", { name: "Steps" });
-  const current = within(steps).getByText("Approve");
-  expect(current.closest("li")?.getAttribute("aria-current")).toBe("step");
+  const current = within(steps).getByRole("listitem", { current: "step" });
+  expect(current.textContent).toBe("Approve");
+  const items = within(steps).getAllByRole("listitem");
+  expect(items.map((item) => item.textContent)).toEqual([
+    "Documents (done)",
+    "Figures (done)",
+    "Law (done)",
+    "Approve",
+    "Result",
+  ]);
 });
 
 test("a missing salary certificate is explained, with the way to fix it", async () => {
@@ -262,10 +276,24 @@ test("approving sends the fingerprint the user saw and shows the result", async 
   expect(sources.textContent).toContain("§149(1), page 327");
 });
 
-test("if the inputs changed, approving says so and asks to review again", async () => {
-  showGateFlow({
-    status: 409,
-    body: { detail: "Your inputs changed; please review and approve again." },
+test("if the inputs changed, approving says so and the run reloads for a new look", async () => {
+  const changed: Run = {
+    ...AT_GATE,
+    inputs_changed: true,
+    fingerprint: "e".repeat(64),
+  };
+  let gets = 0;
+  const fetch = mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => ({
+      status: 200,
+      body: gets++ === 0 ? AT_GATE : changed,
+    }),
+    "POST /api/workflow/approve": () => ({
+      status: 409,
+      body: { detail: "Your inputs changed; please review and approve again." },
+    }),
   });
   renderApp("/workflow");
 
@@ -273,6 +301,21 @@ test("if the inputs changed, approving says so and asks to review again", async 
 
   expect((await screen.findByRole("alert")).textContent).toContain(
     "Your inputs changed",
+  );
+  await screen.findByText(
+    "Your inputs changed; please review and approve again.",
+    {
+      selector: ".notice",
+    },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+  await waitFor(() =>
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/workflow/approve",
+      expect.objectContaining({
+        body: JSON.stringify({ fingerprint: changed.fingerprint }),
+      }),
+    ),
   );
 });
 
@@ -318,4 +361,154 @@ test("a run that was never approved doesn't claim its inputs changed", async () 
 
   await screen.findByRole("region", { name: "Before you approve" });
   expect(screen.queryByText(/Your inputs changed/)).toBeNull();
+});
+
+// ---- Review fixes ----
+
+test("if the run can't be loaded, it says so and offers to try again", async () => {
+  let attempts = 0;
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () =>
+      attempts++ === 0
+        ? { status: 500, body: { detail: "Something went wrong." } }
+        : { status: 200, body: AT_GATE },
+  });
+  renderApp("/workflow");
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Something went wrong.",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+  expect(
+    await screen.findByRole("region", { name: "Before you approve" }),
+  ).toBeDefined();
+});
+
+test("while the run loads, the page says so", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => new Promise<FakeReply>(() => {}),
+  });
+  renderApp("/workflow");
+
+  expect(await screen.findByText("Loading your guided run…")).toBeDefined();
+});
+
+test("if the result is refused (inputs changed after approval), the run reloads to the gate", async () => {
+  let gets = 0;
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => ({
+      status: 200,
+      body: gets++ === 0 ? APPROVED : { ...AT_GATE, inputs_changed: true },
+    }),
+    "GET /api/workflow/result": () => ({
+      status: 409,
+      body: { detail: "Approval needed." },
+    }),
+  });
+  renderApp("/workflow");
+
+  expect(
+    await screen.findByText(
+      "Your inputs changed; please review and approve again.",
+      { selector: ".notice" },
+    ),
+  ).toBeDefined();
+  expect(screen.getByRole("button", { name: "Approve" })).toBeDefined();
+});
+
+test("after approving, focus moves to the result", async () => {
+  showGateFlow();
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Approve" }));
+
+  const heading = await screen.findByRole("heading", { name: "Your result" });
+  await waitFor(() => expect(document.activeElement).toBe(heading));
+});
+
+test("after starting, focus moves to the gate", async () => {
+  showWorkflow(null);
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+
+  const heading = await screen.findByRole("heading", {
+    name: "Before you approve",
+  });
+  await waitFor(() => expect(document.activeElement).toBe(heading));
+});
+
+test("a second click while approving sends nothing more", async () => {
+  // The approval never answers, so the first click is still in progress.
+  const pending = mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => ({ status: 200, body: AT_GATE }),
+    "POST /api/workflow/approve": () => new Promise<FakeReply>(() => {}),
+  });
+  renderApp("/workflow");
+
+  const approve = await screen.findByRole("button", { name: "Approve" });
+  fireEvent.click(approve);
+  fireEvent.click(approve);
+
+  await waitFor(() =>
+    expect(approve.getAttribute("aria-disabled")).toBe("true"),
+  );
+  const posts = pending.mock.calls.filter(
+    ([path]) => path === "/api/workflow/approve",
+  );
+  expect(posts).toHaveLength(1);
+});
+
+test("once the steps finish, the progress stops", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  showWorkflow(null);
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+  await screen.findByRole("region", { name: "Before you approve" });
+  act(() => {
+    vi.advanceTimersByTime(5000);
+  });
+
+  expect(screen.getByRole("status").textContent).toBe("");
+});
+
+test("a failed start says so and Start stays available", async () => {
+  mockFetch({
+    "GET /api/auth/me": () => ME,
+    "GET /api/profile": hasProfile,
+    "GET /api/workflow": () => ({
+      status: 404,
+      body: { detail: "No guided run yet." },
+    }),
+    "POST /api/workflow/start": () => ({
+      status: 500,
+      body: { detail: "Try later." },
+    }),
+  });
+  renderApp("/workflow");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Try later.",
+  );
+  expect(screen.getByRole("button", { name: "Start" })).toBeDefined();
+});
+
+test("with a certificate missing, Go to documents is the main action", async () => {
+  showWorkflow(MISSING);
+  renderApp("/workflow");
+
+  const startAgain = await screen.findByRole("button", { name: "Start again" });
+  expect(startAgain.className).not.toContain("button-primary");
 });
