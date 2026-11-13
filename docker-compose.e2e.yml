@@ -2,6 +2,7 @@
 # app's real AI clients answer from fixed synthetic data and no test reaches Google. Always run
 # under its own project name, so it has its own database and never touches development data:
 #   docker compose -p pak-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+# Its ports (18000, 15173) differ from development's, so both stacks can run at once.
 services:
   fake-gemini:
     image: python:3.13-slim
@@ -15,6 +16,9 @@ services:
       retries: 15
 
   backend:
+    # Its own host port (replacing the development one), so it runs beside the dev stack.
+    ports: !override
+      - "18000:8000"
     environment:
       # The google-genai SDK sends every Gemini call here instead of Google.
       GOOGLE_GEMINI_BASE_URL: http://fake-gemini:8080
@@ -24,3 +28,7 @@ services:
     depends_on:
       fake-gemini:
         condition: service_healthy
+
+  frontend:
+    ports: !override
+      - "15173:5173"

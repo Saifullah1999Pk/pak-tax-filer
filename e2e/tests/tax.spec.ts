@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { LABEL, userWithConfirmedSalary } from "./helpers";
+import {
+  confirmEveryFigure,
+  LABEL,
+  signUpWithProfile,
+  uploadSalaryCertificate,
+} from "./helpers";
 
 // The main flow (the one that broke for the lead on 2026-11-12): sign up, set the profile,
 // upload a salary certificate, confirm its figures, see the tax and download its PDF.
@@ -7,7 +12,10 @@ import { LABEL, userWithConfirmedSalary } from "./helpers";
 test("a confirmed salary certificate gives the tax result and its PDF", async ({
   page,
 }) => {
-  await userWithConfirmedSalary(page);
+  // The whole path through the UI, on purpose: the other tests set this up through the API.
+  await signUpWithProfile(page);
+  await uploadSalaryCertificate(page);
+  await confirmEveryFigure(page);
 
   await page.goto("/tax");
   await expect(

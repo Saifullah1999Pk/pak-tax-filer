@@ -112,8 +112,11 @@ jobs:
   # Google; its own project name, so its own database (e2e/README.md).
   e2e:
     runs-on: ubuntu-latest
+    # A stuck stack or browser must fail the job, not hang it (review, PR #44).
+    timeout-minutes: 20
     env:
       COMPOSE: docker compose -p pak-e2e -f docker-compose.yml -f docker-compose.e2e.yml
+      E2E_BASE_URL: http://localhost:15173
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -122,9 +125,10 @@ jobs:
       - name: Start the app with the fake Gemini
         run: |
           $COMPOSE up -d --build
-          for _ in $(seq 1 60); do curl -sf http://localhost:8000/health >/dev/null && break; sleep 3; done
+          # curl itself retries (3 minutes at most), and a backend that never starts fails here.
+          curl -sf --retry 60 --retry-delay 3 --retry-connrefused --retry-all-errors http://localhost:18000/health >/dev/null || { echo "The backend never became healthy."; exit 1; }
           $COMPOSE exec -T backend alembic upgrade head
-          for _ in $(seq 1 60); do curl -sf http://localhost:5173/ >/dev/null && break; sleep 3; done
+          curl -sf --retry 60 --retry-delay 3 --retry-connrefused --retry-all-errors http://localhost:15173/ >/dev/null || { echo "The frontend never started."; exit 1; }
       - name: Install Playwright and Chromium
         working-directory: e2e
         run: npm ci && npx playwright install --with-deps chromium

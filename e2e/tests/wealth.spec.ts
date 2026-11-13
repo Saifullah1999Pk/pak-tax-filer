@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { LABEL, userWithConfirmedSalary } from "./helpers";
+import { LABEL, apiUserWithConfirmedSalary } from "./helpers";
 
 // The wealth statement: the salary certificate's figures fill it in, the user adds last year's
 // net assets, saves, and gets a labelled result and its PDF.
@@ -7,7 +7,7 @@ import { LABEL, userWithConfirmedSalary } from "./helpers";
 test("a saved statement gives a labelled result and its PDF", async ({
   page,
 }) => {
-  await userWithConfirmedSalary(page);
+  await apiUserWithConfirmedSalary(page);
 
   await page.goto("/wealth");
   await page.getByLabel(/net assets on 30 june 2025/i).fill("1000000");

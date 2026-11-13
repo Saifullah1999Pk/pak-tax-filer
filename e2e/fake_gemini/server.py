@@ -6,12 +6,14 @@ AI. It tells requests apart by their structure (the response schema, tools, the 
 by prompt wording, and answers with fixed synthetic data:
 
 - embeddings: fixed 768-number vectors;
-- extraction (a `document_type` in the response schema): a salary certificate with taxable salary
-  Rs 1,800,000 and Rs 75,000 deducted (salary tax Rs 72,000, so Rs 3,000 over-deducted), or a bank
-  certificate; a file containing E2E-GOOGLE-TIMEOUT gets Google's 504 instead;
-- the assistant (`not_covered` in the schema): "not covered";
+- extraction of a salary certificate (`gross_salary` in the response schema): taxable salary
+  Rs 1,800,000 and Rs 75,000 deducted (salary tax Rs 72,000, so Rs 3,000 over-deducted); a file
+  containing E2E-GOOGLE-TIMEOUT gets Google's 504 instead;
 - the guided run's agents (tools in the request): a short reply with no numbers;
 - anything else (the summaries): a sentence with no numbers.
+
+Only what a test needs is faked: anything else gets an error, so a new kind of request is added
+here together with the test that needs it (e2e/README.md).
 
 Standard library only. Run: python server.py (port 8080).
 """
@@ -37,19 +39,6 @@ SALARY = {
     "gross_salary": value("Rs. 2,000,000/-", "Gross Salary"),
     "taxable_salary": value("Rs. 1,800,000/-", "Taxable Salary"),
     "tax_deducted": value("75,000", "Income Tax Deducted"),
-}
-BANK = {
-    "document_type": "bank_profit_certificate",
-    "tax_year": value("2025-26", "Tax Year"),
-    "profit_amount": value("50,000.00", "Profit Paid"),
-    "tax_withheld": value("10,000.00", "Tax Withheld u/s 151"),
-}
-NOT_COVERED = {
-    "answer": "",
-    "citations": [],
-    "not_covered": True,
-    "uncovered_part": None,
-    "asks_own_tax_figure": False,
 }
 SUMMARY = "Your result and how it was worked out are shown above."
 
@@ -95,7 +84,7 @@ def system_text(request: dict[str, Any]) -> str:
 def generate(request: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     """The status and body for a generateContent request."""
     fields = schema_fields(request)
-    if "document_type" in fields:
+    if "gross_salary" in fields:
         if TIMEOUT_MARKER in file_bytes(request):
             error = {
                 "code": 504,
@@ -103,9 +92,9 @@ def generate(request: dict[str, Any]) -> tuple[int, dict[str, Any]]:
                 "status": "DEADLINE_EXCEEDED",
             }
             return 504, {"error": error}
-        return 200, text_reply(json.dumps(SALARY if "gross_salary" in fields else BANK))
-    if "not_covered" in fields:
-        return 200, text_reply(json.dumps(NOT_COVERED))
+        return 200, text_reply(json.dumps(SALARY))
+    if fields:  # another reply schema no test needs yet (a bank certificate, the assistant)
+        return 400, {"error": {"code": 400, "message": "Not faked.", "status": "INVALID_ARGUMENT"}}
     if request.get("tools"):
         if '"citations"' in system_text(request):
             return 200, text_reply(json.dumps({"note": "No passages to cite.", "citations": []}))

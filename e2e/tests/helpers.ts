@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIResponse, type Page } from "@playwright/test";
 
 // Steps the end-to-end tests share. Elements are found as a user finds them (role, label, text),
 // as in the frontend's own tests. Every user and file is synthetic (constitution, Principle V).
@@ -30,11 +30,15 @@ export function syntheticPdf(marker = "E2E synthetic certificate"): Buffer {
   return Buffer.from(pdf, "latin1");
 }
 
-/** Sign up a fresh user and set their profile (tax year 2025-26, on the ATL). */
-export async function signUpWithProfile(page: Page): Promise<string> {
-  const email = `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+/** A fresh synthetic email for one test. */
+function newEmail(): string {
+  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+}
+
+/** Sign up a fresh user and set their profile (tax year 2025-26, on the ATL), through the UI. */
+export async function signUpWithProfile(page: Page): Promise<void> {
   await page.goto("/signup");
-  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Email").fill(newEmail());
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Confirm password").fill(PASSWORD);
   await page.getByRole("button", { name: "Create account" }).click();
@@ -44,11 +48,10 @@ export async function signUpWithProfile(page: Page): Promise<string> {
   await page.getByRole("radio", { name: "Yes" }).check();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page).not.toHaveURL(/\/profile/);
-  return email;
 }
 
-/** Upload a salary certificate: its review page follows, or, if reading failed, the reason on
- * the Documents page. */
+/** Upload a salary certificate through the UI: its review page follows, or, if reading failed,
+ * the reason on the Documents page. */
 export async function uploadSalaryCertificate(
   page: Page,
   pdf = syntheticPdf(),
@@ -63,7 +66,7 @@ export async function uploadSalaryCertificate(
   await page.getByRole("button", { name: "Upload" }).click();
 }
 
-/** Confirm each figure the AI read, until the document is confirmed. */
+/** Confirm each figure the AI read, then the document, through the UI. */
 export async function confirmEveryFigure(page: Page): Promise<void> {
   await expect(
     page.getByRole("heading", { name: /Check the figures/ }),
@@ -83,12 +86,50 @@ export async function confirmEveryFigure(page: Page): Promise<void> {
   await expect(page.getByText(/This document is confirmed/)).toBeVisible();
 }
 
-/** A signed-up user with a confirmed salary certificate (Rs 1,800,000 taxable, Rs 75,000
- * deducted: salary tax Rs 72,000, Rs 3,000 over-deducted). */
-export async function userWithConfirmedSalary(page: Page): Promise<void> {
-  await signUpWithProfile(page);
-  await uploadSalaryCertificate(page);
-  await confirmEveryFigure(page);
+/** The same user and confirmed certificate set up through the API, for tests about later pages
+ * (tax.spec.ts proves the UI path). `page.request` shares the page's cookies, so the browser is
+ * then logged in as this user. Rs 1,800,000 taxable, Rs 75,000 deducted. */
+export async function apiUserWithConfirmedSalary(page: Page): Promise<void> {
+  const api = page.request;
+  const ok = async (response: Promise<APIResponse>) => {
+    const reply = await response;
+    expect(reply.ok(), `${reply.url()}: ${reply.status()}`).toBe(true);
+    return reply;
+  };
+  await ok(
+    api.post("/api/auth/signup", {
+      data: { email: newEmail(), password: PASSWORD },
+    }),
+  );
+  await ok(
+    api.put("/api/profile", { data: { tax_year: "2025-26", on_atl: true } }),
+  );
+  const uploaded = await ok(
+    api.post("/api/documents", {
+      multipart: {
+        doc_type: "salary_certificate",
+        file: {
+          name: "salary-certificate.pdf",
+          mimeType: "application/pdf",
+          buffer: syntheticPdf(),
+        },
+      },
+    }),
+  );
+  const { id } = (await uploaded.json()) as { id: string };
+  for (const name of [
+    "tax_year",
+    "gross_salary",
+    "taxable_salary",
+    "tax_deducted",
+  ]) {
+    await ok(
+      api.patch(`/api/documents/${id}/fields/${name}`, {
+        data: { confirmed: true },
+      }),
+    );
+  }
+  await ok(api.post(`/api/documents/${id}/confirm`, { data: {} }));
 }
 
 export const LABEL = "Not yet reviewed by a tax practitioner. Not tax advice.";

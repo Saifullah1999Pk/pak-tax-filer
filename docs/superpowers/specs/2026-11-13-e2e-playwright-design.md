@@ -28,42 +28,28 @@ environment (checked in google-genai 3.0.0, `_base_url.py`).
 
 ## Design
 
-- **`e2e/fake_gemini/server.py`**: a small Python standard-library HTTP server standing in for
-  `generativelanguage.googleapis.com`. It tells each request apart by what the app sends, never by
-  prompt wording, and answers as Gemini would:
-  - `…:batchEmbedContents` / `…:embedContent`: fixed 768-number vectors;
-  - `…:generateContent` with a `document_type` in the response schema (extraction): a salary
-    or bank certificate's fields, chosen by the fields the schema asks for, with synthetic
-    figures (taxable salary Rs 1,800,000, tax deducted Rs 75,000, so a known tax result);
-  - with a `not_covered` field (the assistant): a refusal, as no corpus is built in e2e;
-  - with tools (the guided run's agents): a short reply with no numbers;
-  - anything else (the summaries): a sentence with no numbers.
-  A header in the request can ask for a 504, to test the "Google is busy" path from PR #43.
-- **`docker-compose.e2e.yml`**: an override adding the `fake-gemini` service and setting the
-  backend's `GOOGLE_GEMINI_BASE_URL=http://fake-gemini:8080` and a placeholder `GEMINI_API_KEY`.
-  Run under its own project name (`-p pak-e2e`), so it never touches the development database.
-  Migrations run once the stack is up.
-- **`e2e/`**: its own `package.json` with `@playwright/test`, Chromium only; `e2e/tests/*.spec.ts`;
-  a synthetic one-page PDF made in the test (Principle V: no real documents). Each test signs up a
-  fresh `e2e-<random>@example.com` user, so tests don't depend on each other.
-- **First tests:**
-  1. sign up → set the profile → upload a salary certificate → review and confirm → the Tax page
-     shows Rs 72,000 salary tax and the practitioner label → Download PDF saves a file;
-  2. the wealth statement: enter the example statement → it reconciles;
-  3. guided filing: start → approve → the result;
-  4. an upload Google times out on shows the "busy, press Retry" message (with #43).
-- **CI:** a job `e2e` that starts the stack, runs migrations, runs Playwright, and uploads the
-  report when something fails.
-- **Docs:** a short `e2e/README.md` (running it locally, adding a test) and a line in
-  `CLAUDE.md`'s commands table.
+- **A fake Gemini server** (`e2e/fake_gemini/server.py`, standard library only) stands in for
+  Google; the app's real clients reach it through `GOOGLE_GEMINI_BASE_URL`. It recognises a
+  request by its structure, never by prompt wording, and fakes only what a test needs. What it
+  answers is described once, in `server.py`'s docstring (and summarised in `e2e/README.md`).
+- **`docker-compose.e2e.yml`** adds it to the development stack, under its own project name
+  (`-p pak-e2e`, so its own database) and its own ports (18000, 15173), so it runs beside
+  development.
+- **`e2e/`**: Playwright, Chromium only. Every test signs up its own user and makes its own
+  synthetic PDF (Principle V). One test drives the whole path through the UI (sign up → upload →
+  confirm → tax → PDF); the others set that up through the API and test only their own page, so a
+  change to one screen fails one test.
+- **CI:** a job `e2e` with a time limit, failing clearly if the stack never starts, no retries
+  (a flaky test must show), and the report and logs attached when a test fails.
 
 ## Decided by the builder (my calls)
 
-Chromium only; standard-library server (no new dependency); the fake answers are fixed, not
-configurable beyond the 504 header; a test that needs #43's message joins once #43 is merged
-(this branch stacks on it).
+Chromium only; a standard-library fake (no new dependency) with fixed answers; the "Google
+busy" path triggered by a marker inside the synthetic PDF, since the browser can't send the
+fake a header.
 
-## Left to the builder
+## Revised after review (PR #44, 2026-11-13)
 
-Selectors (by role, label and text, as the frontend tests do), timeouts, and whether test 4 needs
-a header the browser can't set (if so, a fake-server setting for that one test).
+No retries in CI; a time limit and clear failures for the stack's start; API set-up for the tests
+that don't test the upload; unused fake answers removed; separate ports; this doc trimmed to
+intent and decisions so it can't drift from the code.
