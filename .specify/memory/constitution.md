@@ -6,7 +6,8 @@
 
 - Every tax liability, slab lookup, withholding credit, and wealth-statement reconciliation
   MUST be computed by plain, deterministic code. The same inputs MUST always give the same
-  output.
+  output. The same holds for bill-approval amounts (approved, cut, budget left) and every
+  approve, cut or flag decision a policy makes.
 - An LLM MUST NOT produce, adjust, round, or "sanity-check" any of these numbers. The AI model
   is allowed in exactly three places: extracting fields from documents, the RAG assistant, and
   explaining a number that has already been computed.
@@ -29,6 +30,9 @@ confidently wrong about arithmetic, and the user cannot tell when that happens.
   MUST record its source document, section, and tax year.
 - Changes to the tax-rates module MUST be called out explicitly in review, and the project's
   Claude Code hooks MUST guard the module against unreviewed edits.
+- A bill-approval policy rule (a budget, a banned category, a cap) MUST come from the company's
+  written policy and record it with the rule, in a versioned policy module keyed by year. The
+  demo's policies are synthetic and say so.
 
 **Rationale:** during planning, third-party Pakistani tax calculators were found to disagree
 with each other. FBR's own documents are the only source that can be defended.
@@ -41,6 +45,9 @@ with each other. FBR's own documents are the only source that can be defended.
   the UI.
 - The agentic workflow MUST stop at a human-approval gate before calculation. No agent may
   skip or auto-approve this gate.
+- What the AI reads from a bill (each line, its category, the total) MUST be confirmed by the
+  employee before a policy decides on it. A claim the policy flags MUST be decided by an
+  approver, never by the agent, and no approver may decide their own claim.
 
 **Rationale:** extraction from scanned or varied certificates is probabilistic. The user, not
 the model, is the authority on what their documents say.
@@ -84,6 +91,10 @@ held to a measured bar. Both need to be checked automatically, every time.
 - The MVP covers one salaried individual taxpayer and one configurable tax year (TY2026). The
   income sources are salary and profit on debt (§151), from two document types: a salary
   certificate and a bank profit certificate.
+- A second capability (feature 009): policy-based bill approval. Employees submit medical and
+  mobile/internet bills; the AI reads and categorises their lines; deterministic code applies
+  the company policy; an approver role decides flagged claims. One company and one approver
+  level; no payments, approval chains or in-app policy editing.
 - The MCP server exposes exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
 - Out-of-scope items (other income types, multiple employers beyond a simple sum, IRIS
@@ -138,4 +149,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.2.2 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-08
+**Version**: 1.3.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-13
