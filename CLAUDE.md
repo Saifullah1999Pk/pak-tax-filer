@@ -61,6 +61,7 @@ The constitution (`.specify/memory/constitution.md`) overrides everything else. 
 | Lint | `uv run --project backend pylint --recursive=y backend/app backend/alembic backend/evals backend/tests`; `npm run lint` in `frontend/` |
 | Format | `uv run --project backend ruff format backend`; `npx prettier --write src` in `frontend/` |
 | Contract check | `uv run --project backend python scripts/validate_contracts.py --all` (or `--feature NNN`) |
+| End-to-end tests (Playwright, fake Gemini) | See `e2e/README.md`: start the `pak-e2e` stack, then `npx playwright test` in `e2e/` |
 
 ## Conventions
 
