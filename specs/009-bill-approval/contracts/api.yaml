@@ -1,0 +1,91 @@
+# Machine-checkable subset of claims-api.md (feature 009), checked by
+# scripts/validate_contracts.py against the app's OpenAPI schema. The Markdown
+# stays the full contract; change both together (docs/contracts.md).
+openapi: 3.1.0
+info:
+  title: Feature 009 contract
+  version: 1.0.0
+x-claim: &claim
+  description: success
+  content:
+    application/json:
+      schema:
+        type: object
+        required: [id, policy, policy_year, status, lines, decision, label, created_at]
+paths:
+  /api/claims:
+    post:
+      responses:
+        '201': *claim
+    get:
+      responses:
+        '200':
+          description: success
+  /api/claims/budget:
+    get:
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [medical, mobile, label]
+  /api/claims/{id}:
+    get:
+      responses:
+        '200': *claim
+  /api/claims/{id}/file:
+    get:
+      responses:
+        '200':
+          description: the bill file
+  /api/claims/{id}/lines:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lines, total]
+      responses:
+        '200': *claim
+  /api/claims/{id}/confirm:
+    post:
+      responses:
+        '200': *claim
+  /api/claims/{id}/retry:
+    post:
+      responses:
+        '200': *claim
+  /api/claims/{id}/withdraw:
+    post:
+      responses:
+        '200': *claim
+  /api/claims/{id}/explanation:
+    get:
+      responses:
+        '200':
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [explanation, fallback]
+  /api/approvals:
+    get:
+      responses:
+        '200':
+          description: success
+  /api/approvals/{id}:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, note]
+      responses:
+        '200': *claim
