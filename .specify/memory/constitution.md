@@ -1,13 +1,3 @@
-<!--
-Sync Impact Report (remove before committing)
-- Version: 1.2.2 -> 1.3.0 (MINOR: Principle VII's scope materially expanded)
-- Modified: VII. MVP Scope Discipline (full individual calculation, TY2026 and TY2027);
-  II. Authoritative Sources Only (each rate also records its effective date)
-- Added / removed sections: none
-- Approval: the lead, verbally, 2026-11-13 (feature 010 design); recorded in the PR
-- Follow-up: 004's spec and plan (salary + bank profit only) are superseded for the engine by
-  feature 010's spec; README scope line
--->
 # Pak Tax Filer Constitution
 
 ## Core Principles
