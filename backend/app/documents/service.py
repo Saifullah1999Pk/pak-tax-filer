@@ -141,9 +141,15 @@ async def create_document(  # pylint: disable=too-many-arguments  # all keyword-
 
 
 async def extract_document(
-    db: AsyncSession, document: Document, extractor: Extractor, content: bytes
+    db: AsyncSession,
+    document: Document,
+    extractor: Extractor,
+    content: bytes,
+    attempt: ExtractionAttempt | None = None,
 ) -> Document:
-    """Run extraction, normalise, apply the rules and save the fields (or the failure)."""
+    """Run extraction, normalise, apply the rules and save the fields (or the failure). When
+    Google's side failed (a 5xx or no connection), the attempt that counted this try is removed,
+    so the user isn't charged for it (FR-017, amended 2026-11-13)."""
     document.status = DocStatus.EXTRACTING
     await db.flush()
 
@@ -156,6 +162,9 @@ async def extract_document(
             call.outcome = "check_failed"
         elif result.failure_reason is not None:
             call.outcome = "fallback"
+
+    if result.service_failed and attempt is not None:
+        await db.delete(attempt)
 
     document.model = result.model
     if result.failure_reason is not None:
@@ -394,12 +403,12 @@ async def retry_extraction(
     # Counted only now that the AI will be called, and committed first so neither the limit's
     # lock nor this row's is held during the call (002 review M2, M3); then the row is locked
     # again and rechecked, since an edit or delete could have come in between.
-    await use_extraction(db, document.user_id)
+    attempt = await use_extraction(db, document.user_id)
     await db.commit()
     await db.refresh(document, with_for_update=True)
     if document.status is not DocStatus.FAILED:
         raise DocumentLocked("Only a failed extraction can be retried.")
-    return await extract_document(db, document, extractor, content)
+    return await extract_document(db, document, extractor, content, attempt)
 
 
 async def delete_document(db: AsyncSession, document: Document) -> str:
