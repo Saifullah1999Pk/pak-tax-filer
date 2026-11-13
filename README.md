@@ -17,12 +17,18 @@ practitioner. Nothing in this app is tax advice until that changes.
 ## MVP scope
 
 **In:**
-- One taxpayer profile, one configurable tax year (TY2026).
-- Two document types only: salary certificate, bank profit certificate.
+- One resident individual taxpayer, salaried or not; tax years TY2026 and
+  TY2027 (TY2027 labelled an estimate until the year ends).
+- Two document types only: salary certificate, bank profit certificate. Other
+  incomes are typed in (feature 010).
 - AI-assisted field extraction, with mandatory human confirmation before
   anything downstream uses the data.
-- A deterministic tax calculation (salary income + profit on debt/§151) with
-  a plain-language, step-by-step explanation.
+- A deterministic tax calculation with a plain-language, step-by-step
+  explanation: salary and bonuses, rent, business and freelance income, profit
+  on debt, dividends, capital gains and other sources, each under its legal
+  treatment; Zakat, donations and pension contributions; tax withheld and
+  advance tax; one amount payable or refundable. Anything not covered is shown
+  as unsupported, never guessed.
 - A wealth statement with deterministic reconciliation. An LLM may only
   explain a reconciliation result that's already been computed — it never
   computes the number itself.
@@ -36,8 +42,9 @@ practitioner. Nothing in this app is tax advice until that changes.
 - A simple agentic workflow (document → validate → research → calculate →
   explain → review) with a mandatory human-approval gate before calculation.
 
-**Out (for now):** dividends, rental income, other income types; multiple
-employers beyond a simple sum; IRIS login/auto-filing; any claim of
+**Out (for now):** companies and associations of persons; non-residents;
+agricultural income; tax years before TY2026; losses, depreciation, perk
+valuation, minimum and turnover tax; IRIS login/auto-filing; any claim of
 authoritative tax advice; real user documents (synthetic/demo data only
 until a tax practitioner and legal review are in place).
 
