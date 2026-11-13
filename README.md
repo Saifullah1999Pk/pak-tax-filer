@@ -76,7 +76,7 @@ AI-specific pieces, Python MCP SDK, Docker Compose.
    server (3 tools).
 7. Agentic workflow wiring (document/validation/research agents, state
    machine, human-approval gate before calculation).
-8. Telemetry, guardrail tests, CI (lint/type-check/te"sts + an eval-accuracy
+8. Telemetry, guardrail tests, CI (lint/type-check/tests + an eval-accuracy
    gate), PDF export with the validation-status banner.
 
 ## Planning process
