@@ -119,8 +119,9 @@ same month whose total passes the cap; the second is approved only up to what's 
 
 ### Edge Cases
 
-- A bill the agent can't read at all (blurred, not a bill): the employee is told and can retry
-  or still enter the lines themselves; the claim is flagged so a person checks it.
+- A bill the agent can't read at all (blurred, faint): the employee is told and can retry, or
+  enter the lines themselves, and the claim is then always flagged so a person checks it. A file
+  that isn't a bill at all is refused, as for tax documents.
 - Google doesn't answer in time: the employee is told plainly, the file is kept for Retry, and
   the try doesn't count against their daily limit (as for tax documents).
 - A bill dated before or after the policy year: flagged, never decided automatically.
@@ -150,8 +151,11 @@ same month whose total passes the cap; the second is approved only up to what's 
   and amount, and the total, and propose a category for each line from the policy's fixed list.
 - **FR-003**: The employee MUST confirm or correct every line (description, amount, category),
   the date and the total before anything is decided, and MAY add a line the agent missed or
-  remove one that isn't on the bill; unconfirmed claims MUST NOT be decided or use budget,
-  enforced by the system, not only the screen (Principle III).
+  remove one that isn't on the bill; a line read without an amount MUST be completed by the
+  employee before confirming (it counts toward the 10% check). When the agent couldn't read the
+  bill, the employee MAY enter its lines, date and total themselves; such a claim is always
+  flagged ("unreadable"). Unconfirmed claims MUST NOT be decided or use budget, enforced by the
+  system, not only the screen (Principle III).
 - **FR-004**: An employee MUST see only their own claims; any other claim MUST be "not found".
 - **FR-004a**: An employee MUST be able to withdraw their own claim while it is unconfirmed or
   flagged (it then leaves the approvers' queue and uses no budget); a decided claim (approved,
@@ -169,7 +173,7 @@ same month whose total passes the cap; the second is approved only up to what's 
 - **FR-008**: Only decided claims (approved automatically or by an approver) MUST use budget; a
   flagged claim holds nothing back, and its eligible amount MUST be worked out again whenever it
   is decided.
-- **FR-009**: A claim MUST be flagged, with each reason, when the bill or a line couldn't be read,
+- **FR-009**: A claim MUST be flagged, with each reason, when the bill couldn't be read,
   a line is "other", the bill has no date or a date outside the policy period, the employee's
   confirmed total (including lines they added or removed) differs from the total read by more
   than 10% (a policy setting), or a mobile/internet bill

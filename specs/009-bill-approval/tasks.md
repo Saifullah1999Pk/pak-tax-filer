@@ -35,7 +35,7 @@ before the engine; each endpoint's test before its route.
 
 - [ ] T005 Write `backend/tests/claims/worked_examples.yaml`: hand-worked medical examples (allowed only; a banned line cut; every line banned; the budget edge; budget used up; each flag reason; the `reject_bill` setting; a changed total of exactly 10% and just over) with `signed_off_by` / `signed_off_date` left empty, and `backend/tests/claims/test_claims_sign_off.py` failing while any example is unsigned
 - [ ] T006 (manual) Saifullah checks every example against the written provisional policy and signs it off (as for 004 and 005)
-- [ ] T007 Write `backend/tests/claims/test_engine.py` parametrised over the signed examples (approved, cut, eligible, each line's result and rule, flag reasons), and confirm it fails for the right reason
+- [ ] T007 Write `backend/tests/claims/test_engine.py` parametrised over the signed examples (approved, cut, eligible, each line's result and rule, flag reasons), and running every example under both banned-items settings: only examples with a banned line change outcome (SC-007); confirm it fails for the right reason
 - [ ] T008 Create `backend/app/claims/engine.py` (`decide()`, pure: no database, network, clock or AI; research R3); T007 passes
 - [ ] T009 [P] Add `app.claims.engine` and `app.claims.policies` as sources in `backend/.importlinter`; `lint-imports` passes and fails with a planted AI import
 
@@ -53,17 +53,17 @@ budget cap, explanation (FR-001–FR-011, FR-019–FR-022).
 ### Tests for User Story 1 (write first, confirm they fail)
 
 - [ ] T010 [P] [US1] Write `backend/tests/claims/test_reading.py`: `GeminiBillReader` through the SDK with a mock transport (request carries the policy's categories in the schema; reply becomes lines, date or period, total; not a bill; 500/503/504, timeout and no connection marked `service_failed`; retries as 003's) and `FakeBillReader`
-- [ ] T011 [P] [US1] Write `backend/tests/claims/test_claims_api.py` per [contracts/claims-api.md](contracts/claims-api.md): upload (file checks, unknown policy, `429` at 10 bills while tax documents are unaffected, the app-wide 100 shared, a Google failure not counted), list, get, file, lines (`409` after confirming; `422` for invalid lines), confirm (decided or flagged; the >10% flag), retry, withdraw (`409` once decided), budget, every claim of another user `404`
+- [ ] T011 [P] [US1] Write `backend/tests/claims/test_claims_api.py` per [contracts/claims-api.md](contracts/claims-api.md): upload (file checks, unknown policy, `429` at 10 bills while tax documents are unaffected, the app-wide 100 shared, a Google failure not counted), list, get, file, lines (`409` after confirming; `422` for invalid lines), confirm (decided or flagged; the >10% flag; a line read without an amount must be completed), a failed claim whose lines the employee enters (→ `needs_confirmation`, then flagged `unreadable`), retry, withdraw (`409` once decided), budget, every claim of another user `404`
 - [ ] T012 [P] [US1] Write `backend/tests/claims/test_budget_lock.py`: two confirmations at once for the last of a budget never approve more than it (separate sessions, as 007's `test_two_approvals_at_once_record_one`)
 - [ ] T013 [P] [US1] Write `backend/tests/claims/test_explanation.py`: shown when every number is the decision's; template (`fallback: true`) for an extra number, a word number, an AI error or timeout; `409` before a decision
-- [ ] T014 [P] [US1] Write `frontend/src/pages/ClaimsPage.test.tsx` and `ClaimPage.test.tsx`: choose a policy and upload; the lines table (edit, add, remove); confirm; the decision with each line's result and rule, budget left, the explanation and the provisional label; withdraw; amounts shown as the API gives them
+- [ ] T014 [P] [US1] Write `frontend/src/pages/ClaimsPage.test.tsx` and `ClaimPage.test.tsx`: choose a policy and upload; the lines table (edit, add, remove); confirm; the decision with each line's result and rule, budget left, the explanation and the provisional label; "Enter the lines yourself" on a claim that couldn't be read; withdraw; amounts shown as the API gives them
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Create `backend/app/claims/reading.py` (research R4; `ai_call("claims_reading", …)`, `record_gemini_usage`); T010 passes
+- [ ] T015 [US1] Add `claims_reading` and `claims_explanation` to the features in `backend/app/telemetry/ai.py`, then create `backend/app/claims/reading.py` (research R4; `ai_call("claims_reading", …)`, `record_gemini_usage`); T010 passes
 - [ ] T016 [US1] Add `kind` to 003's limit (`use_extraction(db, user_id, kind="document")`, per-user by kind, app-wide both) in `backend/app/documents/service.py` with its tests; existing 003 tests still pass
 - [ ] T017 [US1] Create `backend/app/claims/service.py` (submit, edit lines, confirm with the lock, retry, withdraw, budget; research R5, R6) and `backend/app/claims/router.py`; include it in `backend/app/main.py`; add `get_bill_reader` to `no_real_ai` in `backend/tests/conftest.py`; T011 and T012 pass
-- [ ] T018 [US1] Create `backend/app/claims/explain.py` and `GET /api/claims/{id}/explanation` (research R8; `ai_call("claims_explanation", …)`); add the two features to `backend/app/telemetry/ai.py`; T013 passes
+- [ ] T018 [US1] Create `backend/app/claims/explain.py` and `GET /api/claims/{id}/explanation` (research R8; `ai_call("claims_explanation", …)`); T013 passes
 - [ ] T019 [US1] Create `frontend/src/api/claims.ts`, `ClaimsPage.tsx`, `ClaimPage.tsx`, routes in `App.tsx`, "Claims" in `navigation.ts`; T014 passes
 - [ ] T020 [US1] Run [quickstart.md](quickstart.md) scenarios 1–3 and 7
 

@@ -66,6 +66,8 @@ queue.
 
 ```text
 reading → failed                      (couldn't read; Retry → reading)
+failed → needs_confirmation           (the employee enters the lines; no read total, so
+                                       confirming always flags it "unreadable")
 reading → needs_confirmation          (read; the employee edits lines)
 needs_confirmation → decided          (confirm; the policy settles it: outcome approved)
 needs_confirmation → flagged          (confirm; a flag reason applies)

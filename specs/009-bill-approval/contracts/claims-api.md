@@ -41,12 +41,12 @@ isn't the caller's to see is `404` "Claim not found." (never revealing that it e
 
 | Method and path | Purpose | Success | Errors |
 |---|---|---|---|
-| `POST /api/claims` (multipart: `file`, `policy`) | Upload and read a bill | `201` claim (`needs_confirmation`, or `failed` with its reason) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted, unreadable, unknown policy, or not a bill; `429` "Daily limit reached: 10 bills per 24 hours. Try again later." or the app's limit; `503` storage unavailable |
+| `POST /api/claims` (multipart: `file`, `policy`) | Upload and read a bill | `201` claim (`needs_confirmation`, or `failed` with its reason) | `413` over 10 MB; `415` not PDF/JPEG/PNG; `422` over 5 pages, encrypted, unreadable, unknown policy, or the AI says the file isn't a bill at all (a bill it couldn't read is `201` `failed` instead); `429` "Daily limit reached: 10 bills per 24 hours. Try again later." or the app's limit; `503` storage unavailable |
 | `GET /api/claims` | The caller's claims, newest first | `200` list of claims (without lines) | — |
 | `GET /api/claims/budget` | Budget left per policy for the current period | `200` `{"medical": {"budget": "100000.00", "used": "4200.00", "left": "95800.00", "period": "2025-26"}, "mobile": {…, "period": "2026-03"}, "label": "…"}` | — |
 | `GET /api/claims/{id}` | One claim (owner; or an approver, if flagged and not theirs) | `200` claim | `404` |
 | `GET /api/claims/{id}/file` | The bill file (same rule) | `200` the file, its media type | `404` |
-| `PUT /api/claims/{id}/lines` | Replace lines, date or period, total (owner, `needs_confirmation` only) | `200` claim | `404`; `409` "This claim can't be changed now."; `422` invalid line (empty description, amount ≤ 0, unknown category), no lines, total ≤ 0 |
+| `PUT /api/claims/{id}/lines` | Replace lines, date or period, total (owner, `needs_confirmation`; or `failed`, which moves it to `needs_confirmation` with no read total, so confirming flags it `unreadable`) | `200` claim | `404`; `409` "This claim can't be changed now."; `422` invalid line (empty description, amount ≤ 0, unknown category), no lines, total ≤ 0 |
 | `POST /api/claims/{id}/confirm` | Confirm and decide (owner, `needs_confirmation` only) | `200` claim (`decided` or `flagged`) | `404`; `409` as above |
 | `POST /api/claims/{id}/retry` | Read a `failed` claim again (counts as a reading) | `200` claim | `404`; `409` "Only a claim that couldn't be read can be retried."; `429` |
 | `POST /api/claims/{id}/withdraw` | Withdraw (owner; `needs_confirmation`, `flagged` or `failed`) | `200` claim (`withdrawn`) | `404`; `409` "A decided claim is final." |

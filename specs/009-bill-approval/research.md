@@ -54,7 +54,9 @@ choices for the plan.
   the claim is `needs_confirmation` (adds and removes allowed); `POST …/confirm` then decides.
   Each line keeps what was read (`read_*`) beside what was confirmed. Flag when
   `|confirmed_total − read_total| > 10% of read_total` (policy setting); a bill that couldn't be
-  read has no read total and is always flagged.
+  read has no read total and is always flagged (the employee may enter its lines: `failed →
+  needs_confirmation`). A line read without an amount must be completed before confirming; it
+  counts toward the 10% check, so there is no separate "unreadable line" flag.
 - **Rationale:** FR-003, the clarifications; server-side, so the screen can't skip it.
 
 ## R6. Budget as a ledger, locked at each decision
