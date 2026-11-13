@@ -12,6 +12,18 @@ policy (a Rs 1 lakh yearly budget; some items not allowed, such as pampers, ener
 equipment). Design: `docs/superpowers/specs/2026-11-13-bill-approval-agent-design.md` (approved
 2026-11-13). Scope added by constitution v1.3.0, Principle VII.
 
+## Clarifications
+
+### Session 2026-11-13
+
+- Q: When the AI misses a line or reads one that isn't there, can the employee add or remove
+  lines, not only correct them? → A: Yes, add and remove; the changes count toward the "total
+  changed a lot" flag (FR-009).
+- Q: By how much may the confirmed total differ from the total read before the claim is
+  flagged? → A: More than 10% flags it (a policy setting, provisional like the others).
+- Q: Can an employee withdraw a claim that hasn't been decided yet? → A: Yes, while it is
+  unconfirmed or flagged; a decided claim is final.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Get a medical bill decided automatically (Priority: P1)
@@ -117,7 +129,10 @@ same month whose total passes the cap; the second is approved only up to what's 
 - The policy's banned-items setting switched from "cut the line" to "reject the bill": the same
   bill is then rejected whole, with the reason.
 - An employee submits the same bill twice: decided as a second bill (the approver sees both if
-  flagged); duplicate detection is out of scope.
+  flagged); duplicate detection is out of scope. A mistaken claim not yet decided can be
+  withdrawn (FR-004a).
+- An employee withdraws a flagged claim while an approver has it open: the approver's decision
+  is refused, saying the claim was withdrawn.
 - An approver is also an employee: their own claims follow the same policy and go to another
   approver when flagged; with no other approver they wait.
 - The employee's daily bill-reading limit is reached: refused before the AI is used, saying
@@ -134,9 +149,13 @@ same month whose total passes the cap; the second is approved only up to what's 
 - **FR-002**: The agent MUST read the bill's date (or billing period), each line's description
   and amount, and the total, and propose a category for each line from the policy's fixed list.
 - **FR-003**: The employee MUST confirm or correct every line (description, amount, category),
-  the date and the total before anything is decided; unconfirmed claims MUST NOT be decided or
-  use budget, enforced by the system, not only the screen (Principle III).
+  the date and the total before anything is decided, and MAY add a line the agent missed or
+  remove one that isn't on the bill; unconfirmed claims MUST NOT be decided or use budget,
+  enforced by the system, not only the screen (Principle III).
 - **FR-004**: An employee MUST see only their own claims; any other claim MUST be "not found".
+- **FR-004a**: An employee MUST be able to withdraw their own claim while it is unconfirmed or
+  flagged (it then leaves the approvers' queue and uses no budget); a decided claim (approved,
+  decided by an approver, or rejected) MUST be final.
 
 **Deciding**
 
@@ -152,7 +171,8 @@ same month whose total passes the cap; the second is approved only up to what's 
   is decided.
 - **FR-009**: A claim MUST be flagged, with each reason, when the bill or a line couldn't be read,
   a line is "other", the bill has no date or a date outside the policy period, the employee's
-  confirmed total differs from the total read by more than a set share, or a mobile/internet bill
+  confirmed total (including lines they added or removed) differs from the total read by more
+  than 10% (a policy setting), or a mobile/internet bill
   covers more than one month; otherwise it MUST be decided automatically.
 - **FR-010**: Each decision MUST show which rule applied to each line and be labelled
   "provisional, pending the accounts department" while the policy is provisional.
@@ -205,7 +225,8 @@ same month whose total passes the cap; the second is approved only up to what's 
 - **Policy**: a named, year-versioned set of rules (budget and its period, banned categories,
   caps, flagging thresholds, the banned-items setting), each with its written source.
 - **Claim**: one submitted bill: its policy, owner, file, status (reading, needs confirmation,
-  approved, flagged, decided by approver, rejected), the date or billing period, and the totals.
+  approved, flagged, decided by approver, rejected, withdrawn), the date or billing period, and
+  the totals.
 - **Bill line**: a line of a claim: description, amount, category, as read and as confirmed.
 - **Decision**: the outcome for a claim: per-line result and rule, approved, cut and eligible
   amounts, budget left, flag reasons, the explanation, and who decided (the policy or an
