@@ -22,7 +22,10 @@ each, the total and how it was worked out, using the same engine and FBR-sourced
    bank profit per year (all optional; at least one).
 2. The result: tax on each income, total tax, which table applies (salaried or not) and why, the
    slab used, a line-by-line breakdown with each rule's source, and the practitioner label.
-3. Each income under its legal treatment for TY2026 (e.g. bonus as salary; rent and dividends as
+3. Extras the user chose (2026-11-14): a monthly view (salary tax per month and take-home pay),
+   the effective rate, the extra tax a bonus causes, and a filer vs non-filer comparison for
+   dividends and bank profit.
+4. Each income under its legal treatment for TY2026 (e.g. bonus as salary; rent and dividends as
    the Ordinance sets them), with the 75% salary test applied as the law says.
 
 ## Non-goals
