@@ -49,8 +49,9 @@ All amounts: at most 2 decimal places and 13 digits before the point (checked at
 | `slab_tax`, `surcharge`, `dividend_tax`, `profit_tax`, `total_tax` | `Decimal \| None` | rounded (s.219); total = sum of the four |
 | `effective_rate` | `Decimal \| None` | percent, 1 decimal place |
 | `monthly` | `MonthlyView \| None` | `None` without salary |
-| `bonus_impact` | `Decimal \| None` | only with salary and bonus |
+| `bonus_impact` | `Decimal \| None` | only with salary and bonus; can be negative (the 75% cliff) |
 | `filer_comparison` | `tuple[FilerLine, ...]` | one per dividends / bank profit above zero |
+| (API only) `on_atl` | `bool` | the profile's ATL status the comparison used |
 | `steps` | `tuple[Step, ...]` | 004's `Step` (description, rule location, result) |
 
 `IncomeLine`: `source` (`salary`, `bonus`, `rent`, `dividends`, `bank_profit`), `yearly_amount`,

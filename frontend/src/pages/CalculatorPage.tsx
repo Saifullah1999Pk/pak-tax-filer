@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { calculateTax } from "../api/calculator";
 import type {
@@ -41,6 +41,14 @@ const TREATMENTS: Record<IncomeLine["treatment"], string> = {
   separate: "taxed separately",
 };
 
+/** "Salary per month: must be …" from the server's "salary_monthly: must be …". */
+function withLabels(message: string): string {
+  return FIELDS.reduce(
+    (text, [field, label]) => text.replaceAll(`${field}:`, `${label}:`),
+    message,
+  );
+}
+
 export function CalculatorPage() {
   const { profile } = useProfile();
   const [amounts, setAmounts] = useState<CalculatorInput>({});
@@ -53,18 +61,20 @@ export function CalculatorPage() {
     setBusy(true);
     setError(null);
     // Only what was typed is sent; an empty field counts as zero on the server.
-    const typed = Object.fromEntries(
-      Object.entries(amounts)
-        .map(([field, value]) => [field, (value ?? "").trim()])
-        .filter(([, value]) => value !== ""),
-    ) as CalculatorInput;
+    const typed: CalculatorInput = {};
+    for (const [field] of FIELDS) {
+      const value = (amounts[field] ?? "").trim();
+      if (value !== "") {
+        typed[field] = value;
+      }
+    }
     try {
       setResult(await calculateTax(typed));
     } catch (failure) {
       setResult(null);
       setError(
         failure instanceof ApiError && failure.status === 422
-          ? "Check the amounts: rupees only, at most 2 decimal places, no minus sign."
+          ? withLabels(failure.message)
           : "The calculator couldn't answer. Try again.",
       );
     } finally {
@@ -72,8 +82,14 @@ export function CalculatorPage() {
     }
   };
 
+  const change = (field: Field, value: string) => {
+    setAmounts((current) => ({ ...current, [field]: value }));
+    // The shown result no longer matches the amounts: never leave stale figures up.
+    setResult(null);
+  };
+
   return (
-    <>
+    <main>
       <h1>Tax calculator for {profile?.tax_year ?? ""}</h1>
       <p className="lede">
         Type your incomes to see an idea of your tax. Nothing you type is saved.
@@ -87,12 +103,7 @@ export function CalculatorPage() {
               <MoneyInput
                 inputMode="decimal"
                 value={amounts[field] ?? ""}
-                onChange={(e) =>
-                  setAmounts((current) => ({
-                    ...current,
-                    [field]: e.target.value,
-                  }))
-                }
+                onChange={(e) => change(field, e.target.value)}
               />
             </label>
           ))}
@@ -110,30 +121,30 @@ export function CalculatorPage() {
               {error}
             </p>
           )}
+          <p role="status">{busy ? "Calculating…" : ""}</p>
         </div>
       </form>
-      {result !== null && (
-        <Result result={result} onAtl={profile?.on_atl ?? true} />
-      )}
-    </>
+      {result !== null && <Result result={result} />}
+    </main>
   );
 }
 
-function Result({
-  result,
-  onAtl,
-}: {
-  result: CalculatorResult;
-  onAtl: boolean;
-}) {
+function Result({ result }: { result: CalculatorResult }) {
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  // A new result appears below the form: take keyboard and screen-reader users to it.
+  useEffect(() => {
+    heading.current?.focus();
+  }, [result]);
   return (
     <section aria-labelledby="calculator-result-heading">
-      <h2 id="calculator-result-heading">Your tax</h2>
+      <h2 id="calculator-result-heading" tabIndex={-1} ref={heading}>
+        Your tax
+      </h2>
       <p className="notice">{result.label}</p>
       {result.blocked_reason !== null ? (
         <p className="panel">{result.message}</p>
       ) : (
-        <Figures result={result} onAtl={onAtl} />
+        <Figures result={result} />
       )}
       <section aria-labelledby="not-covered-heading" className="panel">
         <h3 id="not-covered-heading">Not covered by the calculator</h3>
@@ -147,25 +158,23 @@ function Result({
   );
 }
 
-function Figures({
-  result,
-  onAtl,
-}: {
-  result: CalculatorResult;
-  onAtl: boolean;
-}) {
+function Figures({ result }: { result: CalculatorResult }) {
   return (
     <>
-      <p className="headline">{rupees(result.total_tax ?? "0")}</p>
-      <p className="hint">
-        Total tax for the year: {result.effective_rate}% of your income.
-      </p>
-      {result.table !== null ? (
+      {result.total_tax !== null && (
+        <p className="headline">{rupees(result.total_tax)}</p>
+      )}
+      {result.effective_rate !== null && (
+        <p className="hint">
+          Total tax for the year: {result.effective_rate}% of your income.
+        </p>
+      )}
+      {result.table !== null && result.taxable_income !== null ? (
         <p>
           Salary is {result.salary_share}% of your taxable income of{" "}
-          <span>{rupees(result.taxable_income ?? "0")}</span>, so the{" "}
+          <span>{rupees(result.taxable_income)}</span>, so the{" "}
           {result.table === "salaried" ? "salaried" : "non-salaried"} table
-          applies (the salaried table needs more than 75%).
+          applies. The steps below give the rule.
         </p>
       ) : (
         <p>No slab tax: dividends and bank profit are taxed on their own.</p>
@@ -177,25 +186,31 @@ function Figures({
               {SOURCES[line.source]} ({TREATMENTS[line.treatment]})
             </dt>
             <dd>
-              {line.taxable_amount === line.yearly_amount ? (
-                rupees(line.yearly_amount)
-              ) : (
+              {rupees(line.yearly_amount)}
+              {/* Only rent is taxed on less than it is (the repairs allowance). */}
+              {line.source === "rent" && (
                 <>
-                  {rupees(line.yearly_amount)}, taxed on{" "}
-                  <span>{rupees(line.taxable_amount)}</span>
+                  , taxed on <span>{rupees(line.taxable_amount)}</span>
                 </>
               )}
             </dd>
           </div>
         ))}
-        <TaxLine label="Tax on taxable income" amount={result.slab_tax} />
-        <TaxLine label="Surcharge" amount={result.surcharge} />
-        <TaxLine label="Tax on dividends" amount={result.dividend_tax} />
-        <TaxLine label="Tax on bank profit" amount={result.profit_tax} />
-        <div>
-          <dt>Total tax</dt>
-          <dd>{rupees(result.total_tax ?? "0")}</dd>
-        </div>
+        {result.table !== null && (
+          <TaxLine label="Tax on taxable income" amount={result.slab_tax} />
+        )}
+        <TaxLine label="Surcharge" amount={result.surcharge} hideZero />
+        <TaxLine
+          label="Tax on dividends"
+          amount={result.dividend_tax}
+          hideZero
+        />
+        <TaxLine
+          label="Tax on bank profit"
+          amount={result.profit_tax}
+          hideZero
+        />
+        <TaxLine label="Total tax" amount={result.total_tax} />
       </dl>
       {result.monthly !== null && (
         <section aria-labelledby="monthly-heading" className="panel">
@@ -216,7 +231,7 @@ function Figures({
         </section>
       )}
       {result.bonus_impact !== null && (
-        <p>Your bonus adds {rupees(result.bonus_impact)} to your tax.</p>
+        <BonusWords impact={result.bonus_impact} />
       )}
       {result.filer_comparison.length > 0 && (
         <section aria-labelledby="filer-heading" className="panel">
@@ -224,13 +239,14 @@ function Figures({
           <ul>
             {result.filer_comparison.map((line) => (
               <li key={line.source}>
-                <FilerWords line={line} onAtl={onAtl} />
+                <FilerWords line={line} onAtl={result.on_atl} />
               </li>
             ))}
           </ul>
           <p className="hint">
             The tax itself is the same either way; only the amount deducted when
-            you are paid changes.
+            you are paid changes. Whether extra tax deducted can be reclaimed
+            isn't something this calculator says.
           </p>
         </section>
       )}
@@ -251,8 +267,17 @@ function Figures({
   );
 }
 
-function TaxLine({ label, amount }: { label: string; amount: string | null }) {
-  if (amount === null || /^0+(\.0*)?$/.test(amount)) {
+/** A tax line; `hideZero` leaves out a line with nothing due (the string "0", not a sum). */
+function TaxLine({
+  label,
+  amount,
+  hideZero = false,
+}: {
+  label: string;
+  amount: string | null;
+  hideZero?: boolean;
+}) {
+  if (amount === null || (hideZero && /^0+(\.0*)?$/.test(amount))) {
     return null;
   }
   return (
@@ -261,6 +286,19 @@ function TaxLine({ label, amount }: { label: string; amount: string | null }) {
       <dd>{rupees(amount)}</dd>
     </div>
   );
+}
+
+/** The bonus impact in words; a leading "-" (from the server) means it lowers the tax. */
+function BonusWords({ impact }: { impact: string }) {
+  if (impact.startsWith("-")) {
+    return (
+      <p>
+        Your bonus lowers your tax by {rupees(impact)}: it lifts your salary
+        over 75% of your taxable income, so the salaried table applies.
+      </p>
+    );
+  }
+  return <p>Your bonus adds {rupees(impact)} to your tax.</p>;
 }
 
 function FilerWords({ line, onAtl }: { line: FilerLine; onAtl: boolean }) {

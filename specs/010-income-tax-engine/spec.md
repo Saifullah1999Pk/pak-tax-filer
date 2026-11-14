@@ -56,8 +56,9 @@ every figure with the hand-worked result.
 8. **Given** any result, **When** it is shown, **Then** the effective rate (total tax as a
    percentage of total yearly gross income, rent before the repairs allowance, one decimal place)
    is shown.
-9. **Given** a bonus and a salary, **When** the result is shown, **Then** it shows how much extra
-   tax the bonus causes: the tax with the bonus minus the tax without it.
+9. **Given** a bonus and a salary, **When** the result is shown, **Then** it shows how the bonus
+   changes the total: the tax with the bonus minus the tax without it. It can lower the tax, when
+   the bonus lifts salary over 75% (the salaried table is never higher), and the page says so.
 
 ---
 
@@ -143,7 +144,9 @@ source; try each refused case and confirm the message and that no figure is show
   source document, section, Finance Act and effective date, from FBR's own documents only.
 - **FR-007**: Calculations MUST use exact decimal arithmetic with §219 rounding on final amounts;
   no figure may be produced, adjusted, rounded or checked by an AI.
-- **FR-008**: The result MUST show the yearly amount and tax for each income, the total tax, the
+- **FR-008**: The result MUST show the yearly amount of each income and how it is taxed, the tax on
+  each category (salary, bonus and rent share one slab tax; dividends and bank profit each have
+  their own), the total tax, the
   table used and why (with the salary share), the slab used, and a breakdown line per step with
   its rule and source.
 - **FR-008a**: The result MUST also show: a monthly view (tax on the monthly salary per month and

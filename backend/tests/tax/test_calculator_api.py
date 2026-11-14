@@ -28,9 +28,11 @@ LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
 FIELDS = set(
     "tax_year blocked_reason message incomes taxable_income salary_share table slab_tax "
     "surcharge dividend_tax profit_tax total_tax effective_rate monthly bonus_impact "
-    "filer_comparison steps not_covered label".split()
+    "filer_comparison on_atl steps not_covered label".split()
 )
 LEAD = {"salary_monthly": "250000", "rent_monthly": "140000"}
+# The citation for figures worked from the lines above, which no rule sets (review L4).
+DERIVED = "Worked out from the lines above (not a separate rule)"
 
 
 @contextmanager
@@ -75,7 +77,9 @@ async def test_a_form_post_is_refused(
     assert response.status_code == 415
 
 
-@pytest.mark.parametrize("amount", ["-1", "100.001", "12345678901234", "abc"])
+@pytest.mark.parametrize(
+    "amount", ["-1", "100.001", "12345678901234", "abc", "1e5", "1_000", "٢٥٠"]
+)
 async def test_an_invalid_amount_is_refused_without_echoing_it(
     client: AsyncClient, db: AsyncSession, logged_in_user: User, amount: str
 ) -> None:
@@ -87,6 +91,27 @@ async def test_an_invalid_amount_is_refused_without_echoing_it(
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"][-1] == "salary_monthly"
     assert amount not in response.text
+
+
+async def test_a_json_number_is_refused(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if money arrives as a JSON number, not a decimal string (docs/api-conventions.md;
+    backend review M4)."""
+    await save_profile(db, logged_in_user, "2025-26", on_atl=True)
+    response = await client.post(URL, json={"salary_monthly": 250000.5})
+
+    assert response.status_code == 422
+
+
+async def test_the_largest_amount_is_accepted(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if 13 digits and 2 decimal places, the contract's limit, is refused."""
+    await save_profile(db, logged_in_user, "2025-26", on_atl=True)
+    response = await client.post(URL, json={"dividends": "9999999999999.99"})
+
+    assert response.status_code == 200
 
 
 async def test_the_leads_example_has_every_contract_field(
@@ -124,6 +149,9 @@ async def test_the_leads_example_has_every_contract_field(
     ]
     assert body["not_covered"] == list(NOT_COVERED)
     assert body["label"] == LABEL
+    assert body["on_atl"] is True
+    # Money in steps reads like every other amount: "1344000", never "1344000.00".
+    assert [step["result"] for step in body["steps"][:3]] == ["3000000", "1344000", "4344000"]
 
 
 async def test_every_step_cites_its_rule_and_effective_date(
@@ -136,6 +164,9 @@ async def test_every_step_cites_its_rule_and_effective_date(
 
     assert body["steps"]
     for step in body["steps"]:
+        if step["rule_location"] == DERIVED:
+            assert step["description"].startswith(("Effective rate", "Your bonus"))
+            continue
         assert "Income Tax Ordinance, 2001" in step["rule_location"]
         assert "PDF p." in step["rule_location"]
         assert step["rule_location"].endswith("effective 2025-07-01")
@@ -152,6 +183,7 @@ async def test_atl_status_comes_from_the_profile(
     body = (await client.post(URL, json={"dividends": "1000000", "atl": True})).json()
 
     assert body["dividend_tax"] == "150000"
+    assert body["on_atl"] is False
     assert body["filer_comparison"] == [
         {
             "source": "dividends",
@@ -179,7 +211,10 @@ async def test_a_refusal_has_a_reason_and_no_figures(
     assert set(result) == FIELDS
     assert result["blocked_reason"] == reason
     assert result["message"]
-    for name in ("taxable_income", "salary_share", "table", "slab_tax", "total_tax", "monthly"):
+    # Every figure: all fields except the text, the lists and the profile flag.
+    words = {"tax_year", "blocked_reason", "message", "not_covered", "label", "on_atl"}
+    figures = sorted(FIELDS - words - {"incomes", "steps", "filer_comparison"})
+    for name in figures:
         assert result[name] is None, name
     assert result["incomes"] == result["steps"] == result["filer_comparison"] == []
     assert result["not_covered"] == list(NOT_COVERED)
@@ -209,3 +244,26 @@ async def test_nothing_is_stored_logged_or_traced(
     for amount in typed.values():
         assert amount not in logged
         assert amount not in traced
+
+
+async def test_the_steps_say_why_in_words(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if the breakdown doesn't say the table, that dividends sit outside taxable income,
+    or calls a bonus that lowers the tax an addition (US2 scenario 3; backend review M1, L6)."""
+    await save_profile(db, logged_in_user, "2025-26", on_atl=True)
+    lead = (await client.post(URL, json={**LEAD, "dividends": "10000"})).json()
+    cliff = (
+        await client.post(
+            URL, json={"salary_monthly": "300000", "bonus": "1", "rent_monthly": "125000"}
+        )
+    ).json()
+
+    lead_text = " ".join(step["description"] for step in lead["steps"])
+    assert "does not exceed 75%: the non-salaried table applies" in lead_text
+    assert "outside" in lead_text
+    assert cliff["bonus_impact"] == "-429000"
+    cliff_text = " ".join(step["description"] for step in cliff["steps"])
+    assert "lowers the total tax by Rs 429,000" in cliff_text
+    assert "just over 75%" in cliff_text
+    assert "adds -" not in cliff_text

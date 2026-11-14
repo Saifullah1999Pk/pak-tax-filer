@@ -32,6 +32,7 @@ paths:
                 - monthly
                 - bonus_impact
                 - filer_comparison
+                - on_atl
                 - steps
                 - not_covered
                 - label

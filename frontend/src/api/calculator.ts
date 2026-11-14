@@ -50,8 +50,11 @@ export type CalculatorResult = {
   effective_rate: string | null;
   /** What an employer deducts each month on the salary alone (s.149), and what is left. */
   monthly: { salary_tax: string; take_home: string } | null;
+  /** Can be negative: a bonus that lifts salary over 75% lowers the tax (the salaried table). */
   bonus_impact: string | null;
   filer_comparison: FilerLine[];
+  /** The profile's ATL status the comparison used. */
+  on_atl: boolean;
   steps: TaxStep[];
   not_covered: string[];
   label: string;

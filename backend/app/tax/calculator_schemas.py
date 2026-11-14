@@ -1,19 +1,34 @@
 """The calculator's request and response (feature 010, task T012;
 specs/010-income-tax-engine/contracts/calculator-api.md).
 
-Money travels as decimal strings, never floats (docs/api-conventions.md). Amounts are checked
-here: at least zero, at most 2 decimal places and 13 digits before the point.
+Money travels as decimal strings, never JSON numbers (docs/api-conventions.md). Amounts are
+checked here, as feature 005 checks its own: ASCII digits only, at least zero, at most 2 decimal
+places and 13 digits before the point (backend review M4).
 """
 
+import re
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator
 
 from app.tax.calculator import NOT_COVERED, CalculatorInputs, CalculatorResult, percent_text
 
-# 15 digits in all, 2 after the point: 13 before it (contract, "Request").
-Amount = Annotated[Decimal, Field(default=Decimal(0), ge=0, max_digits=15, decimal_places=2)]
+# ASCII digits only (\d would accept other scripts' digits): up to 13 before the point, 2 after.
+_AMOUNT = re.compile(r"[0-9]{1,13}(\.[0-9]{1,2})?")
+
+
+def _amount(value: object) -> Decimal:
+    """A decimal string of rupees as an exact Decimal; anything else is refused (422)."""
+    if not isinstance(value, str) or not _AMOUNT.fullmatch(value.strip()):
+        raise ValueError(
+            "must be rupees written as a string of digits, at most 13 before the point and 2 after"
+        )
+    return Decimal(value.strip())
+
+
+Amount = Annotated[Decimal, BeforeValidator(_amount)]
+ZERO = Decimal(0)
 
 # Why a result was refused, and what to do (contract, "200: blocked"; FR-009).
 BLOCKED_MESSAGES = {
@@ -29,11 +44,11 @@ class CalculatorIn(BaseModel):
     """What the user typed; every amount optional. Tax year and ATL status are not here: they
     come from the profile (FR-011), and any other field is ignored."""
 
-    salary_monthly: Amount
-    bonus: Amount
-    rent_monthly: Amount
-    dividends: Amount
-    bank_profit: Amount
+    salary_monthly: Amount = ZERO
+    bonus: Amount = ZERO
+    rent_monthly: Amount = ZERO
+    dividends: Amount = ZERO
+    bank_profit: Amount = ZERO
 
     def inputs(self, tax_year: str, atl: bool) -> CalculatorInputs:
         """The calculator's inputs, with the profile's tax year and ATL status."""
@@ -75,8 +90,8 @@ class FilerOut(BaseModel):
     difference: str
 
 
-class StepOut(BaseModel):
-    """One line of the breakdown."""
+class CalculatorStepOut(BaseModel):
+    """One line of the breakdown (named apart from 004's StepOut, so OpenAPI keeps both)."""
 
     description: str
     rule_location: str
@@ -102,7 +117,9 @@ class CalculatorOut(BaseModel):  # pylint: disable=too-many-instance-attributes 
     monthly: MonthlyOut | None
     bonus_impact: str | None
     filer_comparison: list[FilerOut]
-    steps: list[StepOut]
+    # The profile's ATL status the comparison used, so a page needn't rely on its own copy.
+    on_atl: bool
+    steps: list[CalculatorStepOut]
     not_covered: list[str]
     label: str
 
@@ -121,7 +138,12 @@ def number(value: Decimal | None) -> str | None:
     return None if value is None else f"{value:f}"
 
 
-def calculator_out(result: CalculatorResult, label: str) -> CalculatorOut:
+def step_number(value: Decimal) -> str:
+    """A step's result as plain digits: '1344000' for 1344000.00, '23.7', '96000.096'."""
+    return f"{value.normalize():f}"
+
+
+def calculator_out(result: CalculatorResult, label: str, on_atl: bool) -> CalculatorOut:
     """The API form of a result."""
     monthly = None
     if result.monthly is not None:
@@ -164,9 +186,12 @@ def calculator_out(result: CalculatorResult, label: str) -> CalculatorOut:
             )
             for line in result.filer_comparison
         ],
+        on_atl=on_atl,
         steps=[
-            StepOut(
-                description=s.description, rule_location=s.rule_location, result=f"{s.result:f}"
+            CalculatorStepOut(
+                description=s.description,
+                rule_location=s.rule_location,
+                result=step_number(s.result),
             )
             for s in result.steps
         ],

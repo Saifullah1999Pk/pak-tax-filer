@@ -186,4 +186,17 @@ RATES = TaxYearRates(
             "Finance Act 2019 (Tenth Schedule inserted); Finance Act 2024 (rule 1 amended)",
         ),
     ),
+    bonus_is_salary=Source(
+        ORDINANCE,
+        "Section 12(2)(a): salary includes any pay, wages or other remuneration, including "
+        "bonus (p. 48, PDF p. 67)",
+        "Income Tax Ordinance, 2001 (section 12 as enacted)",
+    ),
+    salary_withholding=Source(
+        ORDINANCE,
+        "Section 149(1): an employer deducts tax from each salary payment at the employee's "
+        "average rate on the estimated income under the head Salary, including section 4AB "
+        "(p. 308, PDF p. 327)",
+        "Income Tax Ordinance, 2001 (section 149 as amended up to 31.07.2025)",
+    ),
 )

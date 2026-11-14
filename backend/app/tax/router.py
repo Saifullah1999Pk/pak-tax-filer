@@ -145,4 +145,4 @@ async def calculate_tax(
     except KeyError as missing:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No rates for that tax year.") from missing
     result = calculate_simple(body.inputs(profile.tax_year, profile.on_atl), rates)
-    return calculator_out(result, LABEL)
+    return calculator_out(result, LABEL, profile.on_atl)

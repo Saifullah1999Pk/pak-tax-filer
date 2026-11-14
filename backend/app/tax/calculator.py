@@ -134,6 +134,11 @@ class _Figures:  # pylint: disable=too-many-instance-attributes  # the working, 
         )
 
 
+# The citation for figures worked out from the lines above, which no rule of the Ordinance sets
+# (the effective rate, the bonus impact; backend review L4).
+DERIVED = "Worked out from the lines above (not a separate rule)"
+
+
 def percent_text(rate: Decimal) -> str:
     """'15' for 0.15, '7.5' for 0.075: a rate as a plain percentage."""
     return f"{(rate * HUNDRED).normalize():f}"
@@ -322,14 +327,7 @@ def _income_steps(
                 f"Salary income: {words.money(inputs.salary_monthly)} a month x 12 + bonus "
                 f"{words.money(inputs.bonus)} = {words.money(work.salary_income)} (a bonus is "
                 "salary)",
-                where(
-                    Source(
-                        rates.rounding.document,
-                        "Section 12(2)(a): salary includes any bonus (p. 48, PDF p. 67)",
-                        "Income Tax Ordinance, 2001 (original)",
-                    ),
-                    rates,
-                ),
+                where(rates.bonus_is_salary, rates),
                 work.salary_income,
             )
         )
@@ -345,14 +343,17 @@ def _income_steps(
         )
     if work.taxable > 0 and work.band is not None and share is not None:
         threshold = rates.salary_share_threshold
+        shown = f"{share}%"
         exceeds = "exceeds" if work.table == "salaried" else "does not exceed"
+        if work.table == "salaried" and share == threshold.value * HUNDRED:
+            shown, exceeds = "just over 75%", "so it exceeds"
         name = "salaried" if work.table == "salaried" else "non-salaried"
         steps.append(
             Step(
                 f"Taxable income: {words.money(work.salary_income)} + "
                 f"{words.money(work.rent - work.allowance)} = {words.money(work.taxable)} "
                 "(dividends and bank profit are taxed on their own, outside it). Salary is "
-                f"{share}% of it, which {exceeds} {words.percent(threshold.value)}: the {name} "
+                f"{shown} of it, which {exceeds} {words.percent(threshold.value)}: the {name} "
                 "table applies",
                 where(threshold.source if work.table == "salaried" else work.band.source, rates),
                 work.taxable,
@@ -367,8 +368,8 @@ def _tax_steps(inputs: CalculatorInputs, rates: TaxYearRates, work: _Figures) ->
     band = work.band
     if band is not None:
         slab = rupees(work.slab_exact)
-        text = words.salary_tax(band, work.taxable, work.slab_exact, slab).replace(
-            "Salary tax: taxable salary", "Tax on taxable income", 1
+        text = words.salary_tax(
+            band, work.taxable, work.slab_exact, slab, lead="Tax on taxable income"
         )
         steps.append(Step(text, where(band.source, rates), slab))
     limit = rates.surcharge_threshold
@@ -427,7 +428,7 @@ def _extra_steps(
         Step(
             f"Effective rate: total tax {words.money(work.total)} / total income "
             f"{words.money(gross)} = {effective}%",
-            where(rates.rounding, rates),
+            DERIVED,
             effective,
         )
     ]
@@ -436,25 +437,26 @@ def _extra_steps(
             Step(
                 f"Each month your employer deducts about {words.money(monthly.salary_tax)} on "
                 f"the salary alone, leaving {words.money(monthly.take_home)}",
-                where(
-                    Source(
-                        rates.rounding.document,
-                        "Section 149(1): tax deducted from salary at the average rate on the "
-                        "estimated salary income (p. 308, PDF p. 327)",
-                        "Income Tax Ordinance, 2001 (as amended)",
-                    ),
-                    rates,
-                ),
+                where(rates.salary_withholding, rates),
                 monthly.salary_tax,
             )
         )
     if bonus_impact is not None:
-        steps.append(
-            Step(
-                f"Your bonus of {words.money(inputs.bonus)} adds {words.money(bonus_impact)} to "
-                "the total tax (the tax with it minus the tax without it)",
-                where(rates.rounding, rates),
-                bonus_impact,
-            )
-        )
+        steps.append(Step(_bonus_words(inputs.bonus, bonus_impact), DERIVED, bonus_impact))
     return steps
+
+
+def _bonus_words(bonus: Decimal, impact: Decimal) -> str:
+    """What the bonus does to the total. It can lower it: a bonus that lifts salary over 75% of
+    taxable income moves everything to the salaried table, which is never higher (backend review
+    M1; a cliff in the Ordinance's two tables, for the tax practitioner to confirm)."""
+    if impact > 0:
+        effect = f"adds {words.money(impact)} to the total tax"
+    elif impact < 0:
+        effect = (
+            f"lowers the total tax by {words.money(-impact)}, because it lifts salary over 75% "
+            "and the salaried table applies"
+        )
+    else:
+        effect = "doesn't change the total tax"
+    return f"Your bonus of {words.money(bonus)} {effect} (the tax with it minus the tax without it)"

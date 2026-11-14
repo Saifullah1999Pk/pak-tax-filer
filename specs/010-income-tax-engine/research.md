@@ -156,6 +156,10 @@ the table to salary alone and adding rent tax separately (not the law since FA20
   tax figure.
 - **Bonus impact** = total tax − total tax recalculated with the bonus at zero (same steps, so a
   table switch caused by the bonus shows up). Shown when salary and bonus are both above zero.
+  It can be **negative**: the salaried table is never higher than the non-salaried one at the same
+  income, so a bonus that lifts salary over 75% of taxable income lowers the total (worked example
+  `bonus-tips-to-salaried`: a Rs 1 bonus lowers the tax by Rs 429,000). This cliff follows from the
+  Ordinance's wording as read here; **for the tax practitioner to confirm** (backend review M1).
 
 ## R8. Effective dates, and 004's page numbers
 

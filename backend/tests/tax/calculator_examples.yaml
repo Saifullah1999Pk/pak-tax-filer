@@ -452,6 +452,39 @@ examples:
     signed_off_by: "Saifullah Khan (provisional; to be revised at tax practitioner review)"
     signed_off_date: "2026-11-14"
 
+  - id: bonus-tips-to-salaried
+    description: "A Rs 1 bonus that tips salary over 75% LOWERS the tax (the 75% cliff)."
+    inputs: {salary_monthly: "300000", bonus: "1", rent_monthly: "125000"}
+    working:
+      - "Without the bonus: share-exactly-75, non-salaried, 1,290,000."
+      - "With it: salary income 3,600,001; taxable 4,800,001; 75% of that is 3,600,000.75, so
+        salary exceeds 75%: salaried row 6: 616,000 + 35% x 700,001 = 861,000.35 -> 861,000."
+      - "The bonus changes the total by 861,000 - 1,290,000 = -429,000: it lowers the tax. A cliff
+        in the Ordinance's two tables, for the tax practitioner to confirm."
+      - "Share 75.0000...% rounds to 75.00 (the step says just over 75%). Effective 861,000 /
+        5,100,001 = 16.88% -> 16.9. Monthly 38,833; take-home 261,167."
+    expected: {taxable_income: "4800001", salary_share: "75.00", table: salaried,
+               slab_tax: "861000", total_tax: "861000", effective_rate: "16.9",
+               monthly: {salary_tax: "38833", take_home: "261167"}, bonus_impact: "-429000"}
+    signed_off_by: "Saifullah Khan (provisional; to be revised at tax practitioner review)"
+    signed_off_date: "2026-11-14"
+
+  - id: salary-on-non-salaried-table-over-10m
+    description: "Salary income on the non-salaried table still has the 9% surcharge (s.4AB)."
+    inputs: {salary_monthly: "100000", rent_monthly: "1000000"}
+    working:
+      - "Salary income 1,200,000; rent 12,000,000, property income 9,600,000; taxable 10,800,000."
+      - "Share 11.11%: non-salaried row 6: 1,610,000 + 45% x 5,200,000 = 3,950,000."
+      - "Exceeds 10,000,000 and the person has income under the head Salary: 9% (not 10%) =
+        355,500. Total 4,305,500."
+      - "Effective 4,305,500 / 13,200,000 = 32.62% -> 32.6. Monthly: 1,200,000 on the salaried
+        table row 2 = 6,000; / 12 = 500; take-home 99,500."
+    expected: {taxable_income: "10800000", salary_share: "11.11", table: non_salaried,
+               slab_tax: "3950000", surcharge: "355500", total_tax: "4305500",
+               effective_rate: "32.6", monthly: {salary_tax: "500", take_home: "99500"}}
+    signed_off_by: "Saifullah Khan (provisional; to be revised at tax practitioner review)"
+    signed_off_date: "2026-11-14"
+
   # ---- Dividends and bank profit -------------------------------------------------------------
 
   - id: dividends-filer

@@ -16,7 +16,7 @@ class Source:
 
     # e.g. "Income Tax Ordinance, 2001 (amended up to 31.07.2025)"
     document: str
-    # e.g. "First Schedule, Part I, Division I, clause (2), row 3 (PDF page 493)"
+    # e.g. "First Schedule, Part I, Division I, clause (2), row 3 (p. 492, PDF p. 511)"
     location: str
     # e.g. "Finance Act 2025"
     finance_act: str
@@ -73,3 +73,7 @@ class TaxYearRates:  # pylint: disable=too-many-instance-attributes  # one field
     profit_deduction_rate: Rule
     # How much deduction rates rise for someone not on the active taxpayers' list (1.00 = +100%).
     non_atl_increase: Rule
+    # Rules with no number, cited by the calculator's steps: a bonus is salary, and how an
+    # employer deducts tax from salary each month (backend review M3: sources live here only).
+    bonus_is_salary: Source
+    salary_withholding: Source
