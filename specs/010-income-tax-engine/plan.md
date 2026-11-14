@@ -53,7 +53,8 @@ AI; rates only from FBR's text with source and effective date
 | VII. Scope (1.3.0) | PASS | Within the amended scope; a subset of it (the lead's "Simple") |
 | Stack / Secrets | PASS | No new components or keys |
 
-**Post-design re-check:** PASS. One cross-feature note, not a violation: 004's Tax page keeps its
+**Post-design re-check:** PASS, except governance: the lead's review of this spec and plan is
+pending and gates the merge (tasks T008a, T027). One cross-feature note, not a violation: 004's Tax page keeps its
 provisional `salary_share_ambiguous` refusal although s.8(1)(a) answers it (research R5); raised
 with the lead in the PR rather than changed here (FR-005).
 
@@ -77,7 +78,8 @@ specs/010-income-tax-engine/
 backend/
 ├── app/tax/
 │   ├── calculator.py          # NEW: pure calculation (inputs → result with steps)
-│   ├── calculator_words.py    # NEW (if needed): step wording, like breakdown.py
+│   ├── calculator_schemas.py  # NEW: request/response models, strict amount strings
+│   ├── breakdown.py           # salary_tax() takes a lead phrase (shared wording)
 │   ├── engine.py              # band lookup generalised; calculate() unchanged
 │   ├── router.py              # NEW route POST /api/tax/calculator
 │   └── rates/model.py, ty2026.py   # GUARDED: new fields and TY2026 rules; 004's page numbers corrected (R8)
