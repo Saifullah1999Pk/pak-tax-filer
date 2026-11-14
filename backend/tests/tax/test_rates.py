@@ -11,7 +11,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.tax.engine import TaxInputs, calculate
+from app.tax.engine import TaxInputs, band_for, calculate
 from app.tax.rates import RATES, rates_for
 from app.tax.rates.model import Band, Rule, Source, TaxYearRates
 
@@ -189,3 +189,15 @@ def test_every_location_gives_printed_and_pdf_pages(tax_year: str) -> None:
     for rule, source in sources_of(RATES[tax_year]):
         assert re.search(r"p\. \d+", source.location), rule
         assert re.search(r"PDF p\. \d+", source.location), rule
+
+
+@pytest.mark.parametrize(
+    ("income", "row"),
+    [("600000", 0), ("600000.01", 1), ("1600000", 2), ("5600000", 4), ("5600001", 5)],
+)
+def test_band_for_uses_does_not_exceed_on_either_table(income: str, row: int) -> None:
+    """Fails if the row lookup isn't the same "does not exceed" rule for the non-salaried table
+    as for the salaried one (010, task T007)."""
+    bands = rates_for("2025-26").non_salaried_bands
+
+    assert band_for(bands, Decimal(income)) is bands[row]
