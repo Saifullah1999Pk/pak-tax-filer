@@ -11,6 +11,7 @@ name = Tax and wealth calculations never import the AI
 type = forbidden
 source_modules =
     app.tax.engine
+    app.tax.calculator
     app.tax.rates
     app.wealth.reconcile
 ; import-linter can only forbid an outside package whole, so "google" (Gemini's google.genai,
