@@ -99,7 +99,8 @@ source; try each refused case and confirm the message and that no figure is show
 **Acceptance Scenarios**:
 
 1. **Given** a result, **When** the user views it, **Then** each line shows its inputs, rule,
-   source and result, ending with the total tax.
+   source and result, ending with the total tax; the lines worked out from it (the effective
+   rate, the monthly view, the bonus impact) follow it.
 2. **Given** bank profit above Rs 5 million (s.7B no longer applies, research R5), **When** the
    user calculates, **Then** they are told this case isn't covered and needs a tax practitioner,
    and no figure is shown.

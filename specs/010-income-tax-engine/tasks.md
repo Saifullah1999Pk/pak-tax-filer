@@ -120,3 +120,8 @@ polish. One pull request at the end (the user's preference), stacked on #44.
 
 GitHub issues for these tasks are titled `[010] T0NN: <description>`; the feature itself is
 tracked by the `[010]` issue (T008a).
+
+## Phase 7: Convergence
+
+- [ ] T027 (manual) CRITICAL: get the lead's review of spec.md, plan.md and research.md (the readings to confirm: rent in the slabs with the 75% test, the bonus cliff, s.8(1)(a)) in the PR before merge, and record his approval there per Constitution, Development Workflow ("Review before build") (contradicts)
+- [X] T028 Amend spec.md User Story 3, scenario 1, to say the effective rate, monthly view and bonus impact follow the total-tax line, as calculator.py orders them per US3/AC1 (partial)
