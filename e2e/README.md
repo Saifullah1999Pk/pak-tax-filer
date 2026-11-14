@@ -9,6 +9,7 @@ the main flows still work end to end. CI runs them on every pull request (job `e
 | `tax.spec.ts` | Sign up → profile → upload a salary certificate → confirm its figures → the Tax page (Rs 72,000 salary tax, Rs 3,000 over-deducted, the label) → Download PDF |
 | `wealth.spec.ts` | The same certificate → wealth statement → save → a labelled result → Download PDF |
 | `workflow.spec.ts` | Guided filing: start → stops for approval (no result yet) → approve → the result → mark done |
+| `calculator.spec.ts` | The Tax calculator: salary Rs 250,000 + rent Rs 140,000 a month → Rs 1,107,600 on the non-salaried table, take-home Rs 225,000, the label (no AI) |
 | `busy.spec.ts` | An upload Google times out on (its 504) says so, offers Retry, and costs no try |
 
 ## No real AI, no real data

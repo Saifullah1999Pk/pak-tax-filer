@@ -71,6 +71,19 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
   summariser; use `FakeSummariser` to test a summary.
 
+## Tax calculator (feature 010)
+
+- `app/tax/calculator.py` is pure like the engine (import-linter and `test_engine_imports.py`
+  guard it) and shares its rounding, steps and `band_for`; never a second engine. Typed amounts
+  in, a result out; nothing stored or logged (`test_calculator_api.py` checks the database, logs
+  and spans).
+- The law it follows is in `specs/010-income-tax-engine/research.md`: rent is slab income after
+  the one-fifth repairs allowance and counts in the 75% test; dividends and bank profit are final
+  taxes outside taxable income (s.8(1)(a)). Its rules live in `ty2026.py` with printed and PDF
+  page and `effective_from`.
+- Its worked examples are `tests/tax/calculator_examples.yaml`, accepted provisionally (not hand
+  checked): revise them, and the rules, when a tax practitioner reviews the app.
+
 ## Wealth statement (feature 005)
 
 - `app/wealth/reconcile.py` stays pure: no database, network, clock or AI (an import test

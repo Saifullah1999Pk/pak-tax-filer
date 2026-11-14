@@ -17,18 +17,18 @@ practitioner. Nothing in this app is tax advice until that changes.
 ## MVP scope
 
 **In:**
-- One resident individual taxpayer, salaried or not; tax years TY2026 and
-  TY2027 (TY2027 labelled an estimate until the year ends).
-- Two document types only: salary certificate, bank profit certificate. Other
-  incomes are typed in (feature 010).
+- One resident individual taxpayer, tax year TY2026. (The constitution allows
+  more, up to TY2027 and other income types; the lead asked for "Simple" first.)
+- Two document types only: salary certificate, bank profit certificate.
 - AI-assisted field extraction, with mandatory human confirmation before
   anything downstream uses the data.
-- A deterministic tax calculation with a plain-language, step-by-step
-  explanation: salary and bonuses, rent, business and freelance income, profit
-  on debt, dividends, capital gains and other sources, each under its legal
-  treatment; Zakat, donations and pension contributions; tax withheld and
-  advance tax; one amount payable or refundable. Anything not covered is shown
-  as unsupported, never guessed.
+- A deterministic tax calculation from confirmed certificates (salary + profit
+  on debt/§151), with a plain-language, step-by-step explanation.
+- A side Tax calculator (feature 010): type salary and rent per month, bonus,
+  dividends and bank profit; see the tax on each, the slab table that applies
+  and why, a monthly view, the effective rate, what the bonus adds and the
+  filer vs non-filer deductions. Nothing typed is saved; anything not covered
+  is listed, never guessed.
 - A wealth statement with deterministic reconciliation. An LLM may only
   explain a reconciliation result that's already been computed — it never
   computes the number itself.
@@ -42,9 +42,10 @@ practitioner. Nothing in this app is tax advice until that changes.
 - A simple agentic workflow (document → validate → research → calculate →
   explain → review) with a mandatory human-approval gate before calculation.
 
-**Out (for now):** companies and associations of persons; non-residents;
-agricultural income; tax years before TY2026; losses, depreciation, perk
-valuation, minimum and turnover tax; IRIS login/auto-filing; any claim of
+**Out (for now):** freelance, business, capital gains and other incomes;
+deductions and credits (Zakat, donations, pension); TY2027; companies and
+associations of persons; non-residents; agricultural income; tax years before
+TY2026; IRIS login/auto-filing; any claim of
 authoritative tax advice; real user documents (synthetic/demo data only
 until a tax practitioner and legal review are in place).
 
