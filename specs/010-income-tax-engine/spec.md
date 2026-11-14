@@ -12,6 +12,14 @@ salary, dividend, bonus, rental and you show him tax info; behind the scene some
 he answered "Simple"). Source design:
 `docs/superpowers/specs/2026-11-13-full-income-tax-engine-design.md`. Constitution 1.3.0.
 
+## Clarifications
+
+### Session 2026-11-14
+
+- Q: Should the calculator need a signed-in user with a taxpayer profile, or be open to anyone
+  with a filer/non-filer choice on the form? → A: Signed in with a profile; ATL status and tax
+  year come from the profile (no filer/non-filer choice on the form).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Type my incomes, see my tax (Priority: P1)
@@ -143,7 +151,8 @@ source; try each refused case and confirm the message and that no figure is show
 - **FR-009**: Where the Ordinance leaves a case to judgement, the system MUST refuse it with
   "needs a tax practitioner" and no figure.
 - **FR-010**: Every result MUST carry the practitioner label and a note of what is not covered.
-- **FR-011**: ATL status and the tax year MUST come from the taxpayer profile.
+- **FR-011**: ATL status and the tax year MUST come from the taxpayer profile; the form MUST NOT
+  ask for them.
 - **FR-012**: Worked examples covering each income, every slab and limit the calculator uses, and
   the 75% test on both sides MUST be worked out by hand from the Ordinance and signed off by the
   author ("author signed") before the code, and become its tests.
