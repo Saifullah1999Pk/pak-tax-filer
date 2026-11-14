@@ -54,7 +54,8 @@ every figure with the hand-worked result.
    monthly salary per month and the take-home pay per month (monthly salary minus that tax), with
    the bonus left out of both.
 8. **Given** any result, **When** it is shown, **Then** the effective rate (total tax as a
-   percentage of total yearly income, one decimal place) is shown.
+   percentage of total yearly gross income, rent before the repairs allowance, one decimal place)
+   is shown.
 9. **Given** a bonus and a salary, **When** the result is shown, **Then** it shows how much extra
    tax the bonus causes: the tax with the bonus minus the tax without it.
 
@@ -79,8 +80,8 @@ with salary, and compare every figure.
 3. **Given** incomes taxed separately, **When** the result is shown, **Then** they are kept out
    of the slab income and the breakdown says so.
 4. **Given** dividends or bank profit, **When** the result is shown, **Then** a filer vs non-filer
-   line shows the tax on them at the other ATL status's rate and the difference, labelled as a
-   comparison, not the user's tax.
+   line shows the amount deducted at source at the user's ATL status and at the other status, and
+   the difference, labelled as a comparison of deductions: the tax itself is the same for both.
 
 ---
 
@@ -98,8 +99,9 @@ source; try each refused case and confirm the message and that no figure is show
 
 1. **Given** a result, **When** the user views it, **Then** each line shows its inputs, rule,
    source and result, ending with the total tax.
-2. **Given** a case the Ordinance leaves to judgement for these inputs, **When** the user
-   calculates, **Then** they are told it needs a tax practitioner and no figure is shown.
+2. **Given** bank profit above Rs 5 million (s.7B no longer applies, research R5), **When** the
+   user calculates, **Then** they are told this case isn't covered and needs a tax practitioner,
+   and no figure is shown.
 3. **Given** a result, **When** it is shown, **Then** a short note lists what the calculator does
    not cover (tax deducted, other incomes, deductions and credits).
 
@@ -115,8 +117,10 @@ source; try each refused case and confirm the message and that no figure is show
   each pinned by a worked example.
 - No salary: no monthly view; no bonus impact without a salary and a bonus. Total income zero is
   impossible (at least one income above zero), so the effective rate always has a divisor.
-- Rent or dividends changing the table used for salary (the 75% test): the monthly view and the
-  bonus impact use the same table as the full result; pinned by a worked example.
+- Rent changing the table used (the 75% test): the monthly view still taxes the salary alone on
+  the salaried table, as an employer deducts (s.149), and the page says the rest is settled with
+  the return; the bonus impact recalculates the full result, so a table switch shows in it. Both
+  pinned by worked examples.
 - No salary at all (e.g. rent only): the non-salaried table applies to any slab income, if the law
   puts any there; pinned by a worked example.
 
@@ -133,8 +137,8 @@ source; try each refused case and confirm the message and that no figure is show
   request and never stored.
 - **FR-004**: Each income MUST be taxed under its treatment in the Ordinance for TY2026, with the
   75% salary test and the §4AB surcharge applied to the income the Ordinance specifies.
-- **FR-005**: The calculation MUST be feature 004's engine, extended; the Tax page's figures for
-  the same salary and bank profit MUST not change.
+- **FR-005**: The calculation MUST live in feature 004's engine package, sharing its rounding,
+  breakdown steps and slab lookup (no second engine); the Tax page's figures MUST not change.
 - **FR-006**: Every new rule (rent, dividends, any other) MUST be stored as TY2026 data with its
   source document, section, Finance Act and effective date, from FBR's own documents only.
 - **FR-007**: Calculations MUST use exact decimal arithmetic with §219 rounding on final amounts;
@@ -143,13 +147,16 @@ source; try each refused case and confirm the message and that no figure is show
   table used and why (with the salary share), the slab used, and a breakdown line per step with
   its rule and source.
 - **FR-008a**: The result MUST also show: a monthly view (tax on the monthly salary per month and
-  take-home pay per month, bonus excluded); the effective rate (total tax ÷ total yearly income,
-  as a percentage to one decimal place); when there is a bonus and a salary, the extra tax the
+  take-home pay per month, bonus excluded); the effective rate (total tax ÷ total yearly gross
+  income, rent before the repairs allowance, as a percentage to one decimal place); when there is a bonus and a salary, the extra tax the
   bonus causes (tax with it minus tax without it); and when there are dividends or bank profit, a
-  filer vs non-filer comparison (their tax at the other ATL status's rate, and the difference).
+  filer vs non-filer comparison (the amount deducted at source at each ATL status, and the
+  difference; the tax itself doesn't change).
   These are derived from the engine's own figures by plain code, each with a breakdown line.
-- **FR-009**: Where the Ordinance leaves a case to judgement, the system MUST refuse it with
-  "needs a tax practitioner" and no figure.
+- **FR-009**: Where the calculator's rules don't cover a case, the system MUST refuse it with
+  "needs a tax practitioner" and no figure. The research found one such case for these inputs:
+  bank profit above Rs 5 million (`profit_over_limit`); every amount zero is refused as
+  `no_income`.
 - **FR-010**: Every result MUST carry the practitioner label and a note of what is not covered.
 - **FR-011**: ATL status and the tax year MUST come from the taxpayer profile; the form MUST NOT
   ask for them.
