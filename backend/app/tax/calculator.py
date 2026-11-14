@@ -322,11 +322,14 @@ def _income_steps(
     """Salary income, property income, taxable income and the table."""
     steps = []
     if work.salary_income > 0:
+        parts = []
+        if inputs.salary_monthly > 0:
+            parts.append(f"{words.money(inputs.salary_monthly)} a month x 12")
+        if inputs.bonus > 0:
+            parts.append(f"bonus {words.money(inputs.bonus)} (a bonus is salary)")
         steps.append(
             Step(
-                f"Salary income: {words.money(inputs.salary_monthly)} a month x 12 + bonus "
-                f"{words.money(inputs.bonus)} = {words.money(work.salary_income)} (a bonus is "
-                "salary)",
+                f"Salary income: {' + '.join(parts)} = {words.money(work.salary_income)}",
                 where(rates.bonus_is_salary, rates),
                 work.salary_income,
             )
@@ -355,7 +358,9 @@ def _income_steps(
                 "(dividends and bank profit are taxed on their own, outside it). Salary is "
                 f"{shown} of it, which {exceeds} {words.percent(threshold.value)}: the {name} "
                 "table applies",
-                where(threshold.source if work.table == "salaried" else work.band.source, rates),
+                # The 75% test is clause (2)'s rule, whichever table it picks; the slab row is
+                # cited by the next step.
+                where(threshold.source, rates),
                 work.taxable,
             )
         )

@@ -93,7 +93,7 @@ Principle VI). **No calculator code (T009 onward) starts until T003 is complete.
 - [X] T021 [P] Add `e2e/tests/calculator.spec.ts`: sign in with a profile, open the calculator, enter the lead's example, see total tax Rs 1,107,600 and the label (fake Gemini not needed)
 - [X] T022 [P] Document the calculator in `backend/CLAUDE.md` (tax engine section: `calculator.py`, `calculator_examples.yaml`, the s.8 rule) and the README's feature list
 - [X] T023 Run every check and report the results: `docker compose exec backend pytest`, `uv run ruff format`, `pylint`, `mypy`, `lint-imports`; `npm test`, `npm run lint`, `npx tsc -b`, `npx prettier --check .`; `uv run --project backend python scripts/validate_contracts.py --feature 010`
-- [ ] T024 (manual) Run [quickstart.md](quickstart.md)'s by-hand steps in the browser
+- [X] T024 (manual) Run [quickstart.md](quickstart.md)'s by-hand steps in the browser
 - [ ] T025 Review with the `backend-reviewer` and `frontend-reviewer` agents and the `code-review` skill (call out the guarded rates change); then `/speckit-converge` and `/speckit-analyze`; fix or record each finding
 - [ ] T026 (manual) In the PR (linked to the `[010]` issue), raise research R5: s.8(1)(a) answers 004's provisional `salary_share_ambiguous` / `surcharge_ambiguous` refusals; and call out T006's correction of 004's page citations (figures unchanged)
 

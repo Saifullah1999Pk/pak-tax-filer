@@ -267,3 +267,17 @@ async def test_the_steps_say_why_in_words(
     assert "lowers the total tax by Rs 429,000" in cliff_text
     assert "just over 75%" in cliff_text
     assert "adds -" not in cliff_text
+
+
+async def test_the_table_step_cites_the_75_percent_rule_and_no_bonus_says_none(
+    client: AsyncClient, db: AsyncSession, logged_in_user: User
+) -> None:
+    """Fails if the step deciding the table cites a slab row instead of the 75% rule (clause (2)),
+    or a salary without a bonus reads "+ bonus Rs 0" (T024 browser check)."""
+    await save_profile(db, logged_in_user, "2025-26", on_atl=True)
+    body = (await client.post(URL, json=LEAD)).json()
+
+    salary_step, _property_step, table_step = body["steps"][:3]
+    assert "bonus" not in salary_step["description"].split("=")[0]
+    assert "clause (2)" in table_step["rule_location"]
+    assert "75% of taxable income" in table_step["rule_location"]
