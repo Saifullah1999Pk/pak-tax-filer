@@ -37,5 +37,5 @@
   answers (what the 75% test counts, each head's treatment, which withholdings are adjustable)
   come from the plan's research and are pinned by signed worked examples (FR-023), never assumed
   in the spec. This is not an open clarification; it is the design's agreed research step.
-- One reconciliation of the approved design is recorded in Assumptions (typed salary vs
-  certificate: certificates carry no employer name, so every source counts and the page warns).
+- Re-validated 2026-11-14 after the cut to the simple calculator (the lead: "Simple"); all items
+  still pass.
