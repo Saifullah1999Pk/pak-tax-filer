@@ -164,8 +164,9 @@ year the Ordinance amended to 31.07.2025 governs; FA2025 changes apply from it).
 one `effective_from` date per tax year, `2025-07-01`, shown with each rule's source (Principle II,
 1.3.0). New rules cite printed and PDF pages of the pinned file; 004's page numbers are corrected
 to the same scheme in this feature (a guarded change, asked for by the hook and called out in
-review), after Saifullah checks a few against his copy: if his copy is a different FBR upload, the
-file pinned in `sources.yaml` wins because its checksum makes it reproducible.
+review). The file pinned in `sources.yaml` is the reference because its checksum makes it
+reproducible; Saifullah chose not to compare his own copy first (2026-11-14). All readings here
+are provisional until a tax practitioner reviews the app.
 
 ## R9. Where the code goes
 

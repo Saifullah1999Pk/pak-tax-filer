@@ -161,8 +161,10 @@ source; try each refused case and confirm the message and that no figure is show
 - **FR-011**: ATL status and the tax year MUST come from the taxpayer profile; the form MUST NOT
   ask for them.
 - **FR-012**: Worked examples covering each income, every slab and limit the calculator uses, and
-  the 75% test on both sides MUST be worked out by hand from the Ordinance and signed off by the
-  author ("author signed") before the code, and become its tests.
+  the 75% test on both sides MUST be worked out from the Ordinance, citing their pages, and
+  accepted by the author before the code, and become its tests. *(Amended 2026-11-14: the author
+  accepted them provisionally, cross-checked by script rather than by hand; they and the rules
+  they rest on MUST be revised when a tax practitioner reviews the app.)*
 
 ### Key Entities
 
@@ -196,3 +198,6 @@ source; try each refused case and confirm the message and that no figure is show
   refundable; freelance, business, capital gains and other incomes; deductions and credits; tax on
   bills and advance tax; TY2027; guided filing, PDF, MCP and wealth statement links.
 - Synthetic data only (Principle V); the calculator needs sign-in like every page.
+- The legal readings in research.md, the page citations and the worked examples are provisional
+  until a tax practitioner reviews the app (the author's decision, 2026-11-14); the practitioner
+  label on every result already says so to users.

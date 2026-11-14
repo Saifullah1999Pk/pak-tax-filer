@@ -6,6 +6,7 @@ string, never a float (Principle I). Adding a tax year means adding data, not ch
 """
 
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 
@@ -57,3 +58,18 @@ class TaxYearRates:  # pylint: disable=too-many-instance-attributes  # one field
     profit_limit: Rule
     # Final amounts to the nearest rupee, 50 paisa or more up.
     rounding: Source
+    # Feature 010 (the simple calculator, specs/010-income-tax-engine/research.md):
+    # the date this year's rules apply from (constitution 1.3.0, Principle II).
+    effective_from: date
+    # The table for everyone who isn't salaried (salary not more than 75% of taxable income).
+    non_salaried_bands: tuple[Band, ...]
+    # The surcharge rate without income under the head Salary (surcharge_rate is the salaried 9%).
+    surcharge_rate_other: Rule
+    # The repairs allowance on rent, as a share of the rent.
+    repairs_allowance: Rule
+    # Tax on ordinary dividends, and the rates deducted at source on dividends and bank profit.
+    dividend_rate: Rule
+    dividend_deduction_rate: Rule
+    profit_deduction_rate: Rule
+    # How much deduction rates rise for someone not on the active taxpayers' list (1.00 = +100%).
+    non_atl_increase: Rule
