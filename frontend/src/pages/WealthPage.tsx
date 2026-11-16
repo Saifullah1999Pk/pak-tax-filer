@@ -7,7 +7,6 @@ import {
   ASSET_CATEGORIES,
   EXPENSE_CATEGORIES,
   getWealth,
-  getWealthSummary,
   saveWealth,
   wealthPdfUrl,
 } from "../api/wealth";
@@ -21,7 +20,6 @@ import { DownloadPdfButton } from "../components/DownloadPdfButton";
 import { MoneyInput } from "../components/MoneyInput";
 import { WHOLE_RUPEES, amountError } from "../components/amountRule";
 import type { AmountRule } from "../components/amountRule";
-import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
 
 // The wealth statement for the profile's tax year (feature 005, tasks T011, T017, T023). The
@@ -154,8 +152,6 @@ export function WealthPage() {
   const [edited, setEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveAttempts, setSaveAttempts] = useState(0);
-  // Each statement shown (loaded or saved) gets a new number, so its summary is asked for anew.
-  const [version, setVersion] = useState(0);
   const [shownYear, setShownYear] = useState(taxYear);
   const saveButton = useRef<HTMLButtonElement | null>(null);
   // The year a save was sent for; a reply for another year is ignored.
@@ -195,7 +191,6 @@ export function WealthPage() {
           setWealth(loaded);
           setForm(toForm(loaded.statement));
           setEdited(false);
-          setVersion((n) => n + 1);
         }
       })
       .catch((caught: unknown) => {
@@ -231,7 +226,6 @@ export function WealthPage() {
       }
       setWealth(result);
       setForm(toForm(result.statement));
-      setVersion((n) => n + 1);
       setSaved(true);
       setEdited(false);
     } catch (caught) {
@@ -316,7 +310,6 @@ export function WealthPage() {
             result={wealth.result}
             label={wealth.label}
             taxYear={taxYear}
-            version={version}
             edited={edited}
           />
         </>
@@ -607,13 +600,11 @@ type ResultProps = {
   result: WealthResult;
   label: string;
   taxYear: string;
-  /** Changes with every load and save, so the summary is asked for again. */
-  version: number;
   /** The form has changes not yet saved (the PDF is of the saved statement). */
   edited: boolean;
 };
 
-function Result({ result, label, taxYear, version, edited }: ResultProps) {
+function Result({ result, label, taxYear, edited }: ResultProps) {
   return (
     <section aria-labelledby="result-heading" className="result">
       <h2 id="result-heading">Result</h2>
@@ -641,14 +632,6 @@ function Result({ result, label, taxYear, version, edited }: ResultProps) {
               </ul>
             </>
           )}
-          {/* Loaded on its own, and again after each save (a new `key`). */}
-          <SummaryPanel
-            key={version}
-            fetchSummary={getWealthSummary}
-            taxYear={taxYear}
-            headingId="wealth-summary-heading"
-            level={3}
-          />
           <h3 id="wealth-breakdown-heading">How it was worked out</h3>
           <ol
             aria-labelledby="wealth-breakdown-heading"

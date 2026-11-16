@@ -17,7 +17,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.documents.models import DocType, FieldName
 from app.documents.service import ConfirmedDocument, confirmed_documents
 from app.tax.rates import rates_for
-from app.tax.summary import Summariser
 from app.wealth.models import WealthAsset, WealthExpense, WealthLiability, WealthStatement
 from app.wealth.reconcile import (
     CertificateFigures,
@@ -37,7 +36,6 @@ from app.wealth.schemas import (
     StepOut,
     WealthOut,
 )
-from app.wealth.summary import verified_wealth_summary
 
 # On every result (constitution Principle IV, FR-014); the same words as the tax page.
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
@@ -276,8 +274,7 @@ async def _reconciled(
 
 
 async def wealth_view(db: AsyncSession, user_id: uuid.UUID, tax_year: str) -> WealthOut:
-    """The saved statement, the certificate lines and a freshly computed result (R8). Never
-    waits for the AI: the summary has its own request (wealth_summary)."""
+    """The saved statement, the certificate lines and a freshly computed result (R8)."""
     statement, found, inputs, result = await _reconciled(db, user_id, tax_year)
     rounded = {
         "taxable": inputs.taxable_salary,
@@ -294,11 +291,3 @@ async def wealth_view(db: AsyncSession, user_id: uuid.UUID, tax_year: str) -> We
         result=_result_out(result),
         label=LABEL,
     )
-
-
-async def wealth_summary(
-    db: AsyncSession, user_id: uuid.UUID, tax_year: str, summariser: Summariser
-) -> str | None:
-    """A short checked summary of the same result, or None (feature 001, US6)."""
-    *_, result = await _reconciled(db, user_id, tax_year)
-    return await verified_wealth_summary(result, tax_year, summariser)

@@ -62,19 +62,11 @@ that counts.
 `blocked_reason` values: `needs_atl_answer`, `no_confirmed_salary_certificate`,
 `profit_over_limit`, `salary_share_ambiguous`, `surcharge_ambiguous`.
 
-## GET /api/tax/{tax_year}/summary
+## GET /api/tax/{tax_year}/summary (removed 2026-11-16)
 
-Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same result, in its own
-request so the figures above never wait for the AI (they come back at once; the summary can take
-several seconds). Checked as before: dropped unless every number in it is in the breakdown
-(FR-011), and also when a sentence describes a tax figure as being after (net of, accounting
-for) its credit without reaching the balance, since the tax comes before the credit is taken
-off; `null` when dropped, late (12 s limit), failed, or when the result is blocked.
-
-```json
-{ "summary": "Your salary tax is Rs 72,000 …" }
-```
+Removed with the AI summary it served (the lead: no AI where no reasoning is needed): the
+breakdown explains every figure. The route now answers `404`.
 
 ## Errors
 
-`404` unknown tax year; `401` not logged in (both requests).
+`404` unknown tax year; `401` not logged in.

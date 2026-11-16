@@ -66,10 +66,10 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   and signed off by a human (`signed_off_by`, `signed_off_date`); `test_sign_off.py` fails on an
   unsigned one.
 - Tax figures are plain `Decimal` code with §219 rounding (`ROUND_HALF_UP`) on final amounts.
-  Never compute, round or "check" a figure with an LLM. The AI summary (`tax/summary.py`) may
-  only repeat breakdown numbers; plain code checks that and drops it otherwise.
+  Never compute, round or "check" a figure with an LLM. No AI summary (removed 2026-11-16, the
+  lead: AI only where reasoning is needed): the breakdown explains every figure.
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
-  summariser; use `FakeSummariser` to test a summary.
+  assistant.
 
 ## Tax calculator (feature 010)
 
@@ -90,13 +90,12 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   guards it). The formula is unreconciled = inflows - outflows - increase, with each step citing
   its SRO 1495(I)/2026 form line.
 - Never compute, round or "check" a figure with an LLM, and never let one write the "where to
-  look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. The summary
-  (`app/wealth/summary.py`) uses the shared `app.explain.number_check`, like the tax page's.
+  look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. No AI
+  summary (removed 2026-11-16).
 - Certificate figures come only from `confirmed_documents`, summed per type and then rounded
   (s.219) by `build_inputs`. Any change to the formula or the lines comes with signed-off worked
   examples in `tests/wealth/worked_examples.yaml` (`test_wealth_sign_off.py` fails if unsigned).
-- The entries are stored; the result never is. A test's wealth summariser is faked by the
-  autouse `no_real_ai` fixture.
+- The entries are stored; the result never is.
 
 ## RAG and MCP (feature 006)
 

@@ -45,10 +45,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
-type Summary = string | null | "pending";
-
-function showTax(result: Partial<TaxResult>, summary: Summary = null) {
+function showTax(result: Partial<TaxResult>) {
   const reply = (): FakeReply => ({
     status: 200,
     body: { ...CALCULATED, ...result },
@@ -58,10 +55,6 @@ function showTax(result: Partial<TaxResult>, summary: Summary = null) {
     "GET /api/profile": hasProfile,
     "GET /api/tax/2025-26": reply,
     "GET /api/tax/2025-26/pdf": () => ({ status: 200, body: {} }),
-    "GET /api/tax/2025-26/summary": () =>
-      summary === "pending"
-        ? new Promise<FakeReply>(() => {})
-        : { status: 200, body: { summary } },
   });
 }
 
@@ -125,47 +118,19 @@ test("the breakdown shows every step with its rule location", async () => {
   within(steps[1]).getByText(/Division IIIA/);
 });
 
-test("the summary is shown only when the API sends one", async () => {
-  showTax({}, "Your salary tax is Rs 72,000; Rs 12,000 is payable.");
-  const first = renderApp("/tax");
-  await screen.findByText(
-    /Your salary tax is Rs 72,000; Rs 12,000 is payable\./,
-  );
-  first.unmount();
-  vi.unstubAllGlobals();
+// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary; the
+// step-by-step breakdown explains every figure.
 
-  showTax({}, null);
+test("the page never asks for an AI summary", async () => {
+  const fake = showTax({});
   renderApp("/tax");
+
   await screen.findByRole("list", { name: /how it was worked out/i });
-  await waitFor(() =>
-    expect(screen.queryByText(/writing a short summary/i)).toBeNull(),
-  );
-  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
-});
-
-// Feature 001, User Story 6: the figures never wait for the AI summary, which has its own request.
-
-test("the figures show while the summary is still being written", async () => {
-  showTax({}, "pending");
-  renderApp("/tax");
-
-  await screen.findByRole("region", { name: /salary/i });
-  const panel = screen.getByRole("region", { name: /summary/i });
-  within(panel).getByText("Writing a short summary…");
-});
-
-test("a refused calculation never asks for a summary", async () => {
-  const fake = showTax(
-    blocked("needs_atl_answer", "Set your ATL status in your profile."),
-    "Rs 1",
-  );
-  renderApp("/tax");
-
-  await screen.findByText("Set your ATL status in your profile.");
   const asked = fake.mock.calls.some(([url]) =>
     String(url).endsWith("/summary"),
   );
   expect(asked).toBe(false);
+  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
 });
 
 test("without ATL status it links to the profile, with no figures", async () => {
@@ -271,7 +236,7 @@ test("an error reply is shown instead of the result", async () => {
 });
 
 // Feature 001, User Story 6, task T054: the answer first. Each side's balance is its headline,
-// above the parts it is made of; the summary and the breakdown come after both sides.
+// above the parts it is made of; the breakdown comes after both sides.
 
 const follows = (first: Node, second: Node) =>
   Boolean(
@@ -279,12 +244,11 @@ const follows = (first: Node, second: Node) =>
   );
 
 test("the label comes first, then each side's balance as its headline, then the detail", async () => {
-  showTax({}, "Your tax is Rs 72,000.");
+  showTax({});
   renderApp("/tax");
 
   const salary = await screen.findByRole("region", { name: /salary/i });
   const profit = screen.getByRole("region", { name: /bank profit/i });
-  await screen.findByText("Your tax is Rs 72,000.");
   expect(follows(screen.getByText(LABEL), salary)).toBe(true);
   expect(
     follows(
@@ -297,9 +261,6 @@ test("the label comes first, then each side's balance as its headline, then the 
       within(profit).getByText("Rs 4,000 over-withheld"),
       within(profit).getByText("Rs 20,000"),
     ),
-  ).toBe(true);
-  expect(
-    follows(profit, screen.getByRole("region", { name: /summary/i })),
   ).toBe(true);
   expect(
     follows(

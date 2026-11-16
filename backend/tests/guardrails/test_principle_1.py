@@ -1,15 +1,14 @@
 """Guardrail: the AI never changes a figure (constitution Principle I; feature 008, task T011,
 research R5).
 
-Every AI client in the app is replaced by one that answers with made-up numbers. The tax, wealth
-and guided-filing results must still equal the hand-worked, signed-off examples to the rupee,
-and the made-up numbers must never be shown.
+The tax, wealth and guided-filing results must equal the hand-worked, signed-off examples to the
+rupee. Since 2026-11-16 no AI rewords these results at all (the lead: AI only where reasoning is
+needed); the last test fails if an AI summary comes back.
 """
 
 # pytest fixtures receive other fixtures by name.
 # pylint: disable=redefined-outer-name
 
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -23,15 +22,10 @@ from wealth_statement import STATEMENT
 
 from app.auth.models import User
 from app.documents.models import DocType
-from app.main import app
-from app.tax.router import get_summariser
-from app.tax.summary import FakeSummariser
-from app.wealth.router import get_wealth_summariser
 
 pytestmark = pytest.mark.anyio
 
 TESTS = Path(__file__).resolve().parent.parent
-MADE_UP = "Rs 987,654"
 TAX_FIGURES = (
     "salary_tax",
     "surcharge",
@@ -55,18 +49,6 @@ TAX = example("tax/worked_examples.yaml", "two-salary-and-two-bank-certificates"
 WEALTH = example("wealth/worked_examples.yaml", "reconciled")
 
 
-@pytest.fixture
-def lying_ai() -> Iterator[None]:
-    """Every AI the app uses answers with a number that is in no result."""
-    app.dependency_overrides[get_summariser] = lambda: FakeSummariser(f"Your tax is {MADE_UP}.")
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(
-        f"{MADE_UP} is unexplained."
-    )
-    yield
-    for dependency in (get_summariser, get_wealth_summariser):
-        app.dependency_overrides.pop(dependency, None)
-
-
 async def tax_certificates(db: AsyncSession, user: User) -> None:
     """The tax example's certificates, confirmed."""
     for salary in TAX["inputs"]["salary_certificates"]:
@@ -80,27 +62,23 @@ def tax_figures(result: dict[str, Any]) -> dict[str, Any]:
     return {name: result[name] for name in TAX_FIGURES}
 
 
-@pytest.mark.usefixtures("lying_ai")
-async def test_the_tax_result_is_the_worked_example_whatever_the_ai_says(
+async def test_the_tax_result_is_the_worked_example(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if an AI summary changes a tax figure, or its made-up number is shown."""
+    """Fails if a tax figure differs from the signed-off worked example."""
     assert TAX["inputs"]["atl"] is True  # the profile fixture is on the ATL
     await tax_certificates(db, user_with_profile)
 
     result = (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()
-    summary = (await client.get(f"/api/tax/{PROFILE_YEAR}/summary")).json()
 
     assert result["blocked_reason"] is None
     assert tax_figures(result) == {name: TAX["expected"][name] for name in TAX_FIGURES}
-    assert summary == {"summary": None}
 
 
-@pytest.mark.usefixtures("lying_ai")
-async def test_the_wealth_result_is_the_worked_example_whatever_the_ai_says(
+async def test_the_wealth_result_is_the_worked_example(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if an AI summary changes a wealth figure, or its made-up number is shown."""
+    """Fails if a wealth figure differs from the signed-off worked example."""
     for salary in WEALTH["inputs"]["salary_certificates"]:
         figures = {k: v for k, v in salary.items() if k != "file"}
         await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, figures)
@@ -112,21 +90,18 @@ async def test_the_wealth_result_is_the_worked_example_whatever_the_ai_says(
     await client.put(f"/api/wealth/{PROFILE_YEAR}", json=STATEMENT)
 
     result = (await client.get(f"/api/wealth/{PROFILE_YEAR}")).json()["result"]
-    summary = (await client.get(f"/api/wealth/{PROFILE_YEAR}/summary")).json()
 
     assert result["not_ready_reason"] is None
     assert {name: result[name] for name in WEALTH_FIGURES} == {
         name: WEALTH["expected"][name] for name in WEALTH_FIGURES
     }
-    assert summary == {"summary": None}
 
 
-@pytest.mark.usefixtures("lying_ai")
 async def test_the_guided_result_is_the_worked_example(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if a made-up number reaches a guided-filing step or changes the result (its steps
-    are plain code since 2026-11-16, and the summaries' lies must not leak in either)."""
+    """Fails if the guided result differs from the worked example (its steps are plain code
+    since 2026-11-16)."""
     await a_corpus(db)
     await tax_certificates(db, user_with_profile)
 
@@ -134,6 +109,16 @@ async def test_the_guided_result_is_the_worked_example(
     await client.post("/api/workflow/approve", json={"fingerprint": run["fingerprint"]})
     result = (await client.get("/api/workflow/result")).json()
 
-    shown = f"{run} {result}"
-    assert "987,654" not in shown and "987654" not in shown
     assert tax_figures(result) == {name: TAX["expected"][name] for name in TAX_FIGURES}
+
+
+async def test_no_ai_rewords_a_computed_result(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if an AI summary of the tax or wealth result comes back (amended 2026-11-16, the
+    lead: no AI where no reasoning is needed; the step-by-step breakdowns explain the figures)."""
+    await tax_certificates(db, user_with_profile)
+
+    for page in ("tax", "wealth"):
+        assert (await client.get(f"/api/{page}/{PROFILE_YEAR}/summary")).status_code == 404, page
+    assert "summary" not in (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()

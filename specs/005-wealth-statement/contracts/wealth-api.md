@@ -63,16 +63,10 @@ Body: the `statement` object above without `saved_at`. Replaces the whole statem
 included), records `saved_at` and the confirmed certificate ids, and returns the same body as
 GET.
 
-## GET /api/wealth/{tax_year}/summary
+## GET /api/wealth/{tax_year}/summary (removed 2026-11-16)
 
-Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same reconciliation,
-in its own request so GET and PUT never wait for the AI. Checked as before (the shared number
-check plus the wealth guards); `null` when dropped, late (12 s limit), failed, or when the
-statement is not ready.
-
-```json
-{ "summary": "Your wealth statement reconciles: …" }
-```
+Removed with the AI summary it served (the lead: no AI where no reasoning is needed): the
+message, "where to look" and the breakdown explain the result. The route now answers `404`.
 
 ## Errors
 

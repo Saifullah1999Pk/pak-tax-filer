@@ -239,10 +239,6 @@ function showGateFlow(approve: FakeReply = { status: 200, body: APPROVED }) {
       body: { ...AT_GATE, step: "document", gate: null },
     }),
     "GET /api/workflow/result": () => ({ status: 200, body: RESULT_BODY }),
-    "GET /api/tax/2025-26/summary": () => ({
-      status: 200,
-      body: { summary: null },
-    }),
     "POST /api/workflow/done": () => ({
       status: 200,
       body: { ...APPROVED, step: "done", done_at: "2026-11-12T10:05:00Z" },

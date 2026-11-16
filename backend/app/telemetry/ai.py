@@ -20,8 +20,6 @@ from opentelemetry.trace import Span, SpanKind
 
 Feature = Literal[
     "extraction",
-    "tax_summary",
-    "wealth_summary",
     "assistant",
     "embeddings",
 ]

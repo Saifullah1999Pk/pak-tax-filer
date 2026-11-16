@@ -115,35 +115,6 @@ def test_the_old_anthropic_key_is_ignored() -> None:
     assert settings.gemini_api_key is None
 
 
-# Feature 004, task T001: the tax summary's model and effort (research R8).
-
-
-def test_summary_defaults() -> None:
-    """Fails if the summary's defaults differ from feature 004's plan."""
-    settings = load_settings({"DATABASE_URL": DB})
-
-    assert settings.summary_model == "gemini-3.5-flash-lite"
-    # Minimal: with "low", thinking used the token budget, cutting answers short, and took up
-    # to 7.6 s against the 4 s limit (quickstart 2.2, 2026-11-10); minimal answered in ~2.5 s.
-    assert settings.summary_effort == "minimal"
-
-
-def test_summary_settings_are_read() -> None:
-    """Fails if the environment can't change the summary's model or effort."""
-    settings = load_settings(
-        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-test-model", "SUMMARY_EFFORT": "medium"}
-    )
-
-    assert settings.summary_model == "gemini-test-model"
-    assert settings.summary_effort == "medium"
-
-
-def test_unrecognised_summary_effort_is_refused() -> None:
-    """Fails if a typo in SUMMARY_EFFORT is only found when a summary is requested."""
-    with pytest.raises(ValueError, match="SUMMARY_EFFORT"):
-        load_settings({"DATABASE_URL": DB, "SUMMARY_EFFORT": "lwo"})
-
-
 def test_without_a_bucket_uploads_use_the_disk() -> None:
     """Fails if development or tests could reach Google Cloud Storage by default (FR-018)."""
     assert load_settings({"DATABASE_URL": DB}).upload_bucket is None

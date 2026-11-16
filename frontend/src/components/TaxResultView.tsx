@@ -1,12 +1,11 @@
 import { Link } from "react-router";
-import { balanceWords, getTaxSummary, rupees } from "../api/tax";
+import { balanceWords, rupees } from "../api/tax";
 import type { TaxResult } from "../api/tax";
 import { DownloadPdfButton } from "./DownloadPdfButton";
-import { SummaryPanel } from "./SummaryPanel";
 
 // A tax result as 004's engine returns it (feature 004; moved here for 007's guided run, task
-// T016): the practitioner label, the blocked message or both sides' figures, the checked
-// summary and the cited breakdown. Figures are shown as the API gives them; nothing is
+// T016): the practitioner label, the blocked message or both sides' figures, and the cited
+// breakdown (the AI summary was removed on 2026-11-16). Figures are shown as the API gives them; nothing is
 // calculated here (Principle I).
 
 /** Where to go to fix a refusal the user can fix themselves. */
@@ -140,13 +139,6 @@ function Figures({ result }: { result: TaxResult }) {
           )}
         </section>
       </div>
-      {/* Loaded on its own, so the figures above never wait for the AI. */}
-      <SummaryPanel
-        key={result.tax_year}
-        fetchSummary={getTaxSummary}
-        taxYear={result.tax_year}
-        headingId="summary-heading"
-      />
       <h2 id="breakdown-heading">How it was worked out</h2>
       <ol aria-labelledby="breakdown-heading" className="ledger" role="list">
         {result.steps.map((step, index) => (

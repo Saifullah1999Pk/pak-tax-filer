@@ -151,9 +151,3 @@ class WealthOut(BaseModel):
     certificates_changed: bool
     result: ResultOut
     label: str
-
-
-class SummaryOut(BaseModel):
-    """The checked AI summary, or null (feature 001, US6: loaded after the figures)."""
-
-    summary: str | None

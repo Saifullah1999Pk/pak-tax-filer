@@ -18,8 +18,9 @@ The stack runs with a **fake Gemini** (`fake_gemini/server.py`): `docker-compose
 `GOOGLE_GEMINI_BASE_URL`, which the google-genai SDK reads, so the app's real Gemini clients talk
 to it and the app has no test switch. It answers by the request's structure (the reply schema,
 tools, the endpoint) with fixed synthetic data, and fakes only what a test needs; its docstring
-lists exactly what (a salary certificate with Rs 1,800,000 taxable and Rs 75,000 deducted, the
-agents' and summaries' replies, and Google's 504 for a file containing `E2E-GOOGLE-TIMEOUT`).
+lists exactly what (embeddings, a salary certificate with Rs 1,800,000 taxable and Rs 75,000
+deducted, and Google's 504 for a file containing `E2E-GOOGLE-TIMEOUT`). Since 2026-11-16 the
+guided run and the tax and wealth pages use no AI, so nothing is faked for them.
 
 Each test signs up its own `e2e-…@example.com` user and makes its own one-page PDF, so tests
 don't depend on each other and no real document is used (Principle V). `tax.spec.ts` drives the

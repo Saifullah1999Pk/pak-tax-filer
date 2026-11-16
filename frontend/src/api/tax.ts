@@ -34,12 +34,6 @@ export type TaxResult = {
 export const getTax = (taxYear: string) =>
   apiFetch<TaxResult>(`/api/tax/${encodeURIComponent(taxYear)}`);
 
-/** The checked AI summary, on its own so the figures never wait for it (feature 001, US6). */
-export const getTaxSummary = (taxYear: string) =>
-  apiFetch<{ summary: string | null }>(
-    `/api/tax/${encodeURIComponent(taxYear)}/summary`,
-  );
-
 /**
  * "Rs 1,234,567.5" from "1234567.5": digit grouping on the string itself, so the value is
  * never turned into a float. A leading "-" is dropped; callers say which way it goes.

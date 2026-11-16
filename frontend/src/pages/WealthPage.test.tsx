@@ -85,13 +85,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
-type Summary = string | null | "pending";
-
 function serve(
   wealth: Partial<Wealth> = {},
   onSave?: (body: unknown) => FakeReply | Promise<FakeReply>,
-  summary: Summary = null,
 ) {
   const reply = (): FakeReply => ({
     status: 200,
@@ -104,10 +100,6 @@ function serve(
     "GET /api/wealth/2025-26": reply,
     "GET /api/wealth/2025-26/pdf": () => ({ status: 200, body: {} }),
     "PUT /api/wealth/2025-26": ({ body }) => (onSave ? onSave(body) : reply()),
-    "GET /api/wealth/2025-26/summary": () =>
-      summary === "pending"
-        ? new Promise<FakeReply>(() => {})
-        : { status: 200, body: { summary } },
   });
 }
 
@@ -458,28 +450,20 @@ test("the breakdown shows each step with its form line", async () => {
   within(steps[0]).getByText(/703001/);
   screen.getByText("Your wealth statement reconciles.");
   expect(screen.queryByRole("list", { name: /where to look/i })).toBeNull();
-  // No summary (the request answers none): the panel goes once that answer arrives.
-  await waitFor(() =>
-    expect(screen.queryByRole("region", { name: /summary/i })).toBeNull(),
-  );
   within(screen.getByRole("region", { name: /^result$/i })).getByText(LABEL);
 });
 
-test("a gap shows its message, where to look, and the summary when there is one", async () => {
-  serve(
-    {
-      result: {
-        ...SAVED.result,
-        unreconciled: "-50000",
-        direction: "growth_exceeds_inflows",
-        message:
-          "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
-        where_to_look: ["A gift you received", "An inheritance"],
-      },
+test("a gap shows its message and where to look", async () => {
+  serve({
+    result: {
+      ...SAVED.result,
+      unreconciled: "-50000",
+      direction: "growth_exceeds_inflows",
+      message:
+        "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
+      where_to_look: ["A gift you received", "An inheritance"],
     },
-    undefined,
-    "Your assets grew Rs 50,000 more than your inflows explain.",
-  );
+  });
   await open();
 
   screen.getByText(
@@ -487,27 +471,22 @@ test("a gap shows its message, where to look, and the summary when there is one"
   );
   const look = screen.getByRole("list", { name: /where to look/i });
   within(look).getByText("A gift you received");
-  await within(
-    await screen.findByRole("region", { name: /summary/i }),
-  ).findByText("Your assets grew Rs 50,000 more than your inflows explain.");
 });
 
-// Feature 001, User Story 6: the statement never waits for the AI summary.
+// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary; the
+// breakdown and "where to look" explain the result.
 
-test("the statement shows while its summary is still being written, and asks again after a save", async () => {
-  const fake = serve({}, undefined, "pending");
+test("the page never asks for an AI summary, before or after a save", async () => {
+  const fake = serve();
   await open();
 
-  within(screen.getByRole("region", { name: /summary/i })).getByText(
-    "Writing a short summary…",
-  );
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
   await screen.findByText("Saved.");
-  await waitFor(() =>
-    expect(
-      fake.mock.calls.filter(([url]) => String(url).endsWith("/summary")),
-    ).toHaveLength(2),
-  );
+
+  expect(
+    fake.mock.calls.some(([url]) => String(url).endsWith("/summary")),
+  ).toBe(false);
+  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
 });
 
 // Task T023 (User Story 3): honest limits and staying in sync.

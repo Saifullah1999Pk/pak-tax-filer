@@ -42,9 +42,6 @@ from app.rag.answer import AnswerError, FakeAnswerer
 from app.rag.embed import FakeEmbedder
 from app.rag.router import get_answerer, get_embedder
 from app.telemetry.setup import add_exporter, instrument_engine
-from app.tax.router import get_summariser
-from app.tax.summary import FakeSummariser
-from app.wealth.router import get_wealth_summariser
 
 TEST_DATABASE = "pak_tax_filer_test"
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -164,17 +161,13 @@ async def logged_in_user(client: AsyncClient, db: AsyncSession) -> User:
 def no_real_ai() -> Iterator[None]:
     """Fakes for every AI service in every test, so no test can call the real Gemini API, even
     when the environment has a key (research R8 of 003). Tests wanting a particular answer
-    override these again (fake_extractor, their own FakeSummariser). The guided run uses no AI
-    (amended 2026-11-16)."""
+    override these again (fake_extractor). The guided run and the tax and wealth pages use no
+    AI (amended 2026-11-16)."""
     app.dependency_overrides[get_extractor] = lambda: FakeExtractor(failed("No AI in tests."))
-    app.dependency_overrides[get_summariser] = lambda: FakeSummariser(None)
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(None)
     app.dependency_overrides[get_embedder] = FakeEmbedder
     app.dependency_overrides[get_answerer] = lambda: FakeAnswerer(AnswerError("No AI in tests."))
     yield
     app.dependency_overrides.pop(get_extractor, None)
-    app.dependency_overrides.pop(get_summariser, None)
-    app.dependency_overrides.pop(get_wealth_summariser, None)
     app.dependency_overrides.pop(get_embedder, None)
     app.dependency_overrides.pop(get_answerer, None)
 
