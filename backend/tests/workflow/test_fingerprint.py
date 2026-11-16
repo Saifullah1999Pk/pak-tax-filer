@@ -110,3 +110,13 @@ def test_an_amount_read_back_from_the_database_is_the_same_amount() -> None:
 
     assert fingerprint([stored], "2025-26", True) == fingerprint([SALARY], "2025-26", True)
     assert fingerprint([in_another_zone], "2025-26", True) == fingerprint([SALARY], "2025-26", True)
+
+
+def test_a_new_version_of_the_steps_changes_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fails if runs made by older steps would still count as up to date: on 2026-11-16 the steps
+    became plain code, so runs saved with the AI's text must re-run once (instantly)."""
+    before = fingerprint([SALARY], PROFILE_YEAR, True)
+
+    monkeypatch.setattr("app.workflow.fingerprint.STEPS_VERSION", 999)
+
+    assert fingerprint([SALARY], PROFILE_YEAR, True) != before

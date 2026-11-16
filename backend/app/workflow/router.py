@@ -4,8 +4,6 @@ HTTP only: the service runs the steps and enforces the gate. Every endpoint need
 taxpayer profile (002's require_profile: 409 "Set up your profile first.").
 """
 
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,59 +12,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import current_user, require_json
 from app.auth.models import User
-from app.db import get_db, get_sessionmaker
+from app.db import get_db
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
-from app.rag.embed import Embedder
-from app.rag.router import get_embedder
-from app.settings import get_settings
 from app.tax.router import TaxOut, tax_out
 from app.workflow import service
-from app.workflow.client import AgentClient, GeminiAgentClient
 from app.workflow.models import Step, WorkflowRun
 from app.workflow.state import InvalidTransition
 
 router = APIRouter(prefix="/api/workflow", tags=["workflow"])
-
-Sessions = Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 NO_RUN = service.NO_RUN
 APPROVAL_NEEDED = "Approval needed."
 _GATE_ONWARDS = (Step.GATE, Step.RESULT, Step.DONE)
 
 
-def get_agent_client() -> AgentClient:
-    """The agents' client the app uses (tests replace it with a FakeAgentClient)."""
-    settings = get_settings()
-    return GeminiAgentClient(
-        api_key=settings.gemini_api_key,
-        model=settings.workflow_model,
-        effort=settings.workflow_effort,
-    )
-
-
-def get_tool_sessions() -> Sessions:
-    """Sessions for the agents' tools, separate from the request's (tests use their own)."""
-    return get_sessionmaker()
-
-
-async def get_context(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+async def get_context(
     user: Annotated[User, Depends(current_user)],
     profile: Annotated[TaxpayerProfile, Depends(require_profile)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    client: Annotated[AgentClient, Depends(get_agent_client)],
-    embedder: Annotated[Embedder, Depends(get_embedder)],
-    tool_sessions: Annotated[Sessions, Depends(get_tool_sessions)],
 ) -> service.Context:
-    """The request's user, profile, session and AI services, for the service."""
-    return service.Context(
-        db=db,
-        user=user,
-        profile=profile,
-        client=client,
-        embedder=embedder,
-        tool_sessions=tool_sessions,
-    )
+    """The request's user, profile and session, for the service (no AI: plain steps)."""
+    return service.Context(db=db, user=user, profile=profile)
 
 
 Ctx = Annotated[service.Context, Depends(get_context)]

@@ -3,13 +3,11 @@ R1-R3, R9).
 
 Steps 1-3 run in one go: on start, and whenever the inputs' fingerprint differs from the one the
 step outputs were made for (a certificate added, deleted or re-confirmed, or the profile
-changed). Each such run counts as one question against 006's limits; past a limit the steps use
-their plain results. Re-running clears any approval, so the result is only ever shown for inputs
-the user approved (Principle III). The tax result itself is never stored.
+changed). They are plain code (amended 2026-11-16: no AI, so a re-run is instant). Re-running
+clears any approval, so the result is only ever shown for inputs the user approved
+(Principle III). The tax result itself is never stored.
 """
 
-from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -22,32 +20,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.documents.service import ConfirmedDocument, confirmed_documents
 from app.profile.models import TaxpayerProfile
-from app.rag.embed import Embedder
-from app.rag.service import use_question
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
 from app.tax.service import tax_inputs_from
-from app.workflow.agents import document_step, research_step, validation_step
-from app.workflow.client import AgentClient
 from app.workflow.fingerprint import fingerprint
 from app.workflow.models import Step, WorkflowRun
 from app.workflow.state import Event, InvalidTransition, next_step, result_allowed
-from app.workflow.tools import Toolbox
+from app.workflow.steps import document_step, research_step, validation_step
 
-AGENT_STEPS = ("document", "validation", "research")
+RUN_STEPS = ("document", "validation", "research")
 
 
 @dataclass(frozen=True)
 class Context:
-    """What a run needs from the request: the user, their profile and the AI services."""
+    """What a run needs from the request: the database, the user and their profile."""
 
     db: AsyncSession
     user: User
     profile: TaxpayerProfile
-    client: AgentClient
-    embedder: Embedder
-    # Sessions for the agents' tools, separate from the request's (backend review M3).
-    tool_sessions: Callable[[], AbstractAsyncContextManager[AsyncSession]]
 
 
 async def get_run(ctx: Context) -> WorkflowRun | None:
@@ -123,24 +113,16 @@ async def _run_steps(
     # Cleared before anything can fail: until this run finishes, no approval can match it and
     # the next request re-runs it (backend review M2).
     run.outputs_fingerprint = None
-    # Counted (and committed) before any AI is used, under 006's lock (research R9).
-    use_ai = await use_question(ctx.db, ctx.user.id) is None
     await ctx.db.commit()
 
-    tools = Toolbox(
-        sessions=ctx.tool_sessions,
-        user_id=ctx.user.id,
-        profile_tax_year=ctx.profile.tax_year,
-        embedder=ctx.embedder,
-    )
-    outputs: dict[str, Any] = {"document": await document_step(ctx.client, tools, use_ai=use_ai)}
+    outputs: dict[str, Any] = {"document": document_step(documents)}
     if outputs["document"]["missing"]:
         run.step = next_step(run.step, Event.MISSING_SALARY)
     else:
-        outputs["validation"] = await validation_step(ctx.client, tools, documents, use_ai=use_ai)
-        outputs["research"] = await research_step(ctx.client, tools, documents, use_ai=use_ai)
+        outputs["validation"] = validation_step(documents, ctx.profile.tax_year)
+        outputs["research"] = await research_step(ctx.db, documents)
         outputs["gate"] = _gate(ctx, documents)
-        for _ in AGENT_STEPS:
+        for _ in RUN_STEPS:
             run.step = next_step(run.step, Event.STEPS_OK)
     # True when this re-run cleared an approval: the page asks for a fresh one (T020).
     outputs["inputs_changed"] = after_approval

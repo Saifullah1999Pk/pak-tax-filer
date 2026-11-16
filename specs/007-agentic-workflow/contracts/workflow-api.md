@@ -1,4 +1,4 @@
-# Contract: Workflow API, agent tools and page
+# Contract: Workflow API and page
 
 Base path `/api/workflow`. All endpoints need `current_user` and 002's `require_profile`
 (`401` / `409` "Set up your profile first."). Follows the
@@ -8,14 +8,14 @@ Base path `/api/workflow`. All endpoints need `current_user` and 002's `require_
 
 ```json
 { "step": "gate", "tax_year": "2025-26", "fingerprint": "…", "inputs_changed": false,
-  "document": { "message": "…", "missing": [], "fallback": false },
-  "validation": { "message": "…", "issues": [{ "document_id": "…", "certificate": "Salary certificate uploaded 05 Nov 2026", "field": "taxable_salary", "reason": "…" }], "fallback": false },
-  "research": { "note": "…", "passages": [{ "id": "…", "source": "Income Tax Ordinance 2001", "kind": "law", "location": "§149(1)", "page": 12, "text": "…" }], "fallback": false },
+  "document": { "message": "…", "missing": [] },
+  "validation": { "message": "…", "issues": [{ "document_id": "…", "certificate": "Salary certificate uploaded 05 Nov 2026", "field": "taxable_salary", "reason": "…" }] },
+  "research": { "note": "…", "passages": [{ "id": "…", "source": "Income Tax Ordinance 2001", "kind": "law", "location": "§149(1)", "page": 12, "text": "…" }] },
   "gate": { "figures": { "taxable_salary": "1800000.00", "tax_deducted": "75000.00", "gross_profit": "0.00", "tax_withheld": "0.00" }, "on_atl": true },
   "approved_at": null, "done_at": null }
 ```
 
-Step texts carry `"fallback": true` when the code-written result was used.
+The steps are plain code (amended 2026-11-16, below): there is no `fallback` field.
 `"inputs_changed": true` (added 2026-11-12) when steps 1–3 re-ran because the inputs changed after
 an approval, which they cleared; the page asks for a fresh approval. Cleared on approve and start.
 
@@ -34,17 +34,6 @@ The run's `fingerprint` is its `outputs_fingerprint` (added 2026-11-04: `approve
 `approve` sends the `fingerprint` the user saw (`{"fingerprint": "…"}`); a mismatch means the
 inputs changed and returns `409`.
 
-## Agent tools (read-only, `app/workflow/tools.py`)
-
-| Agent | Tool | Returns |
-|---|---|---|
-| Document | `list_confirmed_documents()` | type, label, confirmed time per confirmed certificate; upload page links |
-| Validation | `validate_salary_information(tax_year, gross_salary, taxable_salary, tax_deducted)` | 006's MCP output: `ok`, `issues` |
-| Validation | `check_bank_certificate(tax_year, profit_amount, tax_withheld)` | same shape, 003's bank rules |
-| Research | `search_tax_documents(query)` | 006's search: passages with source, location, page |
-
-No tool writes, confirms, approves or calculates (FR-010).
-
 ## Page
 
 `/workflow` (under `RequireAuth` and `RequireProfile`), shown as "Guided filing" in the Filing
@@ -55,13 +44,6 @@ figures, tax year, ATL status, issues, passages, **Approve** and **Go back**; th
 004's breakdown, the passages as "Where this comes from", the practitioner label, and **Mark
 done**.
 
-## Question limits (added 2026-11-12)
-
-Each run of steps 1–3 (`POST /start`, or a `GET` that re-runs them after an input change) counts
-as one question against feature 006's limits (30 an hour per user, the app's daily cap). Past a
-limit, the response is still `200`: the steps carry their code-written results with
-`fallback: true`, and the run reaches the gate as usual (research R9).
-
 ## Amendments 2026-11-12 (from the review)
 
 - `POST /approve`, `/back` and `/done` before any run was started answer `404` "No guided run
@@ -69,5 +51,18 @@ limit, the response is still `200`: the steps carry their code-written results w
 - The gate's `figures` are stored with the step outputs, from the same read of the certificates
   as the run's `fingerprint`, and `GET /result` checks the approval and calculates from one
   read: a certificate confirmed in between can't reach an approved result.
-- `GET /api/workflow` may re-run steps 1–3 (one counted question) when the inputs changed since
-  they ran; it is safe to repeat and bounded to one re-run per change.
+- `GET /api/workflow` may re-run steps 1–3 when the inputs changed since they ran; it is safe to
+  repeat and bounded to one re-run per change.
+
+## Amendment 2026-11-16: no AI in the guided run
+
+The lead: "if our code doesn't need reasoning capability then no need to add AI". Each step's
+facts were always decided by code; the agents only reworded them, and made the page slow. Now:
+
+- The steps are plain code (`app/workflow/steps.py`): the document step lists what's confirmed and
+  missing, the validation step runs 003's rules, and the research step reads fixed sections of the
+  Ordinance from 006's corpus (`§12(1)`, `§149(1)` for salary; `§7B(1)`, `§151(1)` for bank
+  profit), with no search. The agent tools, the `fallback` field and the question limits are
+  removed: nothing calls the AI, so nothing is counted against 006's limits.
+- Runs saved before this change re-run once on their next request (the fingerprint includes the
+  steps' version), which also clears an approval made on them.

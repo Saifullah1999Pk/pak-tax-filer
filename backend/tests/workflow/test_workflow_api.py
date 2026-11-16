@@ -1,16 +1,14 @@
 """The guided run's API (feature 007, tasks T008, T014, T018; contracts/workflow-api.md).
 
-The agents are faked: by default (no_real_ai) every agent fails, so steps show their plain
-results; tests that want an agent's own text script it with their own FakeAgentClient.
+The steps are plain code (amended 2026-11-16: no AI), so nothing here is faked: the run is the
+same in tests as live.
 """
 
 # pytest fixtures receive other fixtures by name.
 # pylint: disable=redefined-outer-name
 
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -18,7 +16,7 @@ import yaml
 from conftest import make_user
 from document_helpers import PROFILE_YEAR, add_confirmed_document
 from httpx2 import AsyncClient
-from rag_helpers import QUESTION, a_corpus
+from rag_helpers import a_corpus
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,28 +25,14 @@ from app.documents.models import DocType, Document, ExtractedField, FieldName
 from app.main import app
 from app.profile.service import save_profile
 from app.rag.models import AskRequest
+from app.rag.router import get_embedder
 from app.workflow import service
-from app.workflow.client import FakeAgentClient, Script
 from app.workflow.models import WorkflowRun
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
 URL = "/api/workflow"
 SALARY = {"gross_salary": "2000000", "taxable_salary": "1800000", "tax_deducted": "75000"}
-RESEARCH = Script(
-    calls=[("search_tax_documents", {"query": QUESTION})],
-    reply={"note": "Your employer deducts tax from your salary (P1).", "citations": ["P1"]},
-)
-
-
-@pytest.fixture
-def agents() -> Iterator[FakeAgentClient]:
-    """The app's agent client, replaced by one whose research agent answers (the others fail)."""
-    fake = FakeAgentClient({"research": RESEARCH})
-    app.dependency_overrides[get_agent_client] = lambda: fake
-    yield fake
-    app.dependency_overrides.pop(get_agent_client, None)
 
 
 async def questions_recorded(db: AsyncSession) -> int:
@@ -97,11 +81,10 @@ async def test_without_a_salary_certificate_the_run_stops_at_the_document_step(
 
 
 async def test_with_a_salary_certificate_the_run_reaches_the_gate(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, agents: FakeAgentClient
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
     """Fails if the gate lacks what the user approves: the confirmed figures, the profile's tax
     year and ATL status, the validation result and the cited passages (FR-008)."""
-    del agents
     await a_corpus(db)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
 
@@ -112,9 +95,8 @@ async def test_with_a_salary_certificate_the_run_reaches_the_gate(
     assert run["gate"]["figures"]["taxable_salary"] == "1800000.00"
     assert run["gate"]["figures"]["tax_deducted"] == "75000.00"
     assert run["validation"]["issues"] == []
-    assert run["research"]["fallback"] is False
-    assert run["research"]["passages"][0]["location"] == "§149(1)"
-    assert run["document"]["fallback"] is True  # the document agent wasn't scripted
+    assert [p["location"] for p in run["research"]["passages"]] == ["§12(1)", "§149(1)"]
+    assert "fallback" not in run["research"]  # plain code is the result, not a fallback
     assert len(run["fingerprint"]) == 64
     assert (await client.get(URL)).json() == run  # resumes where it is (FR-002)
 
@@ -136,40 +118,6 @@ async def test_another_users_run_is_never_returned(
 
     assert (await client.get(URL)).status_code == 404
 
-
-async def test_a_run_counts_as_one_question(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User
-) -> None:
-    """Fails if the agents' calls escape the tax assistant's limits, or count three times
-    (FR-018, research R9)."""
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-
-    await client.post(f"{URL}/start", json={})
-
-    assert await questions_recorded(db) == 1
-
-
-async def test_past_the_hourly_limit_the_run_still_reaches_the_gate_without_the_ai(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, agents: FakeAgentClient
-) -> None:
-    """Fails if a user at the limit is blocked, or any agent is still called (FR-018)."""
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-    now = datetime.now(UTC)
-    db.add_all(
-        AskRequest(user_id=user_with_profile.id, created_at=now - timedelta(minutes=i))
-        for i in range(30)
-    )
-    await db.flush()
-
-    run = (await client.post(f"{URL}/start", json={})).json()
-
-    assert run["step"] == "gate"
-    assert all(run[s]["fallback"] for s in ("document", "validation", "research"))
-    assert not agents.calls
-    assert await questions_recorded(db) == 30
-
-
-# ---- User Story 2 (T014) ----
 
 EXAMPLES = yaml.safe_load(
     (Path(__file__).parents[1] / "tax" / "worked_examples.yaml").read_text(encoding="utf-8")
@@ -288,11 +236,11 @@ async def test_changing_the_profile_returns_to_the_gate(
     assert run["approved_at"] is None and run["inputs_changed"] is True
 
 
-async def test_a_change_before_approval_re_runs_the_steps_and_counts_once(
+async def test_a_change_before_approval_re_runs_the_steps(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the gate could show checks made for older inputs, or a re-run isn't counted
-    (research R9), or a run never approved claims its inputs changed after approval."""
+    """Fails if the gate could show checks made for older inputs, or a run never approved
+    claims its inputs changed after approval."""
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
     await client.post(f"{URL}/start", json={})
     await add_confirmed_document(
@@ -304,7 +252,6 @@ async def test_a_change_before_approval_re_runs_the_steps_and_counts_once(
 
     assert run["gate"]["figures"]["gross_profit"] == "50000.00"
     assert run["inputs_changed"] is False
-    assert await questions_recorded(db) == 2  # the start, and one re-run (not two)
     assert again == run
 
 
@@ -324,40 +271,6 @@ async def test_starting_a_done_run_resets_it(
 
 
 # ---- Backend review fixes ----
-
-
-async def test_an_agent_passing_a_number_where_text_is_expected_falls_back(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User
-) -> None:
-    """Fails if a tool argument of the wrong type (Gemini sends a number) crashes the run
-    instead of giving the plain result (backend review M2)."""
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-    fake = FakeAgentClient(
-        {
-            "validation": Script(
-                calls=[
-                    (
-                        "validate_salary_information",
-                        {
-                            "tax_year": PROFILE_YEAR,
-                            "gross_salary": 2000000,
-                            "taxable_salary": "1800000",
-                            "tax_deducted": "75000",
-                        },
-                    )
-                ],
-                reply={"message": "Fine."},
-            )
-        }
-    )
-    app.dependency_overrides[get_agent_client] = lambda: fake
-    try:
-        response = await client.post(f"{URL}/start", json={})
-    finally:
-        app.dependency_overrides.pop(get_agent_client, None)
-
-    assert response.status_code == 200
-    assert response.json()["validation"]["fallback"] is True
 
 
 async def test_a_run_that_crashed_mid_way_re_runs_on_the_next_request(
@@ -456,3 +369,34 @@ async def test_editing_a_confirmed_figure_after_approval_returns_to_the_gate(
 
     assert run["step"] == "gate" and run["approved_at"] is None
     assert run["gate"]["figures"]["taxable_salary"] == "1900000.00"
+
+
+class _NoEmbedder:
+    """An embedder that fails the test if the guided run ever calls it."""
+
+    async def embed_query(self, text: str) -> list[float]:
+        """Fails the test: the run must not embed a query."""
+        raise AssertionError(f"the guided run called the AI (embedding {len(text)} chars)")
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """Fails the test: the run must not embed documents."""
+        raise AssertionError(f"the guided run called the AI ({len(texts)} texts)")
+
+
+async def test_the_run_needs_no_ai(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
+) -> None:
+    """Fails if the guided run calls any AI (amended 2026-11-16: plain code only, so it is fast):
+    with an embedder that raises, it still reaches the gate citing the salary sections."""
+    app.dependency_overrides[get_embedder] = _NoEmbedder
+    try:
+        await a_corpus(db)
+        await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
+
+        run = (await client.post(f"{URL}/start", json={})).json()
+    finally:
+        app.dependency_overrides.pop(get_embedder, None)
+
+    assert run["step"] == "gate"
+    assert [p["location"] for p in run["research"]["passages"]] == ["§12(1)", "§149(1)"]
+    assert await questions_recorded(db) == 0  # no AI, so nothing counts against 006's limits

@@ -16,7 +16,7 @@ import pytest
 from document_helpers import PROFILE_YEAR, add_confirmed_document
 from wealth_statement import STATEMENT
 from httpx2 import AsyncClient, Response
-from rag_helpers import QUESTION, a_corpus
+from rag_helpers import a_corpus
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
@@ -24,8 +24,6 @@ from app.documents.models import DocType
 from app.main import app
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 from app.wealth.router import get_wealth_summariser
 
 pytestmark = pytest.mark.anyio
@@ -161,32 +159,13 @@ async def test_a_wealth_statement_not_ready_exports_nothing(
 # ---- Guided filing ----
 
 
-@pytest.fixture
-def research_agent() -> Iterator[None]:
-    """A research agent that cites §149(1); its note (AI text) must stay out of the PDF."""
-    fake = FakeAgentClient(
-        {
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={"note": f"{AI_TEXT} employers deduct tax (P1).", "citations": ["P1"]},
-            )
-        }
-    )
-    app.dependency_overrides[get_agent_client] = lambda: fake
-    yield
-    app.dependency_overrides.pop(get_agent_client, None)
-
-
-@pytest.mark.usefixtures("research_agent")
 async def test_an_approved_guided_run_exports_with_its_approval_and_passages(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the guided run's PDF lacks the approval line or cited passages, or shows the
-    research note the AI wrote."""
+    """Fails if the guided run's PDF lacks the approval line or the cited sections."""
     await a_corpus(db)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
     run = (await client.post("/api/workflow/start", json={})).json()
-    assert run["research"]["fallback"] is False
     await client.post("/api/workflow/approve", json={"fingerprint": run["fingerprint"]})
 
     response = await client.get("/api/workflow/result/pdf")
@@ -196,8 +175,7 @@ async def test_an_approved_guided_run_exports_with_its_approval_and_passages(
     for page in text:
         assert squash(LABEL) in page and squash("Approved by you on") in page
     document = "".join(text)
-    assert squash("§149(1)") in document
-    assert AI_TEXT not in document
+    assert squash("§12(1)") in document and squash("§149(1)") in document
 
 
 async def test_an_unapproved_guided_run_exports_nothing(

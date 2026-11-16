@@ -27,8 +27,6 @@ from app.main import app
 from app.tax.router import get_summariser
 from app.tax.summary import FakeSummariser
 from app.wealth.router import get_wealth_summariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
@@ -58,24 +56,14 @@ WEALTH = example("wealth/worked_examples.yaml", "reconciled")
 
 
 @pytest.fixture
-def lying_ai() -> Iterator[FakeAgentClient]:
+def lying_ai() -> Iterator[None]:
     """Every AI the app uses answers with a number that is in no result."""
-    agents = FakeAgentClient(
-        {
-            "document": Script(reply={"message": f"You owe {MADE_UP}."}),
-            "validation": Script(reply={"message": f"Your taxable salary is {MADE_UP}."}),
-            "research": Script(
-                reply={"note": f"The rate is 99% above {MADE_UP} (P1).", "citations": ["P1"]}
-            ),
-        }
-    )
     app.dependency_overrides[get_summariser] = lambda: FakeSummariser(f"Your tax is {MADE_UP}.")
     app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(
         f"{MADE_UP} is unexplained."
     )
-    app.dependency_overrides[get_agent_client] = lambda: agents
-    yield agents
-    for dependency in (get_summariser, get_wealth_summariser, get_agent_client):
+    yield
+    for dependency in (get_summariser, get_wealth_summariser):
         app.dependency_overrides.pop(dependency, None)
 
 
@@ -134,10 +122,11 @@ async def test_the_wealth_result_is_the_worked_example_whatever_the_ai_says(
 
 
 @pytest.mark.usefixtures("lying_ai")
-async def test_the_guided_result_is_the_worked_example_whatever_the_agents_say(
+async def test_the_guided_result_is_the_worked_example(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if an agent's made-up number reaches a guided-filing step or changes the result."""
+    """Fails if a made-up number reaches a guided-filing step or changes the result (its steps
+    are plain code since 2026-11-16, and the summaries' lies must not leak in either)."""
     await a_corpus(db)
     await tax_certificates(db, user_with_profile)
 
@@ -145,7 +134,6 @@ async def test_the_guided_result_is_the_worked_example_whatever_the_agents_say(
     await client.post("/api/workflow/approve", json={"fingerprint": run["fingerprint"]})
     result = (await client.get("/api/workflow/result")).json()
 
-    assert run["validation"]["fallback"] is True and run["research"]["fallback"] is True
     shown = f"{run} {result}"
     assert "987,654" not in shown and "987654" not in shown
     assert tax_figures(result) == {name: TAX["expected"][name] for name in TAX_FIGURES}

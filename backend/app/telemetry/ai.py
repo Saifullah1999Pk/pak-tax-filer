@@ -2,9 +2,9 @@
 
 Every use of Gemini is one span, opened where the app decides how the use ended: `ai_call` around
 the call and the checks on its answer, or `record_refusal` when a limit stopped it before any
-call. The real clients add their token counts to the current span with `record_usage`; an
-agent's tool calls are child spans from `tool_call`. OpenTelemetry's GenAI attribute names are
-still "Development", so they live only here.
+call. The real clients add their token counts to the current span with `record_usage`.
+OpenTelemetry's GenAI attribute names are still "Development", so they live only here. (The
+guided run's agents, and their tool-call spans, were removed on 2026-11-16: no AI there.)
 
 Only these attributes are set: never a prompt, a reply, a figure or anything about the user.
 """
@@ -12,7 +12,6 @@ Only these attributes are set: never a prompt, a reply, a figure or anything abo
 import asyncio
 from collections.abc import Iterator
 from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -25,9 +24,6 @@ Feature = Literal[
     "wealth_summary",
     "assistant",
     "embeddings",
-    "workflow_document",
-    "workflow_validation",
-    "workflow_research",
 ]
 Outcome = Literal["passed", "check_failed", "timeout", "fallback", "limit_reached"]
 Operation = Literal["generate_content", "embeddings"]
@@ -37,8 +33,6 @@ INPUT_TOKENS = "gen_ai.usage.input_tokens"
 OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
 
 _tracer = trace.get_tracer(__name__)
-# The AI use a tool call belongs to (an agent's feature).
-_current: ContextVar[str | None] = ContextVar("ai_feature", default=None)
 
 
 @dataclass
@@ -69,7 +63,6 @@ def ai_call(
             }
         )
         call = AiCall()
-        token = _current.set(feature)
         try:
             yield call
         except (TimeoutError, asyncio.CancelledError):
@@ -79,10 +72,6 @@ def ai_call(
             call.outcome = "fallback"
             raise
         finally:
-            try:
-                _current.reset(token)
-            except ValueError:  # a coroutine closed from another context (garbage collection)
-                pass
             span.set_attribute("app.outcome", call.outcome)
 
 
@@ -90,27 +79,6 @@ def record_refusal(feature: Feature, model: str, operation: Operation = "generat
     """An AI use a limit stopped before any call (outcome "limit_reached")."""
     with ai_call(feature, model, operation) as call:
         call.outcome = "limit_reached"
-
-
-@contextmanager
-def tool_call(name: str) -> Iterator[None]:
-    """A span for one tool an agent called (`execute_tool`), under the agent's AI use."""
-    with _tracer.start_as_current_span(
-        f"execute_tool {name}",
-        kind=SpanKind.INTERNAL,
-        record_exception=False,
-        set_status_on_exception=False,
-    ) as span:
-        attributes = {
-            "gen_ai.provider.name": PROVIDER,
-            "gen_ai.operation.name": "execute_tool",
-            "gen_ai.tool.name": name,
-        }
-        feature = _current.get()
-        if feature is not None:
-            attributes["app.feature"] = feature
-        span.set_attributes(attributes)
-        yield
 
 
 def record_usage(input_tokens: int | None, output_tokens: int | None) -> None:

@@ -44,8 +44,6 @@ from app.tax.rates import rates_for
 from app.tax.summary import FakeSummariser, GeminiSummariser, verified_summary
 from app.telemetry.setup import _Filtered, _provider, exporter_for
 from app.wealth.router import get_wealth_summariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
@@ -56,9 +54,6 @@ FEATURES = {
     "wealth_summary",
     "assistant",
     "embeddings",
-    "workflow_document",
-    "workflow_validation",
-    "workflow_research",
 }
 
 
@@ -111,19 +106,9 @@ async def test_a_request_span_is_named_by_its_route_template(
 async def test_every_ai_span_names_gemini_the_operation_the_model_and_the_outcome(
     client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
 ) -> None:
-    """Fails if any of the eight AI uses records no span, or a span lacks the GenAI attributes."""
+    """Fails if any of the five AI uses records no span, or a span lacks the GenAI attributes."""
     settings = get_settings()
     app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser("Reconciled.")
-    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient(
-        {
-            "document": Script(reply={"message": "You have a salary certificate."}),
-            "validation": Script(reply={"message": "Your figures are consistent."}),
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={"note": "Employers deduct tax (P1).", "citations": ["P1"]},
-            ),
-        }
-    )
     await a_corpus(db)
     await upload(client, make_pdf())  # extraction (the default fake fails: a fallback)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
@@ -131,7 +116,6 @@ async def test_every_ai_span_names_gemini_the_operation_the_model_and_the_outcom
     await client.put(f"/api/wealth/{PROFILE_YEAR}", json=STATEMENT)
     await client.get(f"/api/wealth/{PROFILE_YEAR}/summary")
     await client.post("/api/ask", json={"question": QUESTION})
-    await client.post("/api/workflow/start", json={})
 
     assert {attributes(span)["app.feature"] for span in spans.ai()} == FEATURES
     models = {
@@ -145,29 +129,11 @@ async def test_every_ai_span_names_gemini_the_operation_the_model_and_the_outcom
         values = attributes(span)
         feature = values["app.feature"]
         assert values["gen_ai.provider.name"] == "gcp.gemini", feature
-        assert values["gen_ai.request.model"] == models.get(feature, settings.workflow_model)
+        assert values["gen_ai.request.model"] == models[feature]
         assert values["gen_ai.operation.name"] in {"generate_content", "embeddings"}, feature
         assert (values["gen_ai.operation.name"] == "embeddings") == (feature == "embeddings")
         assert values["app.outcome"] in {"passed", "check_failed", "timeout", "fallback"}
-    assert outcomes(spans, "workflow_research") == ["passed"]
     assert outcomes(spans, "extraction") == ["fallback"]
-
-
-async def test_an_agents_tool_call_is_an_execute_tool_span(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
-) -> None:
-    """Fails if an agent's tool call records no span, or one not marked as a tool call."""
-    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient(
-        {"research": Script(calls=[("search_tax_documents", {"query": QUESTION})], reply={})}
-    )
-    await a_corpus(db)
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-
-    await client.post("/api/workflow/start", json={})
-
-    tools = [s for s in spans.all() if attributes(s).get("gen_ai.operation.name") == "execute_tool"]
-    assert [attributes(s)["gen_ai.tool.name"] for s in tools] == ["search_tax_documents"]
-    assert attributes(tools[0])["app.feature"] == "workflow_research"
 
 
 async def test_each_outcome_is_recorded(db: AsyncSession, spans: Spans) -> None:
@@ -194,24 +160,6 @@ async def test_each_outcome_is_recorded(db: AsyncSession, spans: Spans) -> None:
     await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(reply()))
 
     assert outcomes(spans, "assistant") == ["fallback", "check_failed", "limit_reached"]
-
-
-async def test_a_guided_run_past_the_question_limit_records_limit_reached(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
-) -> None:
-    """Fails if steps that skipped the AI because of a limit aren't recorded as limit_reached."""
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-    now = datetime.now(UTC)
-    db.add_all(
-        AskRequest(user_id=user_with_profile.id, created_at=now - timedelta(minutes=i))
-        for i in range(30)
-    )
-    await db.flush()
-
-    await client.post("/api/workflow/start", json={})
-
-    for feature in ("workflow_document", "workflow_validation", "workflow_research"):
-        assert outcomes(spans, feature) == ["limit_reached"], feature
 
 
 async def test_a_passed_extraction_is_recorded(

@@ -20,5 +20,3 @@ forbidden_modules =
     google
     app.documents.extraction
     app.rag
-    app.workflow.agents
-    app.workflow.client
