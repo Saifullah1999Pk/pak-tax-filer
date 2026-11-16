@@ -4,6 +4,7 @@ Fixed sentences filled with the result's own amounts: no AI, no new figures, and
 profit never added together.
 """
 
+import re
 from dataclasses import replace
 from decimal import Decimal
 from typing import Any
@@ -123,4 +124,40 @@ def test_off_the_atl_with_withholding_below_the_tax() -> None:
     assert summary.endswith(
         "Tax on your bank profit is Rs 15,000; counting Rs 10,000 of what banks withheld, "
         "Rs 5,000 is still payable."
+    )
+
+
+def test_when_rounding_makes_the_parts_differ_by_a_rupee_it_says_so() -> None:
+    """Fails if the summary claims a sum that doesn't add up. Found live on 2026-11-16: tax
+    Rs 167,393.50 rounds to 167,394, and the balance, from the exact tax (-50,716.50), to -50,717;
+    "so Rs 50,717" then reads as 218,110 - 167,394, which is 50,716."""
+    summary = tax_summary(
+        result(salary_tax="167394", salary_credit="218110", salary_balance="-50717")
+    )
+
+    assert summary == (
+        "Your salary tax for 2025-26 is Rs 167,394. Tax deducted from your salary was "
+        "Rs 218,110. Rs 50,717 was deducted too much (each amount is rounded to the rupee on "
+        "its own, so they can differ by one rupee)."
+    )
+    # The note states no amount of its own (the Principle I guardrail checks every "Rs" figure).
+    assert set(re.findall(r"Rs ([\d,]+)", summary or "")) == {"167,394", "218,110", "50,717"}
+
+
+def test_a_bank_side_off_by_a_rupee_says_so_too() -> None:
+    """Fails if the bank sentence claims a sum that rounding broke."""
+    summary = tax_summary(
+        result(
+            salary_tax="72000",
+            salary_credit="72000",
+            profit_tax="10001",
+            profit_credit="8000",
+            profit_balance="2000",
+        )
+    )
+
+    assert summary is not None
+    assert summary.endswith(
+        "after Rs 8,000 withheld by banks, Rs 2,000 is still payable (each amount is rounded "
+        "to the rupee on its own, so they can differ by one rupee)."
     )

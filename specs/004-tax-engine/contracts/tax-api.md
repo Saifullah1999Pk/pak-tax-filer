@@ -27,7 +27,8 @@ profit-side steps of the breakdown (FR-005), and, since 2026-11-11, also as `sal
 `profit_credit`, so a page can show "tax + surcharge − credit = balance" without doing sums
 (feature 001, User Story 6; the frontend never calculates). Each is rounded on its own, so on
 rare occasions the shown lines can differ from the balance by Rs 1; the balance is the figure
-that counts.
+that counts. When they do, `summary` drops its "so" and says each amount is rounded on its own
+(added 2026-11-16; a live certificate, tax Rs 167,393.50, hit it).
 
 ## 200: calculated
 
