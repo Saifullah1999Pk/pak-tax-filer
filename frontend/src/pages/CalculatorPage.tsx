@@ -22,7 +22,7 @@ type Field = keyof CalculatorInput;
 const FIELDS: [Field, string][] = [
   ["salary_monthly", "Salary per month"],
   ["bonus", "Bonus for the year"],
-  ["rent_monthly", "Rent per month"],
+  ["rent_monthly", "Rent per month (building)"],
   ["dividends", "Dividends for the year"],
   ["bank_profit", "Bank profit for the year"],
 ];

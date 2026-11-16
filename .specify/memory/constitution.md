@@ -92,9 +92,10 @@ held to a measured bar. Both need to be checked automatically, every time.
   credits, other tax years) MUST be listed as not covered, never guessed.
 - The MCP server exposes exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
-- Out-of-scope items (companies and associations of persons, non-residents, agricultural
-  income, tax years before TY2026, IRIS login or auto-filing, real user documents) MUST NOT be
-  built without an approved spec that amends the scope first.
+- Out-of-scope items (other income types such as business, freelance and capital gains;
+  deductions and credits; tax years other than TY2026; companies and associations of persons;
+  non-residents; agricultural income; IRIS login or auto-filing; real user documents) MUST NOT
+  be built without an approved spec that amends the scope first.
 - Simplicity wins: the simplest design that meets an approved spec is preferred. Added
   complexity MUST be justified in the plan's Complexity Tracking.
 

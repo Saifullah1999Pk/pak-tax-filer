@@ -114,6 +114,8 @@ test("is a main landmark asking for the five amounts, not tax year or ATL status
     expect(await screen.findByLabelText(label)).toBeTruthy();
   }
   expect(screen.getByRole("main")).toBeTruthy();
+  // The one-fifth repairs allowance is for buildings only (s.15A(1)(a)).
+  expect(screen.getByLabelText("Rent per month (building)")).toBeTruthy();
   expect(screen.queryByLabelText(/tax year/i)).toBeNull();
   expect(screen.queryByLabelText(/atl|filer/i)).toBeNull();
 });

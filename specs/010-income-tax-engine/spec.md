@@ -131,7 +131,8 @@ source; try each refused case and confirm the message and that no figure is show
 ### Functional Requirements
 
 - **FR-001**: The system MUST offer a Tax calculator, separate from the Tax page, where a signed-in
-  user with a profile types salary per month, bonus per year, rent per month, dividends per year
+  user with a profile types salary per month, bonus per year, rent per month (for a building),
+  dividends per year
   and bank profit per year, each optional, at least one above zero.
 - **FR-002**: Monthly amounts MUST be converted to yearly (× 12); the calculation works on yearly
   amounts.

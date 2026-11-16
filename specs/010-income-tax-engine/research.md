@@ -33,6 +33,10 @@ income, so it **counts toward the 75% salary test and the s.4AB Rs 10 million li
   "company" back to "person" (footnotes 5-14, p. 57). Its clause (a) is an *allowance* of one-fifth
   of the rent "computed before any deduction allowed under this section", not an expense to be
   proved, so it needs no extra input.
+- The allowance is for **buildings**: s.15A(1)(a) speaks of "repairs to a building… the rent
+  chargeable to tax in respect of the building". The calculator's rent field is labelled
+  "(building)"; rent for land alone (which gets no allowance) is listed as not covered
+  (advisor review, 2026-11-16).
 - The other s.15A deductions (insurance, local taxes, ground rent, mortgage profit, collection
   costs up to 4%, legal costs, irrecoverable rent) need amounts the simple form doesn't ask for:
   listed as not covered.

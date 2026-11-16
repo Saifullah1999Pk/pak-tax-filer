@@ -150,6 +150,8 @@ async def test_the_leads_example_has_every_contract_field(
     assert body["not_covered"] == list(NOT_COVERED)
     assert body["label"] == LABEL
     assert body["on_atl"] is True
+    # The repairs allowance is for buildings (s.15A(1)(a)): rent for land alone is not covered.
+    assert any("land" in item for item in body["not_covered"])
     # Money in steps reads like every other amount: "1344000", never "1344000.00".
     assert [step["result"] for step in body["steps"][:3]] == ["3000000", "1344000", "4344000"]
 

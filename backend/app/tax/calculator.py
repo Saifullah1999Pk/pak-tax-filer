@@ -32,6 +32,7 @@ NOT_COVERED = (
     "Freelance, business, capital gains and other incomes",
     "Zakat, donations, pension and other deductions or tax credits",
     "Property deductions other than the one-fifth repairs allowance (s.15A)",
+    "Rent for land alone: the repairs allowance is only for buildings, so it isn't taken off",
     "Dividends taxed at other rates (power producers, mutual funds, REIT SPVs, "
     "companies that pay no tax)",
     "Bank profit above Rs 5 million",
@@ -335,8 +336,8 @@ def _income_steps(
     if work.rent > 0:
         steps.append(
             Step(
-                f"Property income: rent {words.money(work.rent)} less the repairs allowance of "
-                f"one-fifth, {words.money(work.allowance)} = "
+                f"Property income: rent {words.money(work.rent)} less the repairs allowance for "
+                f"the building of one-fifth, {words.money(work.allowance)} = "
                 f"{words.money(work.rent - work.allowance)}",
                 where(rates.repairs_allowance.source, rates),
                 work.rent - work.allowance,

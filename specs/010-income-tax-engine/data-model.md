@@ -67,5 +67,5 @@ All amounts: at most 2 decimal places and 13 digits before the point (checked at
 
 Tax already deducted and the payable or refundable balance; freelance, business, capital gains and
 other incomes; Zakat, donations, pension and other deductions or credits; s.15A property deductions
-other than the repairs allowance; dividends taxed at other rates (IPP, mutual funds, REIT SPVs,
+other than the repairs allowance; rent for land alone (the allowance is for buildings); dividends taxed at other rates (IPP, mutual funds, REIT SPVs,
 companies paying no tax); bank profit above Rs 5 million; exempt allowances; TY2027.
