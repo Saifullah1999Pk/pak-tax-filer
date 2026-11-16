@@ -72,6 +72,10 @@ def test_editing_a_rates_file_asks(tool: str, file_path: str) -> None:
     [
         "sed -i 's/0.05/0.06/' backend/app/tax/rates/ty2026.py",
         "echo x > backend\\app\\tax\\rates\\ty2026.py",
+        # Run from inside backend/, as feature 010 did once without a prompt (review, 2026-11-16).
+        "cd backend && sed -i 's/493/511/' app/tax/rates/ty2026.py",
+        # A script that names the file, from backend/app/tax/.
+        "cd backend/app/tax && python -c \"open('rates/ty2026.py', 'a')\"",
     ],
 )
 def test_shell_command_touching_rates_asks(command: str) -> None:

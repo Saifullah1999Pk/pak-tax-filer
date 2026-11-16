@@ -64,12 +64,26 @@ def rupees(amount: Decimal) -> Decimal:
     return rounded if rounded else Decimal(0)  # never "-0" (e.g. 40 paisa over-deducted)
 
 
+def band_for(bands: tuple[Band, ...], income: Decimal) -> Band:
+    """The row of a table for this income ("does not exceed" the upper limit). Used for both
+    tables of First Schedule, Part I, Division I (feature 010, task T007)."""
+    for band in bands:
+        if band.upper is None or income <= band.upper:
+            return band
+    raise ValueError("The bands don't cover this income.")
+
+
+def slab_tax(bands: tuple[Band, ...], income: Decimal) -> tuple[Band, Decimal]:
+    """The row for this income and its tax, exact: the row's fixed amount plus its rate on the
+    amount over its lower limit. The one place this formula lives (004's salary tax, 010's
+    calculator and monthly view)."""
+    band = band_for(bands, income)
+    return band, band.fixed + band.rate * (income - band.lower)
+
+
 def salary_band(rates: TaxYearRates, taxable_salary: Decimal) -> Band:
     """The row of the salaried table for this income ("does not exceed" the upper limit)."""
-    for band in rates.salary_bands:
-        if band.upper is None or taxable_salary <= band.upper:
-            return band
-    raise ValueError("The salary bands don't cover this income.")
+    return band_for(rates.salary_bands, taxable_salary)
 
 
 def blocked_reason(inputs: TaxInputs, rates: TaxYearRates) -> str | None:
@@ -104,9 +118,8 @@ def calculate(inputs: TaxInputs, rates: TaxYearRates) -> TaxResult:
     if reason is not None:
         return TaxResult(tax_year=inputs.tax_year, blocked_reason=reason)
 
-    band = salary_band(rates, inputs.taxable_salary)
+    band, salary_tax = slab_tax(rates.salary_bands, inputs.taxable_salary)
     row = rates.salary_bands.index(band)
-    salary_tax = band.fixed + band.rate * (inputs.taxable_salary - band.lower)
 
     income = inputs.taxable_salary + inputs.gross_profit
     surcharge = Decimal(0)

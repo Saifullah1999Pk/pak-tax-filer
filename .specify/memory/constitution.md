@@ -26,7 +26,7 @@ confidently wrong about arithmetic, and the user cannot tell when that happens.
 - Third-party calculators, blogs, and news articles MUST NOT be used as a source for any rate,
   not even to "double-check" one.
 - Rates MUST live in one dedicated, versioned tax-rates module, keyed by tax year. Each value
-  MUST record its source document, section, and tax year.
+  MUST record its source document, section, tax year, and the date it took effect.
 - Changes to the tax-rates module MUST be called out explicitly in review, and the project's
   Claude Code hooks MUST guard the module against unreviewed edits.
 
@@ -81,14 +81,21 @@ held to a measured bar. Both need to be checked automatically, every time.
 
 ### VII. MVP Scope Discipline
 
-- The MVP covers one salaried individual taxpayer and one configurable tax year (TY2026). The
-  income sources are salary and profit on debt (§151), from two document types: a salary
-  certificate and a bank profit certificate.
+- The MVP covers one resident individual taxpayer and one configurable tax year (TY2026), with
+  two ways to a tax figure:
+  - from confirmed documents: salary and profit on debt (§151), from two document types, a
+    salary certificate and a bank profit certificate;
+  - a side calculator (amended 2026-11-14, feature 010; the lead asked for "Simple"): typed
+    salary, bonus, rent, dividends and bank profit, each under its legal treatment, with the 75%
+    salary test, giving the tax due. Nothing typed is stored.
+- Anything not covered (tax already deducted and the balance, other incomes, deductions and
+  credits, other tax years) MUST be listed as not covered, never guessed.
 - The MCP server exposes exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
-- Out-of-scope items (other income types, multiple employers beyond a simple sum, IRIS
-  login or auto-filing, real user documents) MUST NOT be built without an approved spec that
-  amends the scope first.
+- Out-of-scope items (other income types such as business, freelance and capital gains;
+  deductions and credits; tax years other than TY2026; companies and associations of persons;
+  non-residents; agricultural income; IRIS login or auto-filing; real user documents) MUST NOT
+  be built without an approved spec that amends the scope first.
 - Simplicity wins: the simplest design that meets an approved spec is preferred. Added
   complexity MUST be justified in the plan's Complexity Tracking.
 
@@ -138,4 +145,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.2.2 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-08
+**Version**: 1.3.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-16

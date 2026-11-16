@@ -14,10 +14,15 @@ file_path=${file_path//\\//}
 command=${command//\\//}
 
 guarded=false
-if [[ -n "$file_path" && ( "$file_path" == */backend/app/tax/rates/* || "$file_path" == backend/app/tax/rates/* ) ]]; then
+if [[ -n "$file_path" && ( "$file_path" == */app/tax/rates/* || "$file_path" == app/tax/rates/* ) ]]; then
   guarded=true
-elif [[ -n "$command" && "$command" == *backend/app/tax/rates* ]]; then
-  guarded=true
+elif [[ -n "$command" ]]; then
+  # Any path to the folder, from any directory: "tax/rates" (from the repo root, backend/ or
+  # backend/app/), or a rates module named from backend/app/tax/ ("rates/ty2026.py"). Feature
+  # 010 once edited ty2026.py from backend/ without a prompt (review, 2026-11-16).
+  if [[ "$command" == *tax/rates* || "$command" =~ rates/(ty[0-9]+|model|__init__)\.py ]]; then
+    guarded=true
+  fi
 fi
 
 if [[ "$guarded" == true ]]; then
