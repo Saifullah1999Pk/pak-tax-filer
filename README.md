@@ -17,8 +17,7 @@ practitioner. Nothing in this app is tax advice until that changes.
 ## MVP scope
 
 **In:**
-- One resident individual taxpayer, tax year TY2026. (The constitution allows
-  more, up to TY2027 and other income types; the lead asked for "Simple" first.)
+- One resident individual taxpayer, tax year TY2026.
 - Two document types only: salary certificate, bank profit certificate.
 - AI-assisted field extraction, with mandatory human confirmation before
   anything downstream uses the data.
