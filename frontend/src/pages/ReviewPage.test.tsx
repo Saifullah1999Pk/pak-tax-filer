@@ -425,3 +425,27 @@ test("an amount box drops letters and refuses more than 2 decimal places before 
   expect(within(gross).getByText("At most 2 decimal places.")).toBeTruthy();
   expect(sent).toEqual([]);
 });
+
+test("a typed tax year that isn't one is refused before saving", async () => {
+  const sent: unknown[] = [];
+  mockFetch(
+    routes(DOCUMENT, {
+      "PATCH /api/documents/d1/fields/tax_year": ({ body }) => {
+        sent.push(body);
+        return { status: 200, body: {} };
+      },
+    }),
+  );
+  await openReview();
+  const year = screen.getByRole("group", { name: /tax year/i });
+
+  fireEvent.change(within(year).getByRole("textbox"), {
+    target: { value: "next year" },
+  });
+  fireEvent.click(within(year).getByRole("button", { name: /confirm/i }));
+
+  expect((await within(year).findByRole("alert")).textContent).toBe(
+    "Enter the tax year like 2025-26.",
+  );
+  expect(sent).toEqual([]);
+});

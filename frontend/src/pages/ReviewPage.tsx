@@ -12,6 +12,7 @@ import {
 import type { DocumentDetail, ExtractedField } from "../api/documents";
 import { MoneyInput } from "../components/MoneyInput";
 import { amountError } from "../components/amountRule";
+import { taxYearError } from "../components/fieldRules";
 import type { AmountRule } from "../components/amountRule";
 
 // The one amount rule (lead, 2026-11-16), as the backend reads a certificate figure
@@ -256,6 +257,13 @@ function FieldRow({
       amountError(draft ?? "", CERTIFICATE_AMOUNT) !== null
     ) {
       setError("Fix this amount before confirming.");
+      return;
+    }
+    // The tax year's own rule (lead, 2026-11-16), as lenient as the server's reading of it.
+    const yearError =
+      changed && field.name === "tax_year" ? taxYearError(draft ?? "") : null;
+    if (yearError !== null) {
+      setError(yearError);
       return;
     }
     setSaving(true);

@@ -543,3 +543,41 @@ test("a drop clears any file chosen earlier in the file field, so only the dropp
 
   expect(value).toHaveBeenCalledWith("");
 });
+
+test("a file the server would refuse is explained when chosen, and not uploaded", async () => {
+  const fetch = mockFetch(routes());
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+  chooseType(/salary/);
+
+  chooseFile("notes.docx");
+
+  expect((await screen.findByRole("alert")).textContent).toBe(
+    "Only PDF, JPG or PNG files can be uploaded.",
+  );
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+    false,
+  );
+});
+
+test("a file over 10 MB is refused before uploading", async () => {
+  const fetch = mockFetch(routes());
+  renderApp("/documents");
+  await screen.findByRole("heading", { level: 1, name: /documents/i });
+  chooseType(/salary/);
+  const big = new File(["%PDF-1.7"], "big.pdf", { type: "application/pdf" });
+  Object.defineProperty(big, "size", { value: 10 * 1024 * 1024 + 1 });
+
+  fireEvent.change(screen.getByLabelText(/file/i), {
+    target: { files: [big] },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /upload/i }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe(
+    "The file is over 10 MB.",
+  );
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
+    false,
+  );
+});

@@ -11,6 +11,7 @@ import {
 } from "../api/documents";
 import type { DocStatus, DocType, DocumentSummary } from "../api/documents";
 import { EmptyDocumentsIcon, UploadIcon } from "../components/NavIcons";
+import { uploadError as fileError } from "../components/fieldRules";
 
 // Upload a certificate and manage uploaded ones (feature 003, tasks T015 and T023; research
 // R10). The backend checks every limit again; nothing here is trusted.
@@ -55,6 +56,12 @@ export function DocumentsPage() {
   const [retrying, setRetrying] = useState<string | null>(null);
   const [docType, setDocType] = useState<DocType | "">("");
   const [file, setFile] = useState<File | null>(null);
+
+  /** Keep the chosen file, and say at once if the server would refuse it (lead, 2026-11-16). */
+  function choose(chosen: File | null) {
+    setFile(chosen);
+    setUploadError(chosen === null ? null : fileError(chosen));
+  }
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -80,6 +87,11 @@ export function DocumentsPage() {
     }
     if (file === null) {
       setUploadError("Choose a file to upload.");
+      return;
+    }
+    const refused = fileError(file);
+    if (refused !== null) {
+      setUploadError(refused);
       return;
     }
     setUploading(true);
@@ -165,7 +177,7 @@ export function DocumentsPage() {
           onDrop={(event) => {
             event.preventDefault();
             setDragging(false);
-            setFile(event.dataTransfer.files[0] ?? null);
+            choose(event.dataTransfer.files[0] ?? null);
             // Forget a file chosen earlier, so the field never disagrees with the drop
             // (review M2): choosing that same file again then still counts.
             if (fileInput.current) {
@@ -179,7 +191,7 @@ export function DocumentsPage() {
             className="visually-hidden"
             ref={fileInput}
             accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => choose(event.target.files?.[0] ?? null)}
           />
           <span className="drop-hint" aria-hidden="true">
             <UploadIcon />
