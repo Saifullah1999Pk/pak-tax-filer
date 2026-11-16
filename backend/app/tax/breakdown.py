@@ -98,8 +98,9 @@ def tax_summary(result: "TaxResult") -> str | None:
     salary = f"Your salary tax for {result.tax_year} is {money(result.salary_tax or zero)}"
     if surcharge > 0:
         salary += f" plus a surcharge of {money(surcharge)}"
-    salary += f". Your employers deducted {money(result.salary_credit or zero)}, so " + _left(
-        result.salary_balance or zero, "deducted", "your salary"
+    salary += (
+        f". Tax deducted from your salary was {money(result.salary_credit or zero)}, so "
+        + _left(result.salary_balance or zero, "deducted", "your salary")
     )
     profit_tax, profit_credit = result.profit_tax or zero, result.profit_credit or zero
     if not profit_tax and not profit_credit:

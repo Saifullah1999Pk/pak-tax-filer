@@ -32,8 +32,8 @@ def test_over_deducted_salary() -> None:
     summary = tax_summary(result(salary_tax="72000", salary_credit="75000", salary_balance="-3000"))
 
     assert summary == (
-        "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 75,000, so "
-        "Rs 3,000 was deducted too much."
+        "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 75,000, "
+        "so Rs 3,000 was deducted too much."
     )
 
 
@@ -52,9 +52,10 @@ def test_payable_with_surcharge_and_bank_profit() -> None:
     )
 
     assert summary == (
-        "Your salary tax for 2025-26 is Rs 3,000,000 plus a surcharge of Rs 300,000. Your "
-        "employers deducted Rs 3,000,000, so Rs 300,000 is still payable. Tax on your bank "
-        "profit is Rs 10,000; after Rs 8,000 withheld by banks, Rs 2,000 is still payable."
+        "Your salary tax for 2025-26 is Rs 3,000,000 plus a surcharge of Rs 300,000. Tax "
+        "deducted from your salary was Rs 3,000,000, so Rs 300,000 is still payable. Tax on "
+        "your bank profit is Rs 10,000; after Rs 8,000 withheld by banks, Rs 2,000 is still "
+        "payable."
     )
 
 

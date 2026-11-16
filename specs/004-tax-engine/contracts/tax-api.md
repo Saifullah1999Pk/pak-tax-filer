@@ -42,7 +42,7 @@ that counts.
       "rule_location": "Income Tax Ordinance 2001 (amended up to 31.07.2025), First Schedule, Part I, Division I, clause (2), row 3",
       "result": "72000" }
   ],
-  "summary": "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 75,000, so Rs 3,000 was deducted too much. Tax on your bank profit is Rs 10,000; after Rs 10,000 withheld by banks, nothing more is payable on your bank profit.",
+  "summary": "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 75,000, so Rs 3,000 was deducted too much. Tax on your bank profit is Rs 10,000; after Rs 10,000 withheld by banks, nothing more is payable on your bank profit.",
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```

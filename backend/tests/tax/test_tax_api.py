@@ -206,7 +206,7 @@ async def test_the_result_carries_a_summary_written_by_code(
     body = (await client.get("/api/tax/2025-26")).json()
 
     assert body["summary"] == (
-        "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 60,000, so "
+        "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 60,000, so "
         "Rs 12,000 is still payable."
     )
     assert body["salary_tax"] == "72000"

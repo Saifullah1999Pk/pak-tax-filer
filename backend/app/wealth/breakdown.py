@@ -147,8 +147,15 @@ def wealth_summary(result: "ReconciliationResult", tax_year: str) -> str | None:
         change = f"{money(-increase)} less than last year."
     else:
         change = "the same as last year."
+    net_assets = result.net_assets or zero
+    if net_assets < 0:  # in words, never "-Rs 50,000"
+        position = (
+            f"At the end of {tax_year} your liabilities exceed your assets by "
+            f"{money(-net_assets)}; your net assets are {change}"
+        )
+    else:
+        position = f"Your net assets at the end of {tax_year} are {money(net_assets)}, {change}"
     return (
-        f"Your net assets at the end of {tax_year} are {money(result.net_assets or zero)}, "
-        f"{change} Your inflows were {money(result.inflows or zero)} and your outflows "
+        f"{position} Your inflows were {money(result.inflows or zero)} and your outflows "
         f"{money(result.outflows or zero)}."
     )

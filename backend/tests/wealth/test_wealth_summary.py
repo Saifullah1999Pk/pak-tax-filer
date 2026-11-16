@@ -43,3 +43,21 @@ def test_not_ready_has_none() -> None:
     not_ready = ReconciliationResult(not_ready_reason="needs_previous_net_assets")
 
     assert wealth_summary(not_ready, "2025-26") is None
+
+
+def test_debts_larger_than_assets_read_in_words() -> None:
+    """Fails if negative net assets read as "-Rs 50,000" rather than in words."""
+    owing = ReconciliationResult(
+        net_assets=Decimal("-50000"),
+        increase=Decimal("-100000"),
+        inflows=Decimal("900000"),
+        outflows=Decimal("1000000"),
+        unreconciled=Decimal(0),
+        direction="reconciled",
+    )
+
+    assert wealth_summary(owing, "2025-26") == (
+        "At the end of 2025-26 your liabilities exceed your assets by Rs 50,000; your net "
+        "assets are Rs 100,000 less than last year. Your inflows were Rs 900,000 and your "
+        "outflows Rs 1,000,000."
+    )

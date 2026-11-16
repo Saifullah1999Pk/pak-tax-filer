@@ -39,7 +39,7 @@ const CALCULATED: TaxResult = {
     },
   ],
   summary:
-    "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 60,000, so Rs 12,000 is still payable.",
+    "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 60,000, so Rs 12,000 is still payable.",
   label: LABEL,
 };
 
