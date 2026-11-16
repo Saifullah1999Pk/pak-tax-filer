@@ -221,17 +221,13 @@ async def _park(client: AsyncClient, db: AsyncSession, user: User, where: str) -
         assert (await client.post(f"{URL}/done", json={})).status_code == 200
 
 
-@pytest.mark.parametrize(
-    ("parked", "step"),
-    [("document", "document"), ("gate", "gate"), ("result", "gate"), ("done", "gate")],
-)
+@pytest.mark.parametrize("parked", ["document", "gate", "result", "done"])
 async def test_new_steps_re_run_a_saved_run_without_claiming_its_inputs_changed(
     client: AsyncClient,
     db: AsyncSession,
     user_with_profile: User,
     monkeypatch: pytest.MonkeyPatch,
     parked: str,
-    step: str,
 ) -> None:
     """Fails if a run saved by older steps errors, keeps an approval the new steps never
     showed, or tells the user their inputs changed when only the app's steps did."""
@@ -242,6 +238,7 @@ async def test_new_steps_re_run_a_saved_run_without_claiming_its_inputs_changed(
 
     assert response.status_code == 200
     run = response.json()
+    step = "document" if parked == "document" else "gate"  # no salary certificate: step 1
     assert run["step"] == step and run["approved_at"] is None and run["done_at"] is None
     assert run["inputs_changed"] is False
     assert (await client.get(f"{URL}/result")).status_code == 409
