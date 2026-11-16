@@ -157,7 +157,9 @@ figure is shown; delete and re-confirm a certificate after saving and confirm th
 - **FR-010**: An AI-written summary MAY be shown only when every number in it appears in the
   breakdown; otherwise it MUST be omitted. The same check as the tax page MUST be used.
   *(Removed 2026-11-16, the lead: no AI where no reasoning is needed. There is no AI summary;
-  the message, "where to look" and the breakdown explain the result.)*
+  the message, "where to look" and the breakdown explain the result. Amended again 2026-11-16: a
+  short summary written by code from the result's own amounts, none when not ready; design
+  `docs/superpowers/specs/2026-11-16-plain-summary-design.md`.)*
 - **FR-011**: The system MUST refuse to show a result, with a reason, when last year's net assets
   are missing, no confirmed salary certificate exists, summed bank profit exceeds Rs 5
   million, or any confirmed salary certificate's gross salary is lower than its taxable salary

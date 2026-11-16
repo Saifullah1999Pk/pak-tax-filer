@@ -140,6 +140,8 @@ class ResultOut(BaseModel):  # pylint: disable=too-many-instance-attributes
     direction: str | None
     where_to_look: list[str]
     steps: list[StepOut]
+    # Plain sentences written by code from the figures above; null when not ready (2026-11-16).
+    summary: str | None
 
 
 class WealthOut(BaseModel):

@@ -7,8 +7,12 @@ contain an amount, so nothing nudges the user towards numbers that merely force 
 
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from app.tax.breakdown import money
+
+if TYPE_CHECKING:  # reconcile imports this module, so only for the type hint
+    from app.wealth.reconcile import ReconciliationResult
 
 
 @dataclass(frozen=True)
@@ -127,4 +131,24 @@ def unreconciled_step(
         f"{money(unreconciled)}",
         "703000",
         unreconciled,
+    )
+
+
+def wealth_summary(result: "ReconciliationResult", tax_year: str) -> str | None:
+    """The result in two plain sentences, from its own amounts only (design
+    2026-11-16-plain-summary). None when not ready: its message already says why."""
+    if result.not_ready_reason is not None:
+        return None
+    zero = Decimal(0)
+    increase = result.increase or zero
+    if increase > 0:
+        change = f"{money(increase)} more than last year."
+    elif increase < 0:
+        change = f"{money(-increase)} less than last year."
+    else:
+        change = "the same as last year."
+    return (
+        f"Your net assets at the end of {tax_year} are {money(result.net_assets or zero)}, "
+        f"{change} Your inflows were {money(result.inflows or zero)} and your outflows "
+        f"{money(result.outflows or zero)}."
     )

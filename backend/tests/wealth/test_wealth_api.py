@@ -270,18 +270,32 @@ async def test_minus_zero_is_saved_and_shown_as_zero(client: AsyncClient) -> Non
     assert saved["statement"]["inheritance"] == "0"
 
 
-async def test_reading_and_saving_carry_no_ai_summary(
+async def test_reading_and_saving_carry_a_summary_written_by_code(
     client: AsyncClient, db: AsyncSession, logged_in_user: User
 ) -> None:
-    """Fails if the result gains an AI summary again (removed 2026-11-16: the breakdown and its
-    "where to look" lists explain the figures, no AI needed)."""
+    """Fails if the result lacks its plain-code summary (the AI one was removed 2026-11-16;
+    design 2026-11-16-plain-summary), or saving and reading disagree."""
     await certificates(db, logged_in_user)
 
     saved = (await client.put(URL, json=STATEMENT)).json()
     read = (await client.get(URL)).json()
 
-    assert "summary" not in saved["result"] and "summary" not in read["result"]
+    assert read["result"]["summary"] == (
+        "Your net assets at the end of 2025-26 are Rs 2,550,000, Rs 450,000 more than last "
+        "year. Your inflows were Rs 2,050,000 and your outflows Rs 1,600,000."
+    )
+    figures = {name: read["result"][name] for name in ("net_assets", "increase", "outflows")}
+    assert figures == {"net_assets": "2550000", "increase": "450000", "outflows": "1600000"}
+    assert saved["result"]["summary"] == read["result"]["summary"]
     assert read["result"]["direction"] == "reconciled"
+
+
+@pytest.mark.usefixtures("logged_in_user")
+async def test_a_result_not_ready_has_no_summary(client: AsyncClient) -> None:
+    """Fails if a statement that can't be reconciled gets a summary: its message says why."""
+    result = (await client.get(URL)).json()["result"]
+
+    assert result["not_ready_reason"] is not None and result["summary"] is None
 
 
 async def test_amounts_read_back_from_the_database_are_plain_rupees(
