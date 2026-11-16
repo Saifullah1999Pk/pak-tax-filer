@@ -13,3 +13,7 @@ paths:
 - Keep TypeScript strict; no `any` without a comment explaining why.
 - Show the "not yet practitioner-reviewed" label wherever a tax or wealth result appears
   (Principle IV).
+- Check input in the frontend too, with the shared rules (the lead, 2026-11-16): every amount
+  box is `MoneyInput` with the `AmountRule` its backend accepts (`components/amountRule.ts`);
+  uploads and tax years use `components/fieldRules.ts`. Block the submit while a rule fails; the
+  server still checks.

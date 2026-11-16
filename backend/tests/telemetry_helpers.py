@@ -36,6 +36,5 @@ class Spans:
             for span in self.all()
             if span.attributes
             and "app.feature" in span.attributes
-            and span.attributes.get("gen_ai.operation.name") != "execute_tool"
             and (feature is None or span.attributes["app.feature"] == feature)
         ]

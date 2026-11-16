@@ -23,7 +23,6 @@ const AT_GATE: Run = {
   document: {
     message: "Your salary certificate is confirmed.",
     missing: [],
-    fallback: false,
   },
   validation: {
     message: "Your salary certificate shows taxable salary above gross salary.",
@@ -35,7 +34,6 @@ const AT_GATE: Run = {
         reason: "Taxable salary is more than gross salary.",
       },
     ],
-    fallback: false,
   },
   research: {
     note: "Your employer deducts tax from your salary.",
@@ -49,7 +47,6 @@ const AT_GATE: Run = {
         text: "Every employer paying salary shall deduct tax.",
       },
     ],
-    fallback: true,
   },
   gate: {
     figures: {
@@ -71,7 +68,6 @@ const MISSING: Run = {
   document: {
     message: "You need a confirmed salary certificate.",
     missing: ["salary_certificate"],
-    fallback: true,
   },
   validation: null,
   research: null,
@@ -185,15 +181,12 @@ test("the gate shows the figures, the profile, the issues and the cited law", as
   );
 });
 
-test("text the app wrote without the AI is marked as such", async () => {
+test("the steps carry no note about the AI: there is none (plain code since 2026-11-16)", async () => {
   showWorkflow(AT_GATE);
   renderApp("/workflow");
 
   await screen.findByRole("region", { name: "Before you approve" });
-  // Only the research step used its plain result in AT_GATE.
-  expect(
-    screen.getAllByText("Written by the app (the AI wasn't used)"),
-  ).toHaveLength(1);
+  expect(screen.queryByText(/the AI/i)).toBeNull();
 });
 
 test("without a profile, the run sends the user to set one up first", async () => {
@@ -226,6 +219,8 @@ const TAX_BODY = {
       result: "72000",
     },
   ],
+  summary:
+    "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 75,000, so Rs 3,000 was deducted too much.",
   label: "Not yet reviewed by a tax practitioner. Not tax advice.",
 };
 const RESULT_BODY = { ...TAX_BODY, passages: AT_GATE.research!.passages };
@@ -246,10 +241,6 @@ function showGateFlow(approve: FakeReply = { status: 200, body: APPROVED }) {
       body: { ...AT_GATE, step: "document", gate: null },
     }),
     "GET /api/workflow/result": () => ({ status: 200, body: RESULT_BODY }),
-    "GET /api/tax/2025-26/summary": () => ({
-      status: 200,
-      body: { summary: null },
-    }),
     "POST /api/workflow/done": () => ({
       status: 200,
       body: { ...APPROVED, step: "done", done_at: "2026-11-12T10:05:00Z" },

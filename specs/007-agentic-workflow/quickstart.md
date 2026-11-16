@@ -6,8 +6,8 @@ Validates the feature end to end. Contract: [contracts/workflow-api.md](contract
 
 Features 002–006 built; stack running; corpus built (006); a demo user with a profile (ATL
 "yes") and one confirmed synthetic salary certificate (taxable Rs 1,800,000, tax deducted Rs
-75,000). `GEMINI_API_KEY` set for scenario 1; unset for scenario 4 (or a question limit reached:
-the same code-written results).
+75,000). No API key is needed: the steps are plain code (amended 2026-11-16, the lead: AI only
+where reasoning is needed).
 
 ## Scenarios
 
@@ -21,8 +21,8 @@ the same code-written results).
 3. **Changes (US3):** confirm a bank certificate (profit Rs 50,000, withheld Rs 10,000), reopen
    `/workflow`. Expected: back at the gate, research now includes §7B/§151, no old result;
    `GET /api/workflow/result` → `409` until approved again.
-4. **No API key:** repeat scenario 1. Expected: each step shows its plain result marked as such,
-   and the run still reaches a result.
+4. **No AI (amended 2026-11-16):** with or without `GEMINI_API_KEY`, scenario 1 gives the same
+   steps, instantly; `pytest -k needs_no_ai` fails if the run calls an AI.
 5. **Tests:**
 
    ```bash

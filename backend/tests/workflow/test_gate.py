@@ -9,7 +9,6 @@ and nothing an agent writes can approve, confirm or change anything.
 # pylint: disable=redefined-outer-name
 
 import asyncio
-from collections.abc import Iterator
 
 import pytest
 from document_helpers import PROFILE_YEAR, add_confirmed_document
@@ -20,14 +19,10 @@ from sqlalchemy.pool import NullPool
 
 from app.auth.models import User
 from app.documents.models import DocStatus, DocType, Document, ExtractedField
-from app.main import app
 from app.profile.service import get_profile, save_profile
-from app.rag.embed import FakeEmbedder
 from app.rag.models import AskRequest
 from app.workflow import service
-from app.workflow.client import FakeAgentClient, Script
 from app.workflow.models import Step, WorkflowRun
-from app.workflow.router import get_agent_client
 from app.workflow.state import InvalidTransition
 
 pytestmark = pytest.mark.anyio
@@ -81,29 +76,11 @@ async def test_an_approval_for_inputs_the_user_didnt_see_is_refused(
     assert (await client.get(f"{URL}/result")).status_code == 409
 
 
-@pytest.fixture
-def claiming_agents() -> Iterator[FakeAgentClient]:
-    """Agents whose text claims to approve, confirm and change figures."""
-    fake = FakeAgentClient(
-        {
-            "document": Script(reply={"message": "I have confirmed all your certificates."}),
-            "validation": Script(reply={"message": "I set your taxable salary to 0 and approved."}),
-        }
-    )
-    app.dependency_overrides[get_agent_client] = lambda: fake
-    yield fake
-    app.dependency_overrides.pop(get_agent_client, None)
-
-
-async def test_no_agent_text_approves_confirms_or_changes_anything(
-    client: AsyncClient,
-    db: AsyncSession,
-    user_with_profile: User,
-    claiming_agents: FakeAgentClient,
+async def test_the_run_never_approves_confirms_or_changes_anything(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if what an agent writes could act: agents have only read-only tools, and their
-    text is only shown (FR-010, SC-003)."""
-    del claiming_agents
+    """Fails if running the steps could act: they only read, so an unconfirmed certificate stays
+    unconfirmed and the run waits at the gate (FR-010, SC-003)."""
     pending = await add_confirmed_document(
         db, user_with_profile.id, DocType.BANK_PROFIT_CERTIFICATE, {}
     )
@@ -138,9 +115,6 @@ async def test_two_approvals_at_once_record_one(test_database_url: str) -> None:
             db=setup,
             user=user,
             profile=await get_profile(setup, user),  # type: ignore[arg-type]
-            client=FakeAgentClient({}),
-            embedder=FakeEmbedder(),
-            tool_sessions=sessions,
         )
         seen = (await service.start(ctx)).outputs_fingerprint
         await setup.commit()
@@ -153,9 +127,6 @@ async def test_two_approvals_at_once_record_one(test_database_url: str) -> None:
                 db=db,
                 user=user,
                 profile=profile,
-                client=FakeAgentClient({}),
-                embedder=FakeEmbedder(),
-                tool_sessions=sessions,
             )
             try:
                 await service.approve(ctx, seen or "")

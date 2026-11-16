@@ -4,6 +4,7 @@
 <h1>Your wealth statement for {{ wealth.tax_year }}</h1>
 
 <h2>Result</h2>
+{% if wealth.result.summary %}<p>{{ wealth.result.summary }}</p>{% endif %}
 <p class="headline">{{ wealth.result.message }}</p>
 <table>
   <tr><td>Net assets this year</td><td class="amount">{{ rupees(wealth.result.net_assets) }}</td></tr>

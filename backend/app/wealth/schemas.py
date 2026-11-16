@@ -140,6 +140,8 @@ class ResultOut(BaseModel):  # pylint: disable=too-many-instance-attributes
     direction: str | None
     where_to_look: list[str]
     steps: list[StepOut]
+    # Plain sentences written by code from the figures above; null when not ready (2026-11-16).
+    summary: str | None
 
 
 class WealthOut(BaseModel):
@@ -151,9 +153,3 @@ class WealthOut(BaseModel):
     certificates_changed: bool
     result: ResultOut
     label: str
-
-
-class SummaryOut(BaseModel):
-    """The checked AI summary, or null (feature 001, US6: loaded after the figures)."""
-
-    summary: str | None

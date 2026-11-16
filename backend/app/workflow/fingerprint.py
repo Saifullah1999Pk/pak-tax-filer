@@ -19,6 +19,11 @@ from app.auth.models import User
 from app.documents.service import ConfirmedDocument, confirmed_documents
 from app.profile.service import get_profile
 
+# The version of the steps the outputs were made by. Raising it makes every saved run re-run once
+# on its next request (2: plain-code steps, 2026-11-16, replacing runs that hold the AI's text).
+# A re-run also clears an approval, so those users approve once more.
+STEPS_VERSION = 2
+
 
 def fingerprint(documents: Iterable[ConfirmedDocument], tax_year: str, on_atl: bool) -> str:
     """The inputs' fingerprint; the same inputs in any order give the same one."""
@@ -32,7 +37,12 @@ def fingerprint(documents: Iterable[ConfirmedDocument], tax_year: str, on_atl: b
         for d in documents
     )
     payload = json.dumps(
-        {"tax_year": tax_year, "on_atl": on_atl, "certificates": certificates},
+        {
+            "steps": STEPS_VERSION,
+            "tax_year": tax_year,
+            "on_atl": on_atl,
+            "certificates": certificates,
+        },
         separators=(",", ":"),
     )
     return hashlib.sha256(payload.encode()).hexdigest()

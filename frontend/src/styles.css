@@ -1713,6 +1713,15 @@ button[type="submit"]:not(:disabled, [aria-disabled="true"]):hover,
   display: block;
 }
 
+/* Why an amount can't be sent (the one amount rule, 2026-11-16): on its own line under the box,
+   in the usual alert style. */
+.amount-error {
+  display: block;
+  margin-top: var(--s-1);
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--fs-1);
+}
+
 /* The amount repeated with digit grouping, so long figures are easy to check. */
 .amount-preview {
   display: block;

@@ -25,8 +25,6 @@ from app.documents.models import DocType
 from app.main import app
 from app.rag.answer import FakeAnswerer, ModelAnswer
 from app.rag.router import get_answerer
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
@@ -104,43 +102,20 @@ async def test_questions_outside_the_corpus_or_in_urdu_are_refused(
 # ---- The guided run's law ----
 
 
-@pytest.mark.parametrize(
-    ("citations", "shown"),
-    [(["P1"], ["§149(1)"]), (["P1", "P9"], None)],
-    ids=["cites-what-search-found", "cites-a-passage-search-never-found"],
-)
-async def test_the_guided_runs_law_comes_only_from_search(
-    client: AsyncClient,
-    db: AsyncSession,
-    user_with_profile: User,
-    citations: list[str],
-    shown: list[str] | None,
+async def test_the_guided_runs_law_comes_only_from_the_corpus(
+    client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the research step shows a passage search didn't return, or keeps an agent's
-    note that cites one (it falls back to the plain search result instead)."""
-    fake = FakeAgentClient(
-        {
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={
-                    "note": f"Employers deduct tax ({', '.join(citations)}).",
-                    "citations": citations,
-                },
-            )
-        }
-    )
-    app.dependency_overrides[get_agent_client] = lambda: fake
+    """Fails if the research step shows anything but real corpus passages, each with its
+    citation (its sections are fixed, plain code since 2026-11-16)."""
     await a_corpus(db)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
 
     research = (await client.post("/api/workflow/start", json={})).json()["research"]
 
-    locations = [p["location"] for p in research["passages"]]
-    assert set(locations) <= set(TEXTS)
-    if shown is None:
-        assert research["fallback"] is True and "P9" not in research["note"]
-    else:
-        assert research["fallback"] is False and locations == shown
+    assert [p["location"] for p in research["passages"]] == ["§12(1)", "§149(1)"]
+    for passage in research["passages"]:
+        assert passage["text"] == TEXTS[passage["location"]]
+        assert passage["source"] and passage["page"]
 
 
 # ---- Labels and banners ----

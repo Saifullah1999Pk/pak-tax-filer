@@ -66,10 +66,11 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   and signed off by a human (`signed_off_by`, `signed_off_date`); `test_sign_off.py` fails on an
   unsigned one.
 - Tax figures are plain `Decimal` code with §219 rounding (`ROUND_HALF_UP`) on final amounts.
-  Never compute, round or "check" a figure with an LLM. The AI summary (`tax/summary.py`) may
-  only repeat breakdown numbers; plain code checks that and drops it otherwise.
+  Never compute, round or "check" a figure with an LLM. No AI summary (removed 2026-11-16, the
+  lead: AI only where reasoning is needed): `tax_summary` in `app/tax/breakdown.py` writes the
+  result's `summary` from its own amounts, never the two sides added together.
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
-  summariser; use `FakeSummariser` to test a summary.
+  assistant.
 
 ## Tax calculator (feature 010)
 
@@ -90,13 +91,13 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   guards it). The formula is unreconciled = inflows - outflows - increase, with each step citing
   its SRO 1495(I)/2026 form line.
 - Never compute, round or "check" a figure with an LLM, and never let one write the "where to
-  look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. The summary
-  (`app/wealth/summary.py`) uses the shared `app.explain.number_check`, like the tax page's.
+  look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. No AI
+  summary (removed 2026-11-16): `wealth_summary` there writes the result's `summary` from its
+  own amounts.
 - Certificate figures come only from `confirmed_documents`, summed per type and then rounded
   (s.219) by `build_inputs`. Any change to the formula or the lines comes with signed-off worked
   examples in `tests/wealth/worked_examples.yaml` (`test_wealth_sign_off.py` fails if unsigned).
-- The entries are stored; the result never is. A test's wealth summariser is faked by the
-  autouse `no_real_ai` fixture.
+- The entries are stored; the result never is.
 
 ## RAG and MCP (feature 006)
 
@@ -123,16 +124,13 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   approval's fingerprint equals the inputs' current one (`state.result_allowed`); never add a
   path to the tax engine from the workflow that skips it. The result is recalculated, never
   stored.
-- Agents get read-only tools only (`app/workflow/tools.py`; a test fails on anything else). Code
-  decides each step's facts (what's missing, 003's rule issues, which passages exist); an agent
-  only explains them, and its text is shown only after 004's number check or 006's citation
-  checks. Otherwise the step shows its plain result (`fallback: true`).
-- Each run of steps 1-3 counts as one question against 006's limits (`use_question`, committed
-  before any AI is used); past a limit the steps use their plain results.
+- The steps are plain code, no AI (`app/workflow/steps.py`; amended 2026-11-16, the lead: only
+  add AI where reasoning is needed): the document step lists what's confirmed and missing, the
+  validation step runs 003's rules, the research step reads fixed Ordinance sections from 006's
+  corpus. `test_the_run_needs_no_ai` fails if the run calls an AI. Raise `STEPS_VERSION` in
+  `fingerprint.py` when the steps' output changes, so saved runs re-run once.
 - Fingerprints and money read from the database compare amounts in one form (`1800000` and
   `1800000.00` are equal); tests that pass alone but fail in the full suite usually mean this.
-- Tests use `FakeAgentClient` (faked for every test by `no_real_ai`); the real
-  `GeminiAgentClient` is tested through the SDK with an httpx2 `MockTransport`.
 
 ## PDF export (feature 008)
 

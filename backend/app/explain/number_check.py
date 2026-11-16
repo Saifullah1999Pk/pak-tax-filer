@@ -1,8 +1,9 @@
-"""An AI summary may only repeat numbers from the breakdown it was given (feature 005, T001).
+"""AI text may only repeat numbers from the source it was given (feature 005, T001).
 
-Moved from 004's tax/summary.py so the tax and wealth summaries share one check (constitution
-Principle I; 004 research R8, 005 research R9). Plain code: any number not in the source, or
-any number written as a word ("lakh", "1.8 million", "1.8m"), and the summary must be dropped.
+Written for the tax and wealth summaries (removed 2026-11-16: no AI where no reasoning is
+needed); now used by the assistant's checks (`app/rag/checks.py`). Plain code (constitution
+Principle I): any number not in the source, or any number written as a word ("lakh", "1.8
+million", "1.8m"), and the text must be dropped.
 """
 
 import re

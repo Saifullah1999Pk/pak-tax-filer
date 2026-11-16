@@ -1,6 +1,7 @@
 """The shared "only the breakdown's numbers" check (feature 005, task T001; 004 research R8).
 
-Used by both the tax summary (004) and the wealth summary (005), so a fix reaches both.
+Now used by the assistant's checks (006); the tax and wealth summaries it was written for were
+removed on 2026-11-16.
 """
 
 from decimal import Decimal

@@ -16,8 +16,8 @@ import { TaxResultView } from "../components/TaxResultView";
 
 // The guided run (feature 007, tasks T011, T016, T020): documents, figures and the law that
 // applies, the approval gate, then the result. Every message and figure comes from the
-// backend, which checked them and enforces the gate; the page computes nothing (Principle I)
-// and shows which texts the app wrote without the AI.
+// backend, which enforces the gate; the page computes nothing (Principle I). The steps are plain
+// code (amended 2026-11-16: no AI).
 
 /** Shown in turn while steps 1-3 run in one request (FR-019, research R10). */
 const PROGRESS = [
@@ -26,7 +26,6 @@ const PROGRESS = [
   "Finding the law that applies…",
 ];
 const PROGRESS_STEP_MS = 2000;
-const PLAIN = "Written by the app (the AI wasn't used)";
 
 /**
  * The indicator's labels. Steps 1-3 run in one request, so "Figures" and "Law" are never the
@@ -250,7 +249,6 @@ function RunView({ run }: { run: Run }) {
             Your documents
           </h2>
           <p>{run.document.message}</p>
-          {run.document.fallback && <PlainNote />}
           {run.document.missing.length > 0 && (
             <Link to="/documents" className="button button-primary">
               Go to documents
@@ -261,10 +259,6 @@ function RunView({ run }: { run: Run }) {
       {run.step === "gate" && run.gate && <Gate run={run} gate={run.gate} />}
     </>
   );
-}
-
-function PlainNote() {
-  return <p className="plain-note">{PLAIN}</p>;
 }
 
 function Gate({ run, gate }: { run: Run; gate: NonNullable<Run["gate"]> }) {
@@ -296,7 +290,6 @@ function Gate({ run, gate }: { run: Run; gate: NonNullable<Run["gate"]> }) {
         <>
           <h3>Your figures</h3>
           <p>{run.validation.message}</p>
-          {run.validation.fallback && <PlainNote />}
           {run.validation.issues.length > 0 && (
             <ul className="issues">
               {run.validation.issues.map((issue) => (
@@ -312,7 +305,6 @@ function Gate({ run, gate }: { run: Run; gate: NonNullable<Run["gate"]> }) {
         <>
           <h3>The law that applies</h3>
           <p>{run.research.note}</p>
-          {run.research.fallback && <PlainNote />}
           <Sources passages={run.research.passages} />
         </>
       )}

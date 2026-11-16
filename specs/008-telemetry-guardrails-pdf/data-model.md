@@ -9,11 +9,11 @@ No database tables are added. PDFs and telemetry are not stored in the database.
 | Request | `http.request.method`, `http.route` (template, no ids), `http.response.status_code`, duration |
 | Database | named by the statement's first word (`SELECT`, `INSERT`, ...); `db.system.name` = `postgresql`, duration, error status code; never the statement or its parameters (research R2, amended) |
 | AI call | `gen_ai.provider.name` = `gcp.gemini`, `gen_ai.operation.name`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` (when Gemini reports them; not for embeddings), `app.feature`, `app.outcome`, duration |
-| Agent tool call | `gen_ai.provider.name`, `gen_ai.operation.name` = `execute_tool`, `gen_ai.tool.name` (one of the agent's own tools), `app.feature`, duration |
 
-`gen_ai.operation.name`: `generate_content`, `embeddings`, `execute_tool`. `app.feature`:
-`extraction`, `tax_summary`, `wealth_summary`, `assistant`, `embeddings`, `workflow_document`,
-`workflow_validation`, `workflow_research`. `app.outcome`: `passed`, `check_failed`, `timeout`,
+`gen_ai.operation.name`: `generate_content`, `embeddings`. `app.feature`: `extraction`,
+`tax_summary`, `wealth_summary`, `assistant`, `embeddings` (amended 2026-11-16: the guided run's
+agents, their `workflow_*` features and their tool-call spans were removed; no AI there).
+`app.outcome`: `passed`, `check_failed`, `timeout`,
 `fallback`, `limit_reached` (amended 2026-11-12: Gemini, embeddings and question limits).
 
 **Never present:** prompts, replies, document contents, figures, emails, user or session ids, raw

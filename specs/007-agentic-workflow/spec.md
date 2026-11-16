@@ -15,6 +15,16 @@ design: `docs/superpowers/specs/2026-11-04-agentic-workflow-design.md`.
 "Guided filing" in the navigation, progress shown while the steps run (FR-017 to FR-019). The
 lead's bill-approval agent idea is not part of this feature.
 
+**Amended 2026-11-16 (the lead: "if our code doesn't need reasoning capability then no need to
+add AI")**: the steps are plain code, with no AI. Code always decided each step's facts; the
+agents only reworded them and made the page slow. Superseded: FR-005's search (the research step
+now reads fixed sections of the Ordinance from 006's corpus: §12(1), §149(1) for salary; §7B(1),
+§151(1) for bank profit), FR-006 and FR-007 (no AI text to check or replace), FR-018 (nothing
+counts against 006's limits), FR-019's 15 seconds (the steps answer at once), US1 scenario 6,
+SC-003's agent outputs and SC-005 (always true now). FR-010 holds trivially: there are no agents.
+Kept: the state machine, the human-approval gate, the fingerprint and the result (FR-001 to
+FR-004, FR-008 to FR-017).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Guided run up to the approval gate (Priority: P1)

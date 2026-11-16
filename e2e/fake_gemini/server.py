@@ -8,9 +8,10 @@ by prompt wording, and answers with fixed synthetic data:
 - embeddings: fixed 768-number vectors;
 - extraction of a salary certificate (`gross_salary` in the response schema): taxable salary
   Rs 1,800,000 and Rs 75,000 deducted (salary tax Rs 72,000, so Rs 3,000 over-deducted); a file
-  containing E2E-GOOGLE-TIMEOUT gets Google's 504 instead;
-- the guided run's agents (tools in the request): a short reply with no numbers;
-- anything else (the summaries): a sentence with no numbers.
+  containing E2E-GOOGLE-TIMEOUT gets Google's 504 instead.
+
+(The guided run's agents and the tax and wealth summaries were removed on 2026-11-16, and their
+fake replies with them: the app no longer asks Gemini for them.)
 
 Only what a test needs is faked: anything else gets an error, so a new kind of request is added
 here together with the test that needs it (e2e/README.md).
@@ -40,7 +41,6 @@ SALARY = {
     "taxable_salary": value("Rs. 1,800,000/-", "Taxable Salary"),
     "tax_deducted": value("75,000", "Income Tax Deducted"),
 }
-SUMMARY = "Your result and how it was worked out are shown above."
 
 
 def text_reply(text: str) -> dict[str, Any]:
@@ -75,12 +75,6 @@ def file_bytes(request: dict[str, Any]) -> bytes:
     return b""
 
 
-def system_text(request: dict[str, Any]) -> str:
-    """The system instruction's text (the agents' reply format names its keys)."""
-    parts = (request.get("systemInstruction") or {}).get("parts") or []
-    return " ".join(part.get("text", "") for part in parts)
-
-
 def generate(request: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     """The status and body for a generateContent request."""
     fields = schema_fields(request)
@@ -93,13 +87,9 @@ def generate(request: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             }
             return 504, {"error": error}
         return 200, text_reply(json.dumps(SALARY))
-    if fields:  # another reply schema no test needs yet (a bank certificate, the assistant)
-        return 400, {"error": {"code": 400, "message": "Not faked.", "status": "INVALID_ARGUMENT"}}
-    if request.get("tools"):
-        if '"citations"' in system_text(request):
-            return 200, text_reply(json.dumps({"note": "No passages to cite.", "citations": []}))
-        return 200, text_reply(json.dumps({"message": "Your certificates look complete."}))
-    return 200, text_reply(SUMMARY)
+    # Anything else no test needs yet (a bank certificate, the assistant): an error, so a new kind
+    # of request is faked together with the test that needs it.
+    return 400, {"error": {"code": 400, "message": "Not faked.", "status": "INVALID_ARGUMENT"}}
 
 
 def embed(path: str, request: dict[str, Any]) -> dict[str, Any]:

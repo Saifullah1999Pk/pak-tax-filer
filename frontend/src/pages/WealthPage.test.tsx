@@ -77,6 +77,8 @@ const SAVED: Wealth = {
         result: "0",
       },
     ],
+    summary:
+      "Your net assets at the end of 2025-26 are Rs 1,150,000, Rs 950,000 less than last year. Your inflows were Rs 1,800,000 and your outflows Rs 2,750,000.",
   },
   label: LABEL,
 };
@@ -85,13 +87,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** The summary request's answer: a summary, none (dropped), or one that never arrives. */
-type Summary = string | null | "pending";
-
 function serve(
   wealth: Partial<Wealth> = {},
   onSave?: (body: unknown) => FakeReply | Promise<FakeReply>,
-  summary: Summary = null,
 ) {
   const reply = (): FakeReply => ({
     status: 200,
@@ -104,10 +102,6 @@ function serve(
     "GET /api/wealth/2025-26": reply,
     "GET /api/wealth/2025-26/pdf": () => ({ status: 200, body: {} }),
     "PUT /api/wealth/2025-26": ({ body }) => (onSave ? onSave(body) : reply()),
-    "GET /api/wealth/2025-26/summary": () =>
-      summary === "pending"
-        ? new Promise<FakeReply>(() => {})
-        : { status: 200, body: { summary } },
   });
 }
 
@@ -284,7 +278,8 @@ test("last year's net assets can be negative, so its keypad isn't digits-only", 
   await open();
 
   const previous = screen.getByLabelText(/net assets on 30 june 2025/i);
-  expect(previous.getAttribute("inputmode")).toBeNull();
+  // A text keypad: phone number pads have no minus key.
+  expect(previous.getAttribute("inputmode")).toBe("text");
   const hint = document.getElementById(
     previous.getAttribute("aria-describedby") ?? "",
   );
@@ -457,28 +452,20 @@ test("the breakdown shows each step with its form line", async () => {
   within(steps[0]).getByText(/703001/);
   screen.getByText("Your wealth statement reconciles.");
   expect(screen.queryByRole("list", { name: /where to look/i })).toBeNull();
-  // No summary (the request answers none): the panel goes once that answer arrives.
-  await waitFor(() =>
-    expect(screen.queryByRole("region", { name: /summary/i })).toBeNull(),
-  );
   within(screen.getByRole("region", { name: /^result$/i })).getByText(LABEL);
 });
 
-test("a gap shows its message, where to look, and the summary when there is one", async () => {
-  serve(
-    {
-      result: {
-        ...SAVED.result,
-        unreconciled: "-50000",
-        direction: "growth_exceeds_inflows",
-        message:
-          "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
-        where_to_look: ["A gift you received", "An inheritance"],
-      },
+test("a gap shows its message and where to look", async () => {
+  serve({
+    result: {
+      ...SAVED.result,
+      unreconciled: "-50000",
+      direction: "growth_exceeds_inflows",
+      message:
+        "Your assets grew Rs 50,000 more than your inflows explain: an inflow may be missing.",
+      where_to_look: ["A gift you received", "An inheritance"],
     },
-    undefined,
-    "Your assets grew Rs 50,000 more than your inflows explain.",
-  );
+  });
   await open();
 
   screen.getByText(
@@ -486,27 +473,34 @@ test("a gap shows its message, where to look, and the summary when there is one"
   );
   const look = screen.getByRole("list", { name: /where to look/i });
   within(look).getByText("A gift you received");
-  await within(
-    await screen.findByRole("region", { name: /summary/i }),
-  ).findByText("Your assets grew Rs 50,000 more than your inflows explain.");
 });
 
-// Feature 001, User Story 6: the statement never waits for the AI summary.
+// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary. The
+// result's own `summary`, written by code on the server, is shown as given.
 
-test("the statement shows while its summary is still being written, and asks again after a save", async () => {
-  const fake = serve({}, undefined, "pending");
+test("the page never asks for an AI summary, before or after a save", async () => {
+  const fake = serve();
   await open();
 
-  within(screen.getByRole("region", { name: /summary/i })).getByText(
-    "Writing a short summary…",
-  );
   fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
   await screen.findByText("Saved.");
-  await waitFor(() =>
-    expect(
-      fake.mock.calls.filter(([url]) => String(url).endsWith("/summary")),
-    ).toHaveLength(2),
-  );
+
+  expect(
+    fake.mock.calls.some(([url]) => String(url).endsWith("/summary")),
+  ).toBe(false);
+});
+
+test("shows the result's summary above its message", async () => {
+  serve();
+  await open();
+
+  const summary = await screen.findByRole("region", { name: "Summary" });
+  expect(summary.textContent).toContain("Rs 950,000 less than last year.");
+  expect(
+    summary.compareDocumentPosition(
+      screen.getByText("Your wealth statement reconciles."),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 // Task T023 (User Story 3): honest limits and staying in sync.
@@ -525,11 +519,13 @@ test("a not-ready statement shows what to do and no breakdown", async () => {
       unreconciled: null,
       direction: null,
       steps: [],
+      summary: null,
     },
   });
   await open();
 
   screen.getByText(/enter your net assets as on 30 june 2025, from last year/i);
+  expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
   expect(
     screen.queryByRole("list", { name: /how it was worked out/i }),
   ).toBeNull();
@@ -690,4 +686,37 @@ test("a statement not ready yet says why there is no PDF", async () => {
     description: "No PDF until your statement can be reconciled.",
   });
   expect(button.getAttribute("aria-disabled")).toBe("true");
+});
+
+test("amount boxes drop letters, and whole rupees are checked before saving", async () => {
+  const saved: unknown[] = [];
+  serve({}, (body) => {
+    saved.push(body);
+    return { status: 200, body: SAVED };
+  });
+  await open();
+  const inheritance = screen.getByLabelText(/inheritance/i) as HTMLInputElement;
+
+  fireEvent.change(inheritance, { target: { value: "50abc000" } });
+  expect(inheritance.value).toBe("50000");
+
+  fireEvent.change(inheritance, { target: { value: "50000.50" } });
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  expect(screen.getByText("Whole rupees only.")).toBeTruthy();
+  expect(await screen.findByText(/fix the amounts marked/i)).toBeTruthy();
+  expect(saved).toEqual([]);
+});
+
+test("last year's net assets keeps its minus sign", async () => {
+  serve();
+  await open();
+  const previous = screen.getByLabelText(
+    /net assets on 30 june 2025/i,
+  ) as HTMLInputElement;
+
+  fireEvent.change(previous, { target: { value: "-50abc0" } });
+
+  expect(previous.value).toBe("-500");
+  expect(screen.queryByText("Can't be negative.")).toBeNull();
 });

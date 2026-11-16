@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.documents.models import DocType, FieldName
 from app.documents.service import ConfirmedDocument, confirmed_documents
 from app.tax.rates import rates_for
-from app.tax.summary import Summariser
+from app.wealth.breakdown import wealth_summary
 from app.wealth.models import WealthAsset, WealthExpense, WealthLiability, WealthStatement
 from app.wealth.reconcile import (
     CertificateFigures,
@@ -37,7 +37,6 @@ from app.wealth.schemas import (
     StepOut,
     WealthOut,
 )
-from app.wealth.summary import verified_wealth_summary
 
 # On every result (constitution Principle IV, FR-014); the same words as the tax page.
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
@@ -248,7 +247,7 @@ def _auto_filled(found: Certificates, rounded: dict[str, Decimal]) -> list[AutoF
     ]
 
 
-def _result_out(result: ReconciliationResult) -> ResultOut:
+def _result_out(result: ReconciliationResult, tax_year: str) -> ResultOut:
     return ResultOut(
         not_ready_reason=result.not_ready_reason,
         message=result.message,
@@ -263,6 +262,7 @@ def _result_out(result: ReconciliationResult) -> ResultOut:
             StepOut(description=s.description, form_line=s.form_line, result=_plain(s.result))
             for s in result.steps
         ],
+        summary=wealth_summary(result, tax_year),
     )
 
 
@@ -276,8 +276,7 @@ async def _reconciled(
 
 
 async def wealth_view(db: AsyncSession, user_id: uuid.UUID, tax_year: str) -> WealthOut:
-    """The saved statement, the certificate lines and a freshly computed result (R8). Never
-    waits for the AI: the summary has its own request (wealth_summary)."""
+    """The saved statement, the certificate lines and a freshly computed result (R8)."""
     statement, found, inputs, result = await _reconciled(db, user_id, tax_year)
     rounded = {
         "taxable": inputs.taxable_salary,
@@ -291,14 +290,6 @@ async def wealth_view(db: AsyncSession, user_id: uuid.UUID, tax_year: str) -> We
         auto_filled=_auto_filled(found, rounded),
         # R7: certificates added or deleted since the last save (never saved: nothing to warn).
         certificates_changed=statement is not None and statement.certificate_ids != found.ids,
-        result=_result_out(result),
+        result=_result_out(result, tax_year),
         label=LABEL,
     )
-
-
-async def wealth_summary(
-    db: AsyncSession, user_id: uuid.UUID, tax_year: str, summariser: Summariser
-) -> str | None:
-    """A short checked summary of the same result, or None (feature 001, US6)."""
-    *_, result = await _reconciled(db, user_id, tax_year)
-    return await verified_wealth_summary(result, tax_year, summariser)

@@ -1,4 +1,5 @@
-"""GET /api/tax/{tax_year} and its summary (feature 004, task T012; contracts/tax-api.md, R6),
+"""GET /api/tax/{tax_year} (feature 004, task T012; contracts/tax-api.md, R6; AI summary removed
+2026-11-16),
 and POST /api/tax/calculator (feature 010, task T012; its contracts/calculator-api.md).
 
 GET because nothing changes on the server: the result is recalculated from the user's confirmed
@@ -19,28 +20,17 @@ from app.auth.models import User
 from app.db import get_db
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
-from app.settings import get_settings
+from app.tax.breakdown import tax_summary
 from app.tax.calculator import calculate_simple
 from app.tax.calculator_schemas import CalculatorIn, CalculatorOut, calculator_out
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
 from app.tax.service import BLOCKED_MESSAGES, tax_inputs
-from app.tax.summary import GeminiSummariser, Summariser, verified_summary
 
 router = APIRouter(prefix="/api/tax", tags=["tax"])
 
 # On every result (constitution Principle IV, FR-014).
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
-
-
-def get_summariser() -> Summariser:
-    """The summary writer the app uses (tests replace it with a FakeSummariser)."""
-    settings = get_settings()
-    return GeminiSummariser(
-        api_key=settings.gemini_api_key,
-        model=settings.summary_model,
-        effort=settings.summary_effort,
-    )
 
 
 class StepOut(BaseModel):
@@ -66,13 +56,9 @@ class TaxOut(BaseModel):
     salary_credit: str | None
     profit_credit: str | None
     steps: list[StepOut]
-    label: str
-
-
-class SummaryOut(BaseModel):
-    """The checked AI summary, or null (feature 001, US6: loaded after the figures)."""
-
+    # Plain sentences written by code from the figures above; null when blocked (2026-11-16).
     summary: str | None
+    label: str
 
 
 def _text(amount: Decimal | None) -> str | None:
@@ -97,6 +83,7 @@ def tax_out(result: TaxResult) -> TaxOut:
             StepOut(description=s.description, rule_location=s.rule_location, result=str(s.result))
             for s in result.steps
         ],
+        summary=tax_summary(result),
         label=LABEL,
     )
 
@@ -116,21 +103,8 @@ async def read_tax(
     user: Annotated[User, Depends(current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TaxOut:
-    """The user's tax for the year, with every step; or why it can't be calculated. Never waits
-    for the AI: the summary has its own request."""
+    """The user's tax for the year, with every step; or why it can't be calculated."""
     return tax_out(await _result(db, user, tax_year))
-
-
-@router.get("/{tax_year}/summary")
-async def read_tax_summary(
-    tax_year: str,
-    user: Annotated[User, Depends(current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-    summariser: Annotated[Summariser, Depends(get_summariser)],
-) -> SummaryOut:
-    """A short summary of the same result, checked: no summary unless every number in it is in
-    the breakdown (FR-011)."""
-    return SummaryOut(summary=await verified_summary(await _result(db, user, tax_year), summariser))
 
 
 @router.post("/calculator", dependencies=[Depends(require_json)])

@@ -27,9 +27,9 @@ export type Run = {
   step: Step;
   tax_year: string;
   fingerprint: string | null;
-  document: { message: string; missing: string[]; fallback: boolean } | null;
-  validation: { message: string; issues: Issue[]; fallback: boolean } | null;
-  research: { note: string; passages: Passage[]; fallback: boolean } | null;
+  document: { message: string; missing: string[] } | null;
+  validation: { message: string; issues: Issue[] } | null;
+  research: { note: string; passages: Passage[] } | null;
   gate: {
     figures: {
       taxable_salary: string;

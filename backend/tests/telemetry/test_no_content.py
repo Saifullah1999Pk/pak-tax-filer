@@ -16,17 +16,10 @@ from telemetry_helpers import Spans
 
 from app.auth.models import User
 from app.documents.models import DocType
-from app.main import app
-from app.tax.router import get_summariser
-from app.tax.summary import FakeSummariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
 SALARY = {"gross_salary": "2345678", "taxable_salary": "1876543", "tax_deducted": "76543"}
-SUMMARY = "Your salary tax works out from the breakdown above."
-AGENT_TEXT = "Your certificates look complete and consistent."
 
 
 def everything_recorded(spans: Spans) -> str:
@@ -46,24 +39,12 @@ async def test_no_span_holds_user_content(
     client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
 ) -> None:
     """Fails if telemetry records anything that identifies the user or what they sent or got."""
-    app.dependency_overrides[get_summariser] = lambda: FakeSummariser(SUMMARY)
-    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient(
-        {
-            "document": Script(reply={"message": AGENT_TEXT}),
-            "validation": Script(reply={"message": AGENT_TEXT}),
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={"note": "Employers deduct tax (P1).", "citations": ["P1"]},
-            ),
-        }
-    )
     await a_corpus(db)
     uploaded = (await upload(client, make_pdf())).json()
     document = await add_confirmed_document(
         db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY
     )
     tax = (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()
-    await client.get(f"/api/tax/{PROFILE_YEAR}/summary")
     await client.get(f"/api/documents/{document.id}")
     await client.post("/api/ask", json={"question": QUESTION})
     await client.post("/api/workflow/start", json={})
@@ -80,8 +61,6 @@ async def test_no_span_holds_user_content(
         "tax deducted": "76543",
         "salary tax": str(tax["salary_tax"]),
         "question": QUESTION,
-        "summary": SUMMARY,
-        "agent text": AGENT_TEXT,
         "SQL": "FROM ",
         "SQL parameters": "$1",
     }

@@ -44,7 +44,6 @@ ALLOWED = frozenset(
         "gen_ai.request.model",
         "gen_ai.usage.input_tokens",
         "gen_ai.usage.output_tokens",
-        "gen_ai.tool.name",
         "app.feature",
         "app.outcome",
     }

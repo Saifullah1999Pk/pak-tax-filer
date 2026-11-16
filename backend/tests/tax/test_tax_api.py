@@ -20,10 +20,7 @@ from app.documents.models import (
     ExtractedField,
     FieldName,
 )
-from app.main import app
 from app.profile.service import save_profile
-from app.tax.router import get_summariser
-from app.tax.summary import FakeSummariser
 
 pytestmark = pytest.mark.anyio
 
@@ -197,80 +194,30 @@ async def test_without_a_confirmed_salary_certificate_it_says_so(client: AsyncCl
     assert "salary certificate" in body["message"]
 
 
-class RecordingSummariser:  # pylint: disable=too-few-public-methods
-    """Counts how often the AI would be asked."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def write(self, breakdown: str) -> str | None:
-        """Count the call; write nothing."""
-        del breakdown
-        self.calls += 1
-        return None
-
-
-async def test_the_figures_never_wait_for_the_summary(
+async def test_the_result_carries_a_summary_written_by_code(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the result asks the AI, or still carries a summary (feature 001, US6: the page
-    shows its figures at once and loads the summary separately)."""
+    """Fails if the result lacks its plain-code summary (the AI one was removed 2026-11-16;
+    design 2026-11-16-plain-summary), or it differs from the figures beside it."""
     await add_document(
         db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
     )
-    recorder = RecordingSummariser()
-    app.dependency_overrides[get_summariser] = lambda: recorder
-    try:
-        body = (await client.get("/api/tax/2025-26")).json()
-    finally:
-        app.dependency_overrides.pop(get_summariser, None)
 
-    assert recorder.calls == 0
-    assert "summary" not in body
+    body = (await client.get("/api/tax/2025-26")).json()
+
+    assert body["summary"] == (
+        "Your salary tax for 2025-26 is Rs 72,000. Tax deducted from your salary was Rs 60,000, so "
+        "Rs 12,000 is still payable."
+    )
     assert body["salary_tax"] == "72000"
 
 
-async def test_the_summary_request_returns_a_checked_summary(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User
-) -> None:
-    """Fails if a safe summary is lost, or an unsafe one reaches the user (FR-011)."""
-    await add_document(
-        db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
-    )
-    for text, expected in [
-        ("Your salary tax is Rs 72,000; Rs 12,000 is payable.", True),
-        ("Your salary tax is Rs 75,000.", False),
-    ]:
-        app.dependency_overrides[get_summariser] = lambda text=text: FakeSummariser(text)
-        try:
-            response = await client.get("/api/tax/2025-26/summary")
-        finally:
-            app.dependency_overrides.pop(get_summariser, None)
+@pytest.mark.usefixtures("user_with_profile")
+async def test_a_blocked_result_has_no_summary(client: AsyncClient) -> None:
+    """Fails if a refused calculation gets a summary: its message already says why."""
+    body = (await client.get("/api/tax/2025-26")).json()
 
-        assert response.status_code == 200
-        assert response.json() == {"summary": text if expected else None}
-
-
-async def test_a_blocked_result_has_no_summary(client: AsyncClient, logged_in_user: User) -> None:
-    """Fails if a refusal (here: no profile, so no ATL answer) gets an AI summary."""
-    del logged_in_user
-    app.dependency_overrides[get_summariser] = lambda: FakeSummariser("Rs 1")
-    try:
-        response = await client.get("/api/tax/2025-26/summary")
-    finally:
-        app.dependency_overrides.pop(get_summariser, None)
-
-    assert response.json() == {"summary": None}
-
-
-async def test_the_summary_request_needs_login_and_a_known_year(
-    client: AsyncClient, user_with_profile: User
-) -> None:
-    """Fails if the summary is open to anyone, or answers for a year without rates."""
-    del user_with_profile
-    assert (await client.get("/api/tax/2019-20/summary")).status_code == 404
-    await client.post("/api/auth/logout", json={})
-    assert (await client.get("/api/tax/2025-26/summary")).status_code == 401
+    assert body["blocked_reason"] is not None and body["summary"] is None
 
 
 async def test_another_users_certificates_are_never_counted(

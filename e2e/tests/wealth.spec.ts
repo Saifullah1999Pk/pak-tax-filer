@@ -16,6 +16,10 @@ test("a saved statement gives a labelled result and its PDF", async ({
 
   const result = page.getByRole("region", { name: "Result" });
   await expect(result.getByText(LABEL)).toBeVisible();
+  // The summary, written by code on the server (2026-11-16; it replaced the AI one).
+  await expect(result.getByRole("region", { name: "Summary" })).toContainText(
+    "Your net assets at the end of 2025-26",
+  );
   const download = page.waitForEvent("download");
   await result.getByRole("button", { name: "Download PDF" }).click();
   expect((await download).suggestedFilename()).toBe("wealth-2025-26.pdf");

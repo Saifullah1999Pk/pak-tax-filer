@@ -6,8 +6,12 @@ checks any of this (constitution Principle I).
 """
 
 from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
 
 from app.tax.rates.model import Band, Source
+
+if TYPE_CHECKING:  # the engine imports this module, so only for the type hint
+    from app.tax.engine import TaxResult
 
 
 def money(amount: Decimal) -> str:
@@ -71,3 +75,52 @@ def salary_tax(
             f"{money(band.fixed)} + {percent(band.rate)} of {money(over)} above {money(band.lower)}"
         )
     return f"{lead} {money(taxable)} {position}: {formula} {equals(exact, rounded)}"
+
+
+def _left(balance: Decimal, overpaid: str, side: str) -> str:
+    """How a summary sentence ends: still payable, paid too much, or nothing more on this side
+    (named, so it never reads as an answer for both)."""
+    if balance > 0:
+        return f"{money(balance)} is still payable."
+    if balance < 0:
+        return f"{money(-balance)} was {overpaid} too much."
+    return f"nothing more is payable on {side}."
+
+
+def tax_summary(result: "TaxResult") -> str | None:
+    """The result in two or three plain sentences, from its own amounts only; never the two
+    sides added together (design 2026-11-16-plain-summary). None when refused: its message
+    already says why."""
+    if result.blocked_reason is not None:
+        return None
+    zero = Decimal(0)
+    tax, surcharge = result.salary_tax or zero, result.surcharge or zero
+    salary_credit, salary_balance = result.salary_credit or zero, result.salary_balance or zero
+    salary = f"Your salary tax for {result.tax_year} is {money(tax)}"
+    if surcharge > 0:
+        salary += f" plus a surcharge of {money(surcharge)}"
+    salary += f". Tax deducted from your salary was {money(salary_credit)}"
+    ending = _left(salary_balance, "deducted", "your salary")
+    if tax + surcharge - salary_credit == salary_balance:
+        salary += f", so {ending}"
+    else:  # each figure rounded on its own (s.219): no "so" for a sum that doesn't add up
+        salary += f". {ending[0].upper()}{ending[1:-1]} {_ROUNDED}."
+    profit_tax, profit_credit = result.profit_tax or zero, result.profit_credit or zero
+    if not profit_tax and not profit_credit:
+        return salary
+    # Off the ATL only withholding up to the tax counts, so the credit may be less than banks
+    # withheld: say it is the part counted (the extra stays in the page's own notice).
+    if result.non_atl_extra_withheld is not None:
+        credit = f"counting {money(profit_credit)} of what banks withheld, "
+    else:
+        credit = f"after {money(profit_credit)} withheld by banks, "
+    profit_balance = result.profit_balance or zero
+    ending = _left(profit_balance, "withheld", "your bank profit")
+    if profit_tax - profit_credit != profit_balance:
+        ending = f"{ending[:-1]} {_ROUNDED}."
+    return f"{salary} Tax on your bank profit is {money(profit_tax)}; {credit}{ending}"
+
+
+# When the rounded figures shown don't add up to the rounded balance (each is rounded on its own
+# from the exact amounts, s.219): said, never hidden (found live, 2026-11-16).
+_ROUNDED = "(each amount is rounded to the rupee on its own, so they can differ by one rupee)"

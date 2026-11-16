@@ -4,8 +4,8 @@ import type { Profile } from "../profile/ProfileContext";
 // Home's filing checklist (feature 001, User Story 6, task T051; FR-028): where the user is,
 // worked out only from what the app already has (the profile and the documents list). Only
 // documents for the profile's tax year count, the same ones the tax and wealth pages use. Tax
-// and Wealth are never "done": knowing that would mean calling their endpoints, which also ask
-// the AI for a summary, on every visit to Home. This only counts documents; no money here.
+// and Wealth are never "done": knowing that would mean calling their endpoints on every visit to
+// Home. This only counts documents; no money here.
 
 export type StepState = "done" | "next" | "todo";
 

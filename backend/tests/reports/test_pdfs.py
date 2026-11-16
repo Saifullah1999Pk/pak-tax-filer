@@ -9,30 +9,22 @@ appear. Blocked, not-ready and unapproved results export nothing.
 # pylint: disable=redefined-outer-name
 
 import io
-from collections.abc import Iterator
 
 import pypdf
 import pytest
 from document_helpers import PROFILE_YEAR, add_confirmed_document
 from wealth_statement import STATEMENT
 from httpx2 import AsyncClient, Response
-from rag_helpers import QUESTION, a_corpus
+from rag_helpers import a_corpus
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import User
 from app.documents.models import DocType
-from app.main import app
-from app.tax.router import get_summariser
-from app.tax.summary import FakeSummariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
-from app.wealth.router import get_wealth_summariser
 
 pytestmark = pytest.mark.anyio
 
 LABEL = "Not yet reviewed by a tax practitioner. Not tax advice."
 SALARY = {"gross_salary": "2000000", "taxable_salary": "1800000", "tax_deducted": "75000"}
-AI_TEXT = "WRITTEN-BY-THE-AI"
 
 
 def pages(response: Response) -> list[str]:
@@ -53,20 +45,9 @@ def assert_pdf(response: Response, filename: str) -> None:
     assert response.headers["content-disposition"] == f'attachment; filename="{filename}"'
 
 
-@pytest.fixture
-def ai_writes_text() -> Iterator[None]:
-    """Summaries the AI would write; none may reach a PDF (FR-005)."""
-    app.dependency_overrides[get_summariser] = lambda: FakeSummariser(AI_TEXT)
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(AI_TEXT)
-    yield
-    app.dependency_overrides.pop(get_summariser, None)
-    app.dependency_overrides.pop(get_wealth_summariser, None)
-
-
 # ---- Tax ----
 
 
-@pytest.mark.usefixtures("ai_writes_text")
 async def test_the_tax_pdf_has_the_banner_status_and_the_results_figures(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
@@ -87,7 +68,7 @@ async def test_the_tax_pdf_has_the_banner_status_and_the_results_figures(
         assert squash(step["description"]) in document
         assert squash(step["rule_location"]) in document
     assert squash("Rs 72,000") in document  # salary tax
-    assert AI_TEXT not in document
+    assert squash(result["summary"]) in document  # the screen's plain-code summary
 
 
 async def test_a_blocked_tax_result_exports_nothing(
@@ -127,7 +108,6 @@ async def test_every_page_of_a_long_wealth_pdf_has_the_banner(
         assert squash("Salary figures are from your confirmed certificates") in page
 
 
-@pytest.mark.usefixtures("ai_writes_text")
 async def test_the_wealth_pdf_has_the_reconciliation_as_computed(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
@@ -142,7 +122,7 @@ async def test_the_wealth_pdf_has_the_reconciliation_as_computed(
     for step in body["result"]["steps"]:
         assert squash(step["description"]) in document
     assert squash("Car loan") in document and squash("Savings account") in document
-    assert AI_TEXT not in document
+    assert squash(body["result"]["summary"]) in document  # the screen's plain-code summary
 
 
 async def test_a_wealth_statement_not_ready_exports_nothing(
@@ -161,32 +141,13 @@ async def test_a_wealth_statement_not_ready_exports_nothing(
 # ---- Guided filing ----
 
 
-@pytest.fixture
-def research_agent() -> Iterator[None]:
-    """A research agent that cites §149(1); its note (AI text) must stay out of the PDF."""
-    fake = FakeAgentClient(
-        {
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={"note": f"{AI_TEXT} employers deduct tax (P1).", "citations": ["P1"]},
-            )
-        }
-    )
-    app.dependency_overrides[get_agent_client] = lambda: fake
-    yield
-    app.dependency_overrides.pop(get_agent_client, None)
-
-
-@pytest.mark.usefixtures("research_agent")
 async def test_an_approved_guided_run_exports_with_its_approval_and_passages(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the guided run's PDF lacks the approval line or cited passages, or shows the
-    research note the AI wrote."""
+    """Fails if the guided run's PDF lacks the approval line or the cited sections."""
     await a_corpus(db)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
     run = (await client.post("/api/workflow/start", json={})).json()
-    assert run["research"]["fallback"] is False
     await client.post("/api/workflow/approve", json={"fingerprint": run["fingerprint"]})
 
     response = await client.get("/api/workflow/result/pdf")
@@ -196,8 +157,7 @@ async def test_an_approved_guided_run_exports_with_its_approval_and_passages(
     for page in text:
         assert squash(LABEL) in page and squash("Approved by you on") in page
     document = "".join(text)
-    assert squash("§149(1)") in document
-    assert AI_TEXT not in document
+    assert squash("§12(1)") in document and squash("§149(1)") in document
 
 
 async def test_an_unapproved_guided_run_exports_nothing(

@@ -8,11 +8,11 @@ the fake AI clients, as everywhere else.
 # pytest fixtures receive other fixtures by name.
 # pylint: disable=redefined-outer-name
 
+import json
 import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -28,37 +28,24 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from telemetry_helpers import Spans
-from wealth_statement import STATEMENT
 
 from app.auth.models import User
 from app.documents.extraction.client import FakeExtractor
 from app.documents.models import DocType
-from app.main import app
-from app.rag.answer import AnswerError, FakeAnswerer
+from app.rag.answer import AnswerError, FakeAnswerer, GeminiAnswerer
 from app.rag.embed import FakeEmbedder
 from app.rag.models import AskRequest
 from app.rag.service import ask
 from app.settings import get_settings
-from app.tax.engine import TaxInputs, calculate
-from app.tax.rates import rates_for
-from app.tax.summary import FakeSummariser, GeminiSummariser, verified_summary
 from app.telemetry.setup import _Filtered, _provider, exporter_for
-from app.wealth.router import get_wealth_summariser
-from app.workflow.client import FakeAgentClient, Script
-from app.workflow.router import get_agent_client
 
 pytestmark = pytest.mark.anyio
 
 SALARY = {"gross_salary": "2000000", "taxable_salary": "1800000", "tax_deducted": "75000"}
 FEATURES = {
     "extraction",
-    "tax_summary",
-    "wealth_summary",
     "assistant",
     "embeddings",
-    "workflow_document",
-    "workflow_validation",
-    "workflow_research",
 }
 
 
@@ -70,20 +57,6 @@ def attributes(span: ReadableSpan) -> dict[str, Any]:
 def outcomes(spans: Spans, feature: str) -> list[str]:
     """How each of this feature's AI uses ended, in order."""
     return [attributes(span)["app.outcome"] for span in spans.ai(feature)]
-
-
-def a_tax_result() -> Any:
-    """004's result for Rs 1,800,000 taxable salary (salary tax 72,000)."""
-    inputs = TaxInputs(
-        tax_year=PROFILE_YEAR,
-        atl=True,
-        taxable_salary=Decimal(1800000),
-        tax_deducted=Decimal(75000),
-        gross_profit=Decimal(0),
-        tax_withheld=Decimal(0),
-        has_salary_certificate=True,
-    )
-    return calculate(inputs, rates_for(PROFILE_YEAR))
 
 
 # ---- Requests ----
@@ -111,33 +84,17 @@ async def test_a_request_span_is_named_by_its_route_template(
 async def test_every_ai_span_names_gemini_the_operation_the_model_and_the_outcome(
     client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
 ) -> None:
-    """Fails if any of the eight AI uses records no span, or a span lacks the GenAI attributes."""
+    """Fails if any of the three AI uses records no span, or a span lacks the GenAI attributes
+    (extraction, the assistant and its embeddings: the only AI left, 2026-11-16)."""
     settings = get_settings()
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser("Reconciled.")
-    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient(
-        {
-            "document": Script(reply={"message": "You have a salary certificate."}),
-            "validation": Script(reply={"message": "Your figures are consistent."}),
-            "research": Script(
-                calls=[("search_tax_documents", {"query": QUESTION})],
-                reply={"note": "Employers deduct tax (P1).", "citations": ["P1"]},
-            ),
-        }
-    )
     await a_corpus(db)
     await upload(client, make_pdf())  # extraction (the default fake fails: a fallback)
     await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-    await client.get(f"/api/tax/{PROFILE_YEAR}/summary")
-    await client.put(f"/api/wealth/{PROFILE_YEAR}", json=STATEMENT)
-    await client.get(f"/api/wealth/{PROFILE_YEAR}/summary")
     await client.post("/api/ask", json={"question": QUESTION})
-    await client.post("/api/workflow/start", json={})
 
     assert {attributes(span)["app.feature"] for span in spans.ai()} == FEATURES
     models = {
         "extraction": settings.extraction_model,
-        "tax_summary": settings.summary_model,
-        "wealth_summary": settings.summary_model,
         "assistant": settings.answer_model,
         "embeddings": "gemini-embedding-001",
     }
@@ -145,43 +102,16 @@ async def test_every_ai_span_names_gemini_the_operation_the_model_and_the_outcom
         values = attributes(span)
         feature = values["app.feature"]
         assert values["gen_ai.provider.name"] == "gcp.gemini", feature
-        assert values["gen_ai.request.model"] == models.get(feature, settings.workflow_model)
+        assert values["gen_ai.request.model"] == models[feature]
         assert values["gen_ai.operation.name"] in {"generate_content", "embeddings"}, feature
         assert (values["gen_ai.operation.name"] == "embeddings") == (feature == "embeddings")
         assert values["app.outcome"] in {"passed", "check_failed", "timeout", "fallback"}
-    assert outcomes(spans, "workflow_research") == ["passed"]
     assert outcomes(spans, "extraction") == ["fallback"]
 
 
-async def test_an_agents_tool_call_is_an_execute_tool_span(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
-) -> None:
-    """Fails if an agent's tool call records no span, or one not marked as a tool call."""
-    app.dependency_overrides[get_agent_client] = lambda: FakeAgentClient(
-        {"research": Script(calls=[("search_tax_documents", {"query": QUESTION})], reply={})}
-    )
-    await a_corpus(db)
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-
-    await client.post("/api/workflow/start", json={})
-
-    tools = [s for s in spans.all() if attributes(s).get("gen_ai.operation.name") == "execute_tool"]
-    assert [attributes(s)["gen_ai.tool.name"] for s in tools] == ["search_tax_documents"]
-    assert attributes(tools[0])["app.feature"] == "workflow_research"
-
-
 async def test_each_outcome_is_recorded(db: AsyncSession, spans: Spans) -> None:
-    """Fails if a summary that fails its check, arrives late or errors, or an assistant question
-    past the limit, isn't recorded as such."""
-    result = a_tax_result()
-
-    await verified_summary(result, FakeSummariser("Your tax is Rs 72,000."))
-    await verified_summary(result, FakeSummariser("Your tax is Rs 99,999."))
-    await verified_summary(result, FakeSummariser("Late.", delay=1), limit_seconds=0.01)
-    await verified_summary(result, FakeSummariser(error=RuntimeError("down")))
-
-    assert outcomes(spans, "tax_summary") == ["passed", "check_failed", "timeout", "fallback"]
-
+    """Fails if an assistant answer that errors, fails its check, or comes past the limit isn't
+    recorded as such."""
     await a_corpus(db)
     user = await a_user(db)
     await ask(db, user.id, QUESTION, FakeEmbedder(), FakeAnswerer(AnswerError("down")))
@@ -196,24 +126,6 @@ async def test_each_outcome_is_recorded(db: AsyncSession, spans: Spans) -> None:
     assert outcomes(spans, "assistant") == ["fallback", "check_failed", "limit_reached"]
 
 
-async def test_a_guided_run_past_the_question_limit_records_limit_reached(
-    client: AsyncClient, db: AsyncSession, user_with_profile: User, spans: Spans
-) -> None:
-    """Fails if steps that skipped the AI because of a limit aren't recorded as limit_reached."""
-    await add_confirmed_document(db, user_with_profile.id, DocType.SALARY_CERTIFICATE, SALARY)
-    now = datetime.now(UTC)
-    db.add_all(
-        AskRequest(user_id=user_with_profile.id, created_at=now - timedelta(minutes=i))
-        for i in range(30)
-    )
-    await db.flush()
-
-    await client.post("/api/workflow/start", json={})
-
-    for feature in ("workflow_document", "workflow_validation", "workflow_research"):
-        assert outcomes(spans, feature) == ["limit_reached"], feature
-
-
 async def test_a_passed_extraction_is_recorded(
     client: AsyncClient, user_with_profile: User, fake_extractor: FakeExtractor, spans: Spans
 ) -> None:
@@ -225,9 +137,16 @@ async def test_a_passed_extraction_is_recorded(
     assert outcomes(spans, "extraction") == ["passed"]
 
 
-async def test_the_real_client_adds_its_token_counts(spans: Spans) -> None:
-    """Fails if a Gemini reply's token counts aren't on the AI span (the real client, through
-    the SDK, with a mock transport in place of Google)."""
+async def test_the_real_client_adds_its_token_counts(db: AsyncSession, spans: Spans) -> None:
+    """Fails if a Gemini reply's token counts aren't on the AI span (the assistant's real client,
+    through the SDK, with a mock transport in place of Google)."""
+    answer = {
+        "answer": "Your employer deducts tax from your salary.",
+        "citations": ["P1"],
+        "not_covered": False,
+        "uncovered_part": None,
+        "asks_own_tax_figure": False,
+    }
 
     def handle(request: httpx2.Request) -> httpx2.Response:
         del request
@@ -236,7 +155,7 @@ async def test_the_real_client_adds_its_token_counts(spans: Spans) -> None:
             json={
                 "candidates": [
                     {
-                        "content": {"role": "model", "parts": [{"text": "Your tax is Rs 72,000."}]},
+                        "content": {"role": "model", "parts": [{"text": json.dumps(answer)}]},
                         "finishReason": "STOP",
                     }
                 ],
@@ -248,16 +167,17 @@ async def test_the_real_client_adds_its_token_counts(spans: Spans) -> None:
             },
         )
 
-    summariser = GeminiSummariser(
+    answerer = GeminiAnswerer(
         api_key="test-key-not-real",
         model="gemini-test-model",
-        effort="low",
+        effort="minimal",
         http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handle)),
     )
+    await a_corpus(db)
 
-    await verified_summary(a_tax_result(), summariser)
+    await ask(db, (await a_user(db)).id, QUESTION, FakeEmbedder(), answerer)
 
-    (span,) = spans.ai("tax_summary")
+    (span,) = spans.ai("assistant")
     assert attributes(span)["gen_ai.usage.input_tokens"] == 120
     assert attributes(span)["gen_ai.usage.output_tokens"] == 39  # the reply and its thinking
 

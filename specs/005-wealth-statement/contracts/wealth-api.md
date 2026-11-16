@@ -40,7 +40,8 @@ computed result.
     "where_to_look": [],
     "steps": [
       { "description": "Net assets this year: Rs 2,765,000 − Rs 200,000 = Rs 2,565,000", "form_line": "703001", "result": "2565000" }
-    ]
+    ],
+    "summary": "Your net assets at the end of 2025-26 are Rs 2,565,000, Rs 465,000 more than last year. Your inflows were Rs 2,050,000 and your outflows Rs 1,585,000."
   },
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
@@ -51,7 +52,10 @@ part of outflows (7099, the total) without a sub-code of its own (provisional ru
 
 **Not ready:** `result` has `not_ready_reason` (`needs_previous_net_assets`,
 `no_confirmed_salary_certificate`, `profit_over_limit`, `gross_below_taxable`), a `message`
-(naming the certificate for `gross_below_taxable`), and all figures null.
+(naming the certificate for `gross_below_taxable`), and all figures null, `summary` included.
+
+**Summary** (added 2026-11-16): `summary` is two plain sentences written by code from the
+result's own amounts (net assets, the change from last year, inflows, outflows); no AI.
 
 **Not reconciled:** `direction` is `inflows_exceed_growth` or `growth_exceeds_inflows`;
 `message` states the absolute amount in words; `where_to_look` is the fixed list for that
@@ -63,16 +67,10 @@ Body: the `statement` object above without `saved_at`. Replaces the whole statem
 included), records `saved_at` and the confirmed certificate ids, and returns the same body as
 GET.
 
-## GET /api/wealth/{tax_year}/summary
+## GET /api/wealth/{tax_year}/summary (removed 2026-11-16)
 
-Added 2026-11-11 (feature 001, User Story 6). The short AI summary of the same reconciliation,
-in its own request so GET and PUT never wait for the AI. Checked as before (the shared number
-check plus the wealth guards); `null` when dropped, late (12 s limit), failed, or when the
-statement is not ready.
-
-```json
-{ "summary": "Your wealth statement reconciles: …" }
-```
+Removed with the AI summary it served (the lead: no AI where no reasoning is needed): the
+message, "where to look" and the breakdown explain the result. The route now answers `404`.
 
 ## Errors
 

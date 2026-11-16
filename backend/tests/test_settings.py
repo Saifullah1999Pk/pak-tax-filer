@@ -115,35 +115,6 @@ def test_the_old_anthropic_key_is_ignored() -> None:
     assert settings.gemini_api_key is None
 
 
-# Feature 004, task T001: the tax summary's model and effort (research R8).
-
-
-def test_summary_defaults() -> None:
-    """Fails if the summary's defaults differ from feature 004's plan."""
-    settings = load_settings({"DATABASE_URL": DB})
-
-    assert settings.summary_model == "gemini-3.5-flash-lite"
-    # Minimal: with "low", thinking used the token budget, cutting answers short, and took up
-    # to 7.6 s against the 4 s limit (quickstart 2.2, 2026-11-10); minimal answered in ~2.5 s.
-    assert settings.summary_effort == "minimal"
-
-
-def test_summary_settings_are_read() -> None:
-    """Fails if the environment can't change the summary's model or effort."""
-    settings = load_settings(
-        {"DATABASE_URL": DB, "SUMMARY_MODEL": "gemini-test-model", "SUMMARY_EFFORT": "medium"}
-    )
-
-    assert settings.summary_model == "gemini-test-model"
-    assert settings.summary_effort == "medium"
-
-
-def test_unrecognised_summary_effort_is_refused() -> None:
-    """Fails if a typo in SUMMARY_EFFORT is only found when a summary is requested."""
-    with pytest.raises(ValueError, match="SUMMARY_EFFORT"):
-        load_settings({"DATABASE_URL": DB, "SUMMARY_EFFORT": "lwo"})
-
-
 def test_without_a_bucket_uploads_use_the_disk() -> None:
     """Fails if development or tests could reach Google Cloud Storage by default (FR-018)."""
     assert load_settings({"DATABASE_URL": DB}).upload_bucket is None
@@ -177,28 +148,6 @@ def test_the_daily_cap_can_be_set_and_must_be_a_positive_whole_number() -> None:
     for bad in ("0", "-5", "lots", "1.5"):
         with pytest.raises(ValueError, match="ASK_DAILY_LIMIT"):
             load_settings({**env, "ASK_DAILY_LIMIT": bad})
-
-
-# Feature 007: the model behind the guided run's agents (research R6).
-
-
-def test_the_workflow_agents_default_to_flash_lite_at_minimal_effort() -> None:
-    """Fails if the guided run's agents have no sensible model default."""
-    settings = load_settings({"DATABASE_URL": "postgresql+asyncpg://x"})
-
-    assert settings.workflow_model == "gemini-3.5-flash-lite"
-    assert settings.workflow_effort == "minimal"
-
-
-def test_the_workflow_model_and_effort_can_be_set_and_effort_is_checked() -> None:
-    """Fails if WORKFLOW_MODEL is ignored, or a WORKFLOW_EFFORT the API rejects gets through."""
-    env = {"DATABASE_URL": "postgresql+asyncpg://x"}
-
-    settings = load_settings({**env, "WORKFLOW_MODEL": " gemini-x ", "WORKFLOW_EFFORT": "LOW"})
-
-    assert (settings.workflow_model, settings.workflow_effort) == ("gemini-x", "low")
-    with pytest.raises(ValueError, match="WORKFLOW_EFFORT"):
-        load_settings({**env, "WORKFLOW_EFFORT": "extreme"})
 
 
 # Feature 008: where telemetry goes (research R1; logs only, for developers).

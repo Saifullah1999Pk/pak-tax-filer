@@ -7,7 +7,6 @@ import {
   ASSET_CATEGORIES,
   EXPENSE_CATEGORIES,
   getWealth,
-  getWealthSummary,
   saveWealth,
   wealthPdfUrl,
 } from "../api/wealth";
@@ -20,6 +19,8 @@ import type {
 import { DownloadPdfButton } from "../components/DownloadPdfButton";
 import { MoneyInput } from "../components/MoneyInput";
 import { SummaryPanel } from "../components/SummaryPanel";
+import { WHOLE_RUPEES, amountError } from "../components/amountRule";
+import type { AmountRule } from "../components/amountRule";
 import { useProfile } from "../profile/ProfileContext";
 
 // The wealth statement for the profile's tax year (feature 005, tasks T011, T017, T023). The
@@ -59,6 +60,24 @@ const MONEY_FIELDS: [MoneyField, string][] = [
   ["family_contribution", "Family members' contribution to expenses"],
   ["gifts_given", "Gifts given"],
 ];
+
+// The one amount rule (lead, 2026-11-16), as the wealth API accepts: whole rupees, 14 digits;
+// only last year's net assets may be negative.
+const SIGNED_RUPEES: AmountRule = { ...WHOLE_RUPEES, allowNegative: true };
+
+/** Whether every amount in the form passes the rule, so it may be sent. */
+function amountsOk(form: Form): boolean {
+  const amounts = [
+    ...form.assets.map((asset) => asset.amount),
+    ...form.liabilities.map((liability) => liability.amount),
+    ...MONEY_FIELDS.map(([field]) => form[field]),
+    ...Object.values(form.expenses),
+  ];
+  return (
+    amountError(form.previous_net_assets, SIGNED_RUPEES) === null &&
+    amounts.every((amount) => amountError(amount ?? "", WHOLE_RUPEES) === null)
+  );
+}
 
 let nextKey = 0;
 const key = () => ++nextKey;
@@ -134,8 +153,6 @@ export function WealthPage() {
   const [edited, setEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveAttempts, setSaveAttempts] = useState(0);
-  // Each statement shown (loaded or saved) gets a new number, so its summary is asked for anew.
-  const [version, setVersion] = useState(0);
   const [shownYear, setShownYear] = useState(taxYear);
   const saveButton = useRef<HTMLButtonElement | null>(null);
   // The year a save was sent for; a reply for another year is ignored.
@@ -175,7 +192,6 @@ export function WealthPage() {
           setWealth(loaded);
           setForm(toForm(loaded.statement));
           setEdited(false);
-          setVersion((n) => n + 1);
         }
       })
       .catch((caught: unknown) => {
@@ -195,6 +211,11 @@ export function WealthPage() {
     if (form === null) {
       return;
     }
+    if (!amountsOk(form)) {
+      setSaved(false);
+      setSaveError("Fix the amounts marked below before saving.");
+      return;
+    }
     const year = taxYear;
     setSaving(true);
     setSaveError(null);
@@ -206,7 +227,6 @@ export function WealthPage() {
       }
       setWealth(result);
       setForm(toForm(result.statement));
-      setVersion((n) => n + 1);
       setSaved(true);
       setEdited(false);
     } catch (caught) {
@@ -291,7 +311,6 @@ export function WealthPage() {
             result={wealth.result}
             label={wealth.label}
             taxYear={taxYear}
-            version={version}
             edited={edited}
           />
         </>
@@ -507,6 +526,7 @@ function MoneyInAndOut({
         Net assets on {previousDate} (from last year's statement)
         {/* No numeric keypad: this one may be negative, and phone keypads lack a minus. */}
         <MoneyInput
+          rule={SIGNED_RUPEES}
           aria-describedby="previous-hint"
           value={form.previous_net_assets}
           onChange={(e) => update({ previous_net_assets: e.target.value })}
@@ -581,13 +601,11 @@ type ResultProps = {
   result: WealthResult;
   label: string;
   taxYear: string;
-  /** Changes with every load and save, so the summary is asked for again. */
-  version: number;
   /** The form has changes not yet saved (the PDF is of the saved statement). */
   edited: boolean;
 };
 
-function Result({ result, label, taxYear, version, edited }: ResultProps) {
+function Result({ result, label, taxYear, edited }: ResultProps) {
   return (
     <section aria-labelledby="result-heading" className="result">
       <h2 id="result-heading">Result</h2>
@@ -602,6 +620,11 @@ function Result({ result, label, taxYear, version, edited }: ResultProps) {
               : null
         }
       />
+      <SummaryPanel
+        summary={result.summary}
+        headingId="wealth-summary-heading"
+        level={3}
+      />
       {result.message && <p className="result-message">{result.message}</p>}
       {result.not_ready_reason === null && (
         <>
@@ -615,14 +638,6 @@ function Result({ result, label, taxYear, version, edited }: ResultProps) {
               </ul>
             </>
           )}
-          {/* Loaded on its own, and again after each save (a new `key`). */}
-          <SummaryPanel
-            key={version}
-            fetchSummary={getWealthSummary}
-            taxYear={taxYear}
-            headingId="wealth-summary-heading"
-            level={3}
-          />
           <h3 id="wealth-breakdown-heading">How it was worked out</h3>
           <ol
             aria-labelledby="wealth-breakdown-heading"

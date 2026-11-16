@@ -16,9 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import User
 from app.auth.passwords import hash_password
 from app.documents.models import DocStatus, DocType
-from app.main import app
-from app.tax.summary import FakeSummariser
-from app.wealth.router import get_wealth_summariser
 
 pytestmark = pytest.mark.anyio
 
@@ -273,70 +270,32 @@ async def test_minus_zero_is_saved_and_shown_as_zero(client: AsyncClient) -> Non
     assert saved["statement"]["inheritance"] == "0"
 
 
-class RecordingSummariser:  # pylint: disable=too-few-public-methods
-    """Counts how often the AI would be asked."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def write(self, breakdown: str) -> str | None:
-        """Count the call; write nothing."""
-        del breakdown
-        self.calls += 1
-        return None
-
-
-async def test_reading_and_saving_never_wait_for_the_summary(
+async def test_reading_and_saving_carry_a_summary_written_by_code(
     client: AsyncClient, db: AsyncSession, logged_in_user: User
 ) -> None:
-    """Fails if reading or saving asks the AI, or still carries a summary (feature 001, US6)."""
+    """Fails if the result lacks its plain-code summary (the AI one was removed 2026-11-16;
+    design 2026-11-16-plain-summary), or saving and reading disagree."""
     await certificates(db, logged_in_user)
-    recorder = RecordingSummariser()
-    app.dependency_overrides[get_wealth_summariser] = lambda: recorder
-    try:
-        saved = (await client.put(URL, json=STATEMENT)).json()
-        read = (await client.get(URL)).json()
-    finally:
-        app.dependency_overrides.pop(get_wealth_summariser, None)
 
-    assert recorder.calls == 0
-    assert "summary" not in saved["result"] and "summary" not in read["result"]
+    saved = (await client.put(URL, json=STATEMENT)).json()
+    read = (await client.get(URL)).json()
+
+    assert read["result"]["summary"] == (
+        "Your net assets at the end of 2025-26 are Rs 2,550,000, Rs 450,000 more than last "
+        "year. Your inflows were Rs 2,050,000 and your outflows Rs 1,600,000."
+    )
+    figures = {name: read["result"][name] for name in ("net_assets", "increase", "outflows")}
+    assert figures == {"net_assets": "2550000", "increase": "450000", "outflows": "1600000"}
+    assert saved["result"]["summary"] == read["result"]["summary"]
     assert read["result"]["direction"] == "reconciled"
 
 
-async def test_the_summary_request_returns_a_checked_summary(
-    client: AsyncClient, db: AsyncSession, logged_in_user: User
-) -> None:
-    """Fails if a safe summary is lost between the check and the response (service wiring)."""
-    await certificates(db, logged_in_user)
-    await client.put(URL, json=STATEMENT)
-    text = "Your wealth statement reconciles: inflows of Rs 2,050,000 explain the change."
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser(text)
-    try:
-        response = await client.get(URL + "/summary")
-    finally:
-        app.dependency_overrides.pop(get_wealth_summariser, None)
-
-    assert response.status_code == 200
-    assert response.json() == {"summary": text}
-
-
 @pytest.mark.usefixtures("logged_in_user")
-async def test_a_not_ready_statement_has_no_summary(client: AsyncClient) -> None:
-    """Fails if a statement that can't be reconciled yet gets an AI summary."""
-    app.dependency_overrides[get_wealth_summariser] = lambda: FakeSummariser("Rs 1")
-    try:
-        response = await client.get(URL + "/summary")
-    finally:
-        app.dependency_overrides.pop(get_wealth_summariser, None)
+async def test_a_result_not_ready_has_no_summary(client: AsyncClient) -> None:
+    """Fails if a statement that can't be reconciled gets a summary: its message says why."""
+    result = (await client.get(URL)).json()["result"]
 
-    assert response.json() == {"summary": None}
-
-
-@pytest.mark.usefixtures("logged_in_user")
-async def test_the_summary_request_needs_a_known_year(client: AsyncClient) -> None:
-    """Fails if the summary answers for a year without rates."""
-    assert (await client.get("/api/wealth/2019-20/summary")).status_code == 404
+    assert result["not_ready_reason"] is not None and result["summary"] is None
 
 
 async def test_amounts_read_back_from_the_database_are_plain_rupees(
