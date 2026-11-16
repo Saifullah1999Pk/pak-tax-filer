@@ -7,7 +7,7 @@ every pull request and every push to `main`; if a guardrail breaks, CI fails.
 | File | Principle | What it proves |
 |---|---|---|
 | [`../../.importlinter`](../../.importlinter) | I | The tax engine, the rates and the wealth reconciliation never import Gemini (`google`), extraction, or the RAG code, directly or through another module. |
-| [`test_principle_1.py`](test_principle_1.py) | I: deterministic tax math | Every AI client answers with made-up numbers; the tax, wealth and guided results still equal the signed-off worked examples, and the made-up numbers are never shown. |
+| [`test_principle_1.py`](test_principle_1.py) | I: deterministic tax math | Every AI client answers with made-up numbers; the tax, wealth and guided results still equal the signed-off worked examples, and the made-up numbers are never shown. No AI summary route exists, and the code-written `summary` states only amounts the result holds. |
 | [`test_principle_3.py`](test_principle_3.py) | III: human confirmation | With one confirmed and one unconfirmed salary certificate, the tax page, the wealth statement, the MCP tool and the guided gate count only the confirmed one; the guided result and its PDF need an approval. |
 | [`test_principle_4.py`](test_principle_4.py) | IV: honest, labelled output | The assistant's answers are cited and number-checked (a "10m" no passage has is refused); out-of-corpus and Urdu questions are refused; the guided run's law is real corpus passages, each cited; every result and every page of every PDF carries the label. |
 

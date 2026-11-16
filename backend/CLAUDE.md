@@ -67,7 +67,8 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   unsigned one.
 - Tax figures are plain `Decimal` code with §219 rounding (`ROUND_HALF_UP`) on final amounts.
   Never compute, round or "check" a figure with an LLM. No AI summary (removed 2026-11-16, the
-  lead: AI only where reasoning is needed): the breakdown explains every figure.
+  lead: AI only where reasoning is needed): `tax_summary` in `app/tax/breakdown.py` writes the
+  result's `summary` from its own amounts, never the two sides added together.
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
   assistant.
 
@@ -91,7 +92,8 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   its SRO 1495(I)/2026 form line.
 - Never compute, round or "check" a figure with an LLM, and never let one write the "where to
   look" lists (`app/wealth/breakdown.py`): they are fixed and contain no amounts. No AI
-  summary (removed 2026-11-16).
+  summary (removed 2026-11-16): `wealth_summary` there writes the result's `summary` from its
+  own amounts.
 - Certificate figures come only from `confirmed_documents`, summed per type and then rounded
   (s.219) by `build_inputs`. Any change to the formula or the lines comes with signed-off worked
   examples in `tests/wealth/worked_examples.yaml` (`test_wealth_sign_off.py` fails if unsigned).
