@@ -160,7 +160,8 @@ test("editing a field and confirming it sends the new value, then shows what was
     "value",
     "1900000.00",
   );
-  expect(sent).toEqual({ value: "1,900,000", confirmed: true });
+  // The amount rule takes the commas out as you type (lead, 2026-11-16).
+  expect(sent).toEqual({ value: "1900000", confirmed: true });
 });
 
 test("confirming an unchanged field sends only the confirmation", async () => {
@@ -399,4 +400,28 @@ test("each amount is repeated with digit grouping beneath its field", async () =
   );
   // The tax year is not an amount.
   expect(screen.queryByText(/Rs 2025/)).toBeNull();
+});
+
+test("an amount box drops letters and refuses more than 2 decimal places before saving", async () => {
+  const sent: unknown[] = [];
+  mockFetch(
+    routes(DOCUMENT, {
+      "PATCH /api/documents/d1/fields/gross_salary": ({ body }) => {
+        sent.push(body);
+        return { status: 200, body: {} };
+      },
+    }),
+  );
+  await openReview();
+  const gross = screen.getByRole("group", { name: /gross salary/i });
+  const box = within(gross).getByRole("textbox") as HTMLInputElement;
+
+  fireEvent.change(box, { target: { value: "19abc00000" } });
+  expect(box.value).toBe("1900000");
+
+  fireEvent.change(box, { target: { value: "1900000.505" } });
+  fireEvent.click(within(gross).getByRole("button", { name: /confirm/i }));
+
+  expect(within(gross).getByText("At most 2 decimal places.")).toBeTruthy();
+  expect(sent).toEqual([]);
 });

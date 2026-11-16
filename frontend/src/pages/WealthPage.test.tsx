@@ -284,7 +284,8 @@ test("last year's net assets can be negative, so its keypad isn't digits-only", 
   await open();
 
   const previous = screen.getByLabelText(/net assets on 30 june 2025/i);
-  expect(previous.getAttribute("inputmode")).toBeNull();
+  // A text keypad: phone number pads have no minus key.
+  expect(previous.getAttribute("inputmode")).toBe("text");
   const hint = document.getElementById(
     previous.getAttribute("aria-describedby") ?? "",
   );
@@ -690,4 +691,37 @@ test("a statement not ready yet says why there is no PDF", async () => {
     description: "No PDF until your statement can be reconciled.",
   });
   expect(button.getAttribute("aria-disabled")).toBe("true");
+});
+
+test("amount boxes drop letters, and whole rupees are checked before saving", async () => {
+  const saved: unknown[] = [];
+  serve({}, (body) => {
+    saved.push(body);
+    return { status: 200, body: SAVED };
+  });
+  await open();
+  const inheritance = screen.getByLabelText(/inheritance/i) as HTMLInputElement;
+
+  fireEvent.change(inheritance, { target: { value: "50abc000" } });
+  expect(inheritance.value).toBe("50000");
+
+  fireEvent.change(inheritance, { target: { value: "50000.50" } });
+  fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+  expect(screen.getByText("Whole rupees only.")).toBeTruthy();
+  expect(await screen.findByText(/fix the amounts marked/i)).toBeTruthy();
+  expect(saved).toEqual([]);
+});
+
+test("last year's net assets keeps its minus sign", async () => {
+  serve();
+  await open();
+  const previous = screen.getByLabelText(
+    /net assets on 30 june 2025/i,
+  ) as HTMLInputElement;
+
+  fireEvent.change(previous, { target: { value: "-50abc0" } });
+
+  expect(previous.value).toBe("-500");
+  expect(screen.queryByText("Can't be negative.")).toBeNull();
 });

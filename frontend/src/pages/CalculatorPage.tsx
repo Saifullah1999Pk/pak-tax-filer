@@ -10,6 +10,8 @@ import type {
 import { ApiError } from "../api/client";
 import { rupees } from "../api/tax";
 import { MoneyInput } from "../components/MoneyInput";
+import { amountError } from "../components/amountRule";
+import type { AmountRule } from "../components/amountRule";
 import { useProfile } from "../profile/ProfileContext";
 
 // The simple tax calculator (feature 010, tasks T014, T017, T020), per
@@ -18,6 +20,9 @@ import { useProfile } from "../profile/ProfileContext";
 // saved. Tax year and ATL status come from the profile, so the form doesn't ask for them.
 
 type Field = keyof CalculatorInput;
+
+// What the calculator's API accepts (contracts/calculator-api.md): paisa, 13 digits, not negative.
+const RULE: AmountRule = { decimals: 2, allowNegative: false, maxDigits: 13 };
 
 const FIELDS: [Field, string][] = [
   ["salary_monthly", "Salary per month"],
@@ -58,6 +63,14 @@ export function CalculatorPage() {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    // The one amount rule, checked before anything is sent (each box already explains its own).
+    if (
+      FIELDS.some(([field]) => amountError(amounts[field] ?? "", RULE) !== null)
+    ) {
+      setResult(null);
+      setError("Fix the amounts marked below before calculating.");
+      return;
+    }
     setBusy(true);
     setError(null);
     // Only what was typed is sent; an empty field counts as zero on the server.
@@ -103,7 +116,7 @@ export function CalculatorPage() {
               <label key={field}>
                 {label}
                 <MoneyInput
-                  inputMode="decimal"
+                  rule={RULE}
                   value={amounts[field] ?? ""}
                   onChange={(e) => change(field, e.target.value)}
                 />

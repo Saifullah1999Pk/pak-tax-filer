@@ -19,6 +19,8 @@ import type {
 } from "../api/wealth";
 import { DownloadPdfButton } from "../components/DownloadPdfButton";
 import { MoneyInput } from "../components/MoneyInput";
+import { WHOLE_RUPEES, amountError } from "../components/amountRule";
+import type { AmountRule } from "../components/amountRule";
 import { SummaryPanel } from "../components/SummaryPanel";
 import { useProfile } from "../profile/ProfileContext";
 
@@ -59,6 +61,24 @@ const MONEY_FIELDS: [MoneyField, string][] = [
   ["family_contribution", "Family members' contribution to expenses"],
   ["gifts_given", "Gifts given"],
 ];
+
+// The one amount rule (lead, 2026-11-16), as the wealth API accepts: whole rupees, 14 digits;
+// only last year's net assets may be negative.
+const SIGNED_RUPEES: AmountRule = { ...WHOLE_RUPEES, allowNegative: true };
+
+/** Whether every amount in the form passes the rule, so it may be sent. */
+function amountsOk(form: Form): boolean {
+  const amounts = [
+    ...form.assets.map((asset) => asset.amount),
+    ...form.liabilities.map((liability) => liability.amount),
+    ...MONEY_FIELDS.map(([field]) => form[field]),
+    ...Object.values(form.expenses),
+  ];
+  return (
+    amountError(form.previous_net_assets, SIGNED_RUPEES) === null &&
+    amounts.every((amount) => amountError(amount ?? "", WHOLE_RUPEES) === null)
+  );
+}
 
 let nextKey = 0;
 const key = () => ++nextKey;
@@ -193,6 +213,11 @@ export function WealthPage() {
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (form === null) {
+      return;
+    }
+    if (!amountsOk(form)) {
+      setSaved(false);
+      setSaveError("Fix the amounts marked below before saving.");
       return;
     }
     const year = taxYear;
@@ -507,6 +532,7 @@ function MoneyInAndOut({
         Net assets on {previousDate} (from last year's statement)
         {/* No numeric keypad: this one may be negative, and phone keypads lack a minus. */}
         <MoneyInput
+          rule={SIGNED_RUPEES}
           aria-describedby="previous-hint"
           value={form.previous_net_assets}
           onChange={(e) => update({ previous_net_assets: e.target.value })}

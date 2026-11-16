@@ -11,6 +11,16 @@ import {
 } from "../api/documents";
 import type { DocumentDetail, ExtractedField } from "../api/documents";
 import { MoneyInput } from "../components/MoneyInput";
+import { amountError } from "../components/amountRule";
+import type { AmountRule } from "../components/amountRule";
+
+// The one amount rule (lead, 2026-11-16), as the backend reads a certificate figure
+// (parse_amount): up to 999,999,999,999.99, so 12 digits and 2 decimal places.
+const CERTIFICATE_AMOUNT: AmountRule = {
+  decimals: 2,
+  allowNegative: false,
+  maxDigits: 12,
+};
 
 // Check each figure against the original, correct it, confirm it (feature 003, task T019;
 // research R10). Only confirmed documents reach other features; the backend enforces that
@@ -240,6 +250,14 @@ function FieldRow({
 
   async function handleConfirm() {
     setError(null);
+    if (
+      changed &&
+      MONEY_FIELDS.has(field.name) &&
+      amountError(draft ?? "", CERTIFICATE_AMOUNT) !== null
+    ) {
+      setError("Fix this amount before confirming.");
+      return;
+    }
     setSaving(true);
     try {
       await updateField(
@@ -265,6 +283,8 @@ function FieldRow({
       <legend>{label}</legend>
       {/* Amounts show "Rs" inside the field (task T060); other fields don't. */}
       <Field
+        // Amounts follow the one amount rule; other fields are plain text.
+        {...(Field === MoneyInput ? { rule: CERTIFICATE_AMOUNT } : {})}
         type="text"
         aria-label={label}
         aria-describedby={[

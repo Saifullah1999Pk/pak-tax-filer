@@ -371,3 +371,26 @@ test("a server failure says to try again", async () => {
   expect((await screen.findByRole("alert")).textContent).toMatch(/try again/i);
   expect(screen.queryByRole("heading", { name: /your tax/i })).toBeNull();
 });
+
+test("letters never reach an amount box", async () => {
+  openCalculator({});
+
+  await type(/salary per month/i, "25abc0,000");
+
+  expect(
+    (screen.getByLabelText(/salary per month/i) as HTMLInputElement).value,
+  ).toBe("250000");
+});
+
+test("an amount the rule refuses is explained and nothing is sent", async () => {
+  const posted = openCalculator({});
+  await type(/salary per month/i, "250000.505");
+
+  fireEvent.click(screen.getByRole("button", { name: /calculate/i }));
+
+  expect(screen.getAllByRole("alert").map((a) => a.textContent)).toContain(
+    "At most 2 decimal places.",
+  );
+  expect(await screen.findByText(/fix the amounts marked/i)).toBeTruthy();
+  expect(posted).toEqual([]);
+});
