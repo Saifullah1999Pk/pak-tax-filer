@@ -23,6 +23,7 @@ from app.profile.models import TaxpayerProfile
 from app.tax.engine import TaxResult, calculate
 from app.tax.rates import rates_for
 from app.tax.service import tax_inputs_from
+from app.workflow import fingerprint as fingerprints
 from app.workflow.fingerprint import fingerprint
 from app.workflow.models import Step, WorkflowRun
 from app.workflow.state import Event, InvalidTransition, next_step, result_allowed
@@ -54,9 +55,12 @@ async def _current(ctx: Context) -> tuple[WorkflowRun | None, list[ConfirmedDocu
     run = await _find(ctx)
     documents = await confirmed_documents(ctx.db, ctx.user.id, ctx.profile.tax_year)
     if run is not None and run.outputs_fingerprint != _fingerprint(ctx, documents):
-        # Says so on the page if an approval is being cleared, until approve or start (FR-013).
-        after_approval = run.approved_at is not None or bool(
-            (run.step_outputs or {}).get("inputs_changed")
+        # Says so on the page if an approval is being cleared, until approve or start (FR-013);
+        # not when only the app's steps changed (a new STEPS_VERSION): the inputs didn't.
+        saved = run.step_outputs or {}
+        same_steps = saved.get("steps_version") == fingerprints.STEPS_VERSION
+        after_approval = same_steps and (
+            run.approved_at is not None or bool(saved.get("inputs_changed"))
         )
         await _run_steps(ctx, run, documents, Event.INPUTS_CHANGED, after_approval=after_approval)
     return run, documents
@@ -126,6 +130,7 @@ async def _run_steps(
             run.step = next_step(run.step, Event.STEPS_OK)
     # True when this re-run cleared an approval: the page asks for a fresh one (T020).
     outputs["inputs_changed"] = after_approval
+    outputs["steps_version"] = fingerprints.STEPS_VERSION  # internal: never sent to the page
     run.step_outputs = outputs
     run.outputs_fingerprint = _fingerprint(ctx, documents)
     run.updated_at = datetime.now(UTC)

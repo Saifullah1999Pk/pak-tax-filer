@@ -26,6 +26,7 @@ from app.main import app
 from app.profile.service import save_profile
 from app.rag.models import AskRequest
 from app.rag.router import get_embedder
+from app.workflow import fingerprint as fingerprint_module
 from app.workflow import service
 from app.workflow.models import WorkflowRun
 
@@ -203,6 +204,46 @@ async def test_a_new_certificate_after_approval_returns_to_the_gate(
     assert run["inputs_changed"] is True
     assert run["fingerprint"] != before["fingerprint"]
     assert run["gate"]["figures"]["gross_profit"] == "50000.00"
+    assert (await client.get(f"{URL}/result")).status_code == 409
+
+
+async def _park(client: AsyncClient, db: AsyncSession, user: User, where: str) -> None:
+    """A run left at `where`: document (no salary certificate), gate, result or done."""
+    if where == "document":
+        await client.post(f"{URL}/start", json={})
+        return
+    if where == "gate":
+        await add_confirmed_document(db, user.id, DocType.SALARY_CERTIFICATE, SALARY)
+        await client.post(f"{URL}/start", json={})
+        return
+    await approved_run(client, db, user)
+    if where == "done":
+        assert (await client.post(f"{URL}/done", json={})).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("parked", "step"),
+    [("document", "document"), ("gate", "gate"), ("result", "gate"), ("done", "gate")],
+)
+async def test_new_steps_re_run_a_saved_run_without_claiming_its_inputs_changed(
+    client: AsyncClient,
+    db: AsyncSession,
+    user_with_profile: User,
+    monkeypatch: pytest.MonkeyPatch,
+    parked: str,
+    step: str,
+) -> None:
+    """Fails if a run saved by older steps errors, keeps an approval the new steps never
+    showed, or tells the user their inputs changed when only the app's steps did."""
+    await _park(client, db, user_with_profile, parked)
+    monkeypatch.setattr(fingerprint_module, "STEPS_VERSION", fingerprint_module.STEPS_VERSION + 1)
+
+    response = await client.get(URL)
+
+    assert response.status_code == 200
+    run = response.json()
+    assert run["step"] == step and run["approved_at"] is None and run["done_at"] is None
+    assert run["inputs_changed"] is False
     assert (await client.get(f"{URL}/result")).status_code == 409
 
 

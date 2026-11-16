@@ -18,6 +18,8 @@ Base path `/api/workflow`. All endpoints need `current_user` and 002's `require_
 The steps are plain code (amended 2026-11-16, below): there is no `fallback` field.
 `"inputs_changed": true` (added 2026-11-12) when steps 1–3 re-ran because the inputs changed after
 an approval, which they cleared; the page asks for a fresh approval. Cleared on approve and start.
+When the app's steps change (a new steps version, as on 2026-11-16), each saved run re-runs once on
+its next request and any approval clears, but `inputs_changed` stays `false`: the inputs didn't.
 
 ## Endpoints
 

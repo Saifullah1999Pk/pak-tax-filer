@@ -1,7 +1,7 @@
 # Quickstart: validating the Wealth Statement (005)
 
-**Prerequisites:** features 001–004; a demo user with confirmed synthetic certificates;
-`ANTHROPIC_API_KEY` only for the summary check in section 2.
+**Prerequisites:** features 001–004; a demo user with confirmed synthetic certificates. No API
+key is needed (the AI summary was removed 2026-11-16).
 
 ## 0. Worked examples signed off (before any reconciliation code)
 
@@ -29,8 +29,8 @@ filled in. `pytest -k wealth_sign_off` fails until all are signed.
    missing-asset or expense checklist, with no amounts in it.
 2. Restore rent, then add a Rs 40,000 asset (increase Rs 505,000 against Rs 465,000): "your
    assets grew Rs 40,000 more than your inflows explain", and the missing-inflow checklist.
-3. Each step shows its form line. With an API key, a summary appears and every number in it is
-   in the steps. `pytest -k number_check` covers a wrong-number summary.
+3. Each step shows its form line. No AI summary (removed 2026-11-16, the lead: AI only where
+   reasoning is needed).
 
 ## 3. Limits and sync (User Story 3)
 

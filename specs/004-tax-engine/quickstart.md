@@ -1,7 +1,7 @@
 # Quickstart: validating the Deterministic Tax Engine (004)
 
-**Prerequisites:** features 001–003; a demo user with confirmed synthetic certificates;
-`GEMINI_API_KEY` (free, from Google AI Studio) only for the live summary check in section 2.
+**Prerequisites:** features 001–003; a demo user with confirmed synthetic certificates. No API
+key is needed (the AI summary was removed 2026-11-16).
 
 ## 0. Worked examples signed off (before any engine code)
 
@@ -24,8 +24,8 @@ source row, and `signed_off_by` / `signed_off_date` filled in after checking aga
 ## 2. Explanation (User Story 2)
 
 1. Each step shows its rule location.
-2. With an API key: a summary appears and every number in it appears in the steps.
-3. Run `pytest -k summary_check`: a summary with a wrong number is rejected.
+2. No AI summary (removed 2026-11-16, the lead: AI only where reasoning is needed); `pytest -k
+   no_ai_summary` checks the result carries none.
 
 ## 3. Honest limits (User Story 3)
 
