@@ -46,6 +46,14 @@ share 3,000,000 / 4,344,000 = 69.06%, **not more than 75%**, so the **non-salari
 (clause (1)) applies to the whole 4,344,000: 650,000 + 40% × 1,144,000 = **Rs 1,107,600**. (On
 the salaried table it would have been 701,400: the 75% test matters.)
 
+**Independent check (advisor review, 2026-11-16):** our examples, script and code all share
+this reading, so their agreement isn't proof. FBR's own PRAL *Normal Income Tax Return User
+Manual* (v1.1, 2026; the copy pinned in `sources.yaml`), section 7 "Property" (manual pp. 17-25),
+shows property income as its own head in the normal return, with a "+ Deductions" list for it and
+"Adjustable Tax against Property" (not final tax): consistent with rent being taxed with other
+income, not separately. The manual doesn't spell out the 75% test; that rests on clause (2)'s
+own words ("his taxable income") read with s.9 and s.10(a) (all heads). For the practitioner.
+
 **Alternatives considered:** taxing rent separately (as before FA2021) is no longer the law;
 ignoring the repairs allowance would overstate the tax; asking for all s.15A deductions breaks
 "simple".
@@ -80,6 +88,13 @@ income (R1) and excludes dividends and bank profit (R4, R5).
 **Rationale:** the proviso turns on deriving salary income at all, not on which table applies, so
 a salaried person on the non-salaried table still pays 9%.
 
+**A second cliff (advisor review, 2026-11-16; for the practitioner):** on this reading, Rs 1 of
+salary income moves someone above Rs 10 million from 10% to 9% on the whole slab tax. FBR Circular
+01 of 2025-26 only repeats the 9% for employers' withholding (its item on pensions, p. 3) and
+doesn't say whether "an individual deriving income chargeable under the head Salary" means the
+75% salaried class or anyone with salary. Kept as read; pinned by worked example
+`salary-on-non-salaried-table-over-10m`.
+
 ## R4. Dividends
 
 **Decision:** tax under **s.5** at **15%** of the gross dividend (s.5(1)-(2), p. 35, PDF p. 54;
@@ -97,7 +112,12 @@ no tax.
 **Filer vs non-filer:** the s.5 *tax* is 15% for everyone; what changes is the *deduction at
 source*: s.150 deducts at First Schedule, Part III, Division I(b) **15%** (p. 519, PDF p. 538), and
 for a person not on the active taxpayers' list the Tenth Schedule, rule 1 increases every deduction
-rate "by hundred percent" (p. 761, PDF p. 780): **30%**. The comparison line says this: "a person
+rate "by hundred percent" (p. 761, PDF p. 780): **30%**. Rule 10 (p. 766, PDF p. 785) lists the
+sections it doesn't apply to (ss.149, 152 in part, 154, 154A, 231AB, 234 for a past period, 235,
+236): **ss.150 and 151 are not excluded**, so the doubling applies to dividends and bank profit
+(read in full on 2026-11-16, advisor review). Rule 4(3) (p. 765, PDF p. 784): once returns are
+filed, tax deducted under rule 1 "shall be adjustable against the tax payable in the return";
+how that meets the final-tax rule of s.8 is for the practitioner. The comparison line says this: "a person
 not on the ATL has 30% deducted instead of 15%"; whether the extra can be reclaimed is not
 something the calculator states (as feature 004's FR-013: "needs confirmation").
 

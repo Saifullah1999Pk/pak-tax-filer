@@ -81,17 +81,15 @@ held to a measured bar. Both need to be checked automatically, every time.
 
 ### VII. MVP Scope Discipline
 
-- The MVP covers one resident individual taxpayer, salaried or not, for tax years TY2026 and
-  TY2027 (amended 2026-11-13, feature 010). Incomes: salary and bonuses, property (rent),
-  business (including freelance and consultancy), profit on debt, dividends, capital gains and
-  other sources, each under its legal treatment (normal, separately taxed, final, exempt,
-  adjustable withholding). The engine applies the 75% salary test and its regime; Zakat,
-  charitable donations and pension contributions; and tax withheld and advance tax, giving one
-  amount payable or refundable.
-- Incomes are typed by the user or come from confirmed documents. The two document types stay:
-  a salary certificate and a bank profit certificate.
-- Anything the engine doesn't cover (other deductions and credits, losses, depreciation, perk
-  valuation, minimum and turnover tax) MUST be shown as unsupported, never guessed.
+- The MVP covers one resident individual taxpayer and one configurable tax year (TY2026), with
+  two ways to a tax figure:
+  - from confirmed documents: salary and profit on debt (§151), from two document types, a
+    salary certificate and a bank profit certificate;
+  - a side calculator (amended 2026-11-14, feature 010; the lead asked for "Simple"): typed
+    salary, bonus, rent, dividends and bank profit, each under its legal treatment, with the 75%
+    salary test, giving the tax due. Nothing typed is stored.
+- Anything not covered (tax already deducted and the balance, other incomes, deductions and
+  credits, other tax years) MUST be listed as not covered, never guessed.
 - The MCP server exposes exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
 - Out-of-scope items (companies and associations of persons, non-residents, agricultural
@@ -146,4 +144,4 @@ worth more than a wide scope done approximately.
   MUST either be fixed or be recorded in Complexity Tracking with justification and lead
   approval. Runtime development guidance lives in `CLAUDE.md`.
 
-**Version**: 1.3.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-13
+**Version**: 1.3.0 | **Ratified**: 2026-11-02 | **Last Amended**: 2026-11-16

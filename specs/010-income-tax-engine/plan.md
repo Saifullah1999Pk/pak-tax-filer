@@ -49,8 +49,8 @@ AI; rates only from FBR's text with source and effective date
 | III. Human confirmation | PASS (n/a) | No extracted values: the user types every amount |
 | IV. Honest output | PASS | Label on every result; not-covered list; refusals for bank profit over Rs 5m; filer comparison worded as deductions, not refunds |
 | V. Synthetic data only | PASS | Nothing stored or logged; tests use made-up amounts |
-| VI. Test-first | PASS | Worked examples signed "author signed" before each part's code; a test fails while any is unsigned |
-| VII. Scope (1.3.0) | PASS | Within the amended scope; a subset of it (the lead's "Simple") |
+| VI. Test-first | PASS, with a deviation | Worked examples cite FBR sources and became failing tests before the code; the author accepted them **provisionally** (cross-checked by script, not by hand), to be revised at practitioner review (spec FR-012, amended) |
+| VII. Scope (1.3.0) | PASS | Principle VII narrowed on 2026-11-16 to exactly this side calculator |
 | Stack / Secrets | PASS | No new components or keys |
 
 **Post-design re-check:** PASS, except governance: the lead's review of this spec and plan is
@@ -109,4 +109,7 @@ engine in `app/tax/`, so there is one engine package and 004's `calculate` is un
 
 ## Complexity Tracking
 
-No violations to justify.
+| Deviation | Why | Simpler alternative rejected because |
+|---|---|---|
+| Worked examples accepted provisionally, not hand-signed (Principle VI, FR-012) | The author's decision (2026-11-14): a tax practitioner will review the app before any real use | Hand-checking 41 examples first would delay a demo the lead asked for; the label on every result and the "provisional" mark on each example keep it honest |
+| Built before the lead's formal review (Development Workflow) | The author's call after the lead's "Simple" | Tracked by T027: the lead reviews in PR #48 before merge |
