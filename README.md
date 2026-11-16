@@ -38,8 +38,10 @@ practitioner. Nothing in this app is tax advice until that changes.
   explicitly when a question falls outside that corpus instead of guessing.
 - A small MCP server exposing exactly three tools: `search_tax_documents`,
   `calculate_income_tax`, `validate_salary_information`.
-- A simple agentic workflow (document → validate → research → calculate →
-  explain → review) with a mandatory human-approval gate before calculation.
+- Guided filing (document → validate → research → approve → calculate) with a
+  mandatory human-approval gate before calculation. Built as an agentic
+  workflow, then made plain code on 2026-11-16: no AI where no reasoning is
+  needed.
 
 **Out (for now):** freelance, business, capital gains and other incomes;
 deductions and credits (Zakat, donations, pension); TY2027; companies and
@@ -51,9 +53,9 @@ until a tax practitioner and legal review are in place).
 ## Non-negotiables
 
 - **Tax and reconciliation math is deterministic code, never an LLM call.**
-  The AI model (Gemini, free tier) is only used for document extraction, the
-  RAG assistant, and turning an already-computed number into a plain-language
-  explanation.
+  The AI model (Gemini, free tier) is only used where reasoning is needed:
+  document extraction and the RAG assistant. (Until 2026-11-16 it also
+  reworded computed results and ran the guided filing's agents; removed.)
 - **Real FBR rates (brackets, §151 rates) must come from FBR's own gazetted
   documents** — not third-party calculator/blog sites, which were found to
   disagree with each other during planning.
@@ -82,7 +84,8 @@ AI-specific pieces, Python MCP SDK, Docker Compose.
 6. RAG knowledge base (bounded corpus, pgvector) + retrieval eval + MCP
    server (3 tools).
 7. Agentic workflow wiring (document/validation/research agents, state
-   machine, human-approval gate before calculation).
+   machine, human-approval gate before calculation). Built; on 2026-11-16 its
+   steps became plain code (no AI), keeping the state machine and the gate.
 8. Telemetry, guardrail tests, CI (lint/type-check/te"sts + an eval-accuracy
    gate), PDF export with the validation-status banner.
 
