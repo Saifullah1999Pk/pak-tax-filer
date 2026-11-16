@@ -96,6 +96,14 @@ async function type(label: RegExp, value: string) {
   });
 }
 
+/** The amount beside a figure's label: the <dd> after its <dt> (rows of the two-column grid). */
+function amountFor(term: string | RegExp): string | null {
+  const label = screen.getByText(term, { selector: "dt" });
+  const amount = label.nextElementSibling;
+  expect(amount?.tagName).toBe("DD");
+  return amount?.textContent ?? null;
+}
+
 async function calculate() {
   fireEvent.click(await screen.findByRole("button", { name: /calculate/i }));
   return screen.findByRole("heading", { name: /your tax/i });
@@ -142,8 +150,14 @@ test("shows the result as given, and moves focus to it", async () => {
   const heading = await calculate();
 
   await waitFor(() => expect(document.activeElement).toBe(heading));
-  const total = screen.getByText("Total tax").closest("div")!;
-  expect(within(total).getByText("Rs 1,107,600")).toBeTruthy();
+  expect(amountFor("Total tax")).toBe("Rs 1,107,600");
+  // Layout guard (live-site alignment bug, 2026-11-16): the figure lists are two-column grids,
+  // so every child must be a bare <dt> or <dd>, never a wrapper.
+  for (const list of document.querySelectorAll("dl")) {
+    for (const child of list.children) {
+      expect(["DT", "DD"]).toContain(child.tagName);
+    }
+  }
   expect(screen.getByText(/23\.7% of your income/)).toBeTruthy();
   expect(screen.getByText(/non-salaried table applies/i)).toBeTruthy();
   expect(screen.getByText(/69\.06%/)).toBeTruthy();
@@ -157,12 +171,12 @@ test("lists each income's yearly amount, and rent's taxed amount", async () => {
 
   await calculate();
 
-  const salary = screen.getByText(/^Salary \(/).closest("div")!;
-  expect(salary.textContent).toContain("Rs 3,000,000");
-  expect(salary.textContent).not.toMatch(/taxed on/);
-  const rent = screen.getByText(/^Rent \(/).closest("div")!;
-  expect(rent.textContent).toContain("Rs 1,680,000");
-  expect(rent.textContent).toContain("taxed on Rs 1,344,000");
+  expect(amountFor(/^Salary \(/)).toBe("Rs 3,000,000");
+  // The amount column holds only the amount; the label says what rent is taxed on.
+  expect(amountFor(/^Rent \(/)).toBe("Rs 1,680,000");
+  expect(
+    screen.getByText(/^Rent \(/, { selector: "dt" }).textContent,
+  ).toContain("taxed on Rs 1,344,000 after the repairs allowance");
 });
 
 test("shows the slab tax but hides tax lines with nothing due", async () => {
@@ -232,8 +246,7 @@ test("shows dividend tax and the filer comparison as deductions, never a refund"
 
   await calculate();
 
-  const tax = screen.getByText("Tax on dividends").closest("div")!;
-  expect(within(tax).getByText("Rs 150,000")).toBeTruthy();
+  expect(amountFor("Tax on dividends")).toBe("Rs 150,000");
   const comparison = screen.getByRole("region", { name: /filer/i });
   expect(comparison.textContent).toContain(
     "Rs 150,000 deducted at 15% for you (on the ATL)",
