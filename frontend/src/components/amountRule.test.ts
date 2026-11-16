@@ -21,6 +21,13 @@ test.each([
   ["5-00", "500"],
   ["--5", "-5"],
   ["", ""],
+  // As printed on certificates (the backend's parse_amount reads these): the "Rs." prefix is
+  // dropped first so its dot is never taken for a decimal point; brackets mean negative.
+  ["Rs. 1,800,000", "1800000"],
+  ["Rs. 1,800,000.50", "1800000.50"],
+  ["PKR 500", "500"],
+  ["1,800,000/-", "1800000"],
+  ["(5,000)", "-5000"],
 ])(
   "cleanAmount(%j) keeps only digits, a leading minus and the first point: %j",
   (raw, cleaned) => {
@@ -42,6 +49,10 @@ test.each([
   ["-500", SIGNED, null],
   ["100.50", RUPEES, "Whole rupees only."],
   ["-500", PAISA, "Can't be negative."],
+  // Digits must stand on both sides of a point, as every backend requires.
+  ["250000.", PAISA, "Write it like 250000 or 250000.50."],
+  [".5", PAISA, "Write it like 250000 or 250000.50."],
+  ["500.", RUPEES, "Whole rupees only."],
 ])("amountError(%j) is %j", (value, rule, error) => {
   expect(amountError(value, rule)).toBe(error);
 });

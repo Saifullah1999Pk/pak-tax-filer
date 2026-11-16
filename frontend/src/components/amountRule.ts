@@ -25,10 +25,21 @@ export const WHOLE_RUPEES: AmountRule = {
  * into 500 or 100.50 into 10050, so `amountError` says why instead.
  */
 export function cleanAmount(raw: string): string {
-  const negative = raw.trimStart().startsWith("-");
+  // As the backend's parse_amount reads a printed amount: brackets mean negative, and a leading
+  // "Rs."/"PKR" goes first, so its dot is never taken for a decimal point.
+  let text = raw.trim();
+  let negative = false;
+  if (text.startsWith("(") && text.endsWith(")") && text.length > 1) {
+    negative = true;
+    text = text.slice(1, -1).trim();
+  }
+  text = text.replace(/^(rs\.?|pkr)\s*/i, "");
+  if (text.startsWith("-")) {
+    negative = !negative;
+  }
   let digits = "";
   let point = false;
-  for (const char of raw) {
+  for (const char of text) {
     if (char >= "0" && char <= "9") {
       digits += char;
     } else if (char === "." && !point) {
@@ -50,6 +61,12 @@ export function amountError(value: string, rule: AmountRule): string | null {
   const [whole, fraction] = value.replace(/^-/, "").split(".");
   if (whole === "" && (fraction ?? "") === "") {
     return "Enter an amount, e.g. 250000.";
+  }
+  // Digits on both sides of a point, as every backend requires ("250000." or ".5" aren't).
+  if (fraction !== undefined && (whole === "" || fraction === "")) {
+    return rule.decimals > 0
+      ? "Write it like 250000 or 250000.50."
+      : "Whole rupees only.";
   }
   if (whole.length > rule.maxDigits) {
     return rule.decimals > 0

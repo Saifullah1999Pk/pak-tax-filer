@@ -21,5 +21,8 @@ Loaded when working in `frontend/`. The root `CLAUDE.md` and `.claude/rules/` st
 
 - Money arrives from the API as decimal strings; display it as text, never do tax maths here
   (constitution, Principle I).
+- Input is checked here as well as on the server: amounts with `MoneyInput` and an `AmountRule`
+  matching the endpoint (`src/components/amountRule.ts`), uploads and tax years with
+  `src/components/fieldRules.ts`. A form refuses to submit while a rule fails.
 - In Docker the app runs on `http://localhost:5173`; tests run with
   `docker compose exec frontend npm test` or `npm test` on the host.
