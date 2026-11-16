@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { calculateTax } from "../api/calculator";
 import type {
@@ -95,18 +95,21 @@ export function CalculatorPage() {
         Type your incomes to see an idea of your tax. Nothing you type is saved.
       </p>
       <form onSubmit={submit} className="plain" noValidate>
-        <fieldset className="entry-row">
+        {/* The Wealth page's even grid of amounts (entry-row is its 4-column asset row). */}
+        <fieldset className="plain">
           <legend className="visually-hidden">Your incomes</legend>
-          {FIELDS.map(([field, label]) => (
-            <label key={field}>
-              {label}
-              <MoneyInput
-                inputMode="decimal"
-                value={amounts[field] ?? ""}
-                onChange={(e) => change(field, e.target.value)}
-              />
-            </label>
-          ))}
+          <div className="money-grid">
+            {FIELDS.map(([field, label]) => (
+              <label key={field}>
+                {label}
+                <MoneyInput
+                  inputMode="decimal"
+                  value={amounts[field] ?? ""}
+                  onChange={(e) => change(field, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
         </fieldset>
         <div className="save-bar">
           <button
@@ -179,53 +182,53 @@ function Figures({ result }: { result: CalculatorResult }) {
       ) : (
         <p>No slab tax: dividends and bank profit are taxed on their own.</p>
       )}
-      <dl className="figures">
-        {result.incomes.map((line) => (
-          <div key={line.source}>
-            <dt>
-              {SOURCES[line.source]} ({TREATMENTS[line.treatment]})
-            </dt>
-            <dd>
-              {rupees(line.yearly_amount)}
-              {/* Only rent is taxed on less than it is (the repairs allowance). */}
-              {line.source === "rent" && (
-                <>
-                  , taxed on <span>{rupees(line.taxable_amount)}</span>
-                </>
-              )}
-            </dd>
-          </div>
-        ))}
-        {result.table !== null && (
-          <TaxLine label="Tax on taxable income" amount={result.slab_tax} />
-        )}
-        <TaxLine label="Surcharge" amount={result.surcharge} hideZero />
-        <TaxLine
-          label="Tax on dividends"
-          amount={result.dividend_tax}
-          hideZero
-        />
-        <TaxLine
-          label="Tax on bank profit"
-          amount={result.profit_tax}
-          hideZero
-        />
-        <TaxLine label="Total tax" amount={result.total_tax} />
-      </dl>
+      <section aria-labelledby="figures-heading" className="panel">
+        <h3 id="figures-heading">Incomes and tax</h3>
+        {/* .figures is a two-column grid: each <dt>/<dd> pair is a row, so no wrapper. The
+            amount column holds only amounts; extra words go in the label, which can wrap. */}
+        <dl className="figures">
+          {result.incomes.map((line) => (
+            <Fragment key={line.source}>
+              <dt>
+                {SOURCES[line.source]} ({TREATMENTS[line.treatment]})
+                {/* Only rent is taxed on less than it is (the repairs allowance). */}
+                {line.source === "rent" && (
+                  <>
+                    , taxed on <span>{rupees(line.taxable_amount)}</span> after
+                    the repairs allowance
+                  </>
+                )}
+              </dt>
+              <dd>{rupees(line.yearly_amount)}</dd>
+            </Fragment>
+          ))}
+          {result.table !== null && (
+            <TaxLine label="Tax on taxable income" amount={result.slab_tax} />
+          )}
+          <TaxLine label="Surcharge" amount={result.surcharge} hideZero />
+          <TaxLine
+            label="Tax on dividends"
+            amount={result.dividend_tax}
+            hideZero
+          />
+          <TaxLine
+            label="Tax on bank profit"
+            amount={result.profit_tax}
+            hideZero
+          />
+          <TaxLine label="Total tax" amount={result.total_tax} />
+        </dl>
+      </section>
       {result.monthly !== null && (
         <section aria-labelledby="monthly-heading" className="panel">
           <h3 id="monthly-heading">Each month</h3>
           <dl className="figures">
-            <div>
-              <dt>Your employer deducts, on the salary alone</dt>
-              <dd>{rupees(result.monthly.salary_tax)}</dd>
-            </div>
-            <div>
-              <dt>Take-home pay</dt>
-              <dd>{rupees(result.monthly.take_home)}</dd>
-            </div>
+            <dt>Your employer deducts, on the salary alone</dt>
+            <dd>{rupees(result.monthly.salary_tax)}</dd>
+            <dt>Take-home pay</dt>
+            <dd>{rupees(result.monthly.take_home)}</dd>
           </dl>
-          <p className="hint">
+          <p className="plain-note">
             Any other tax on your incomes is settled with your return.
           </p>
         </section>
@@ -243,7 +246,7 @@ function Figures({ result }: { result: CalculatorResult }) {
               </li>
             ))}
           </ul>
-          <p className="hint">
+          <p className="plain-note">
             The tax itself is the same either way; only the amount deducted when
             you are paid changes. Whether extra tax deducted can be reclaimed
             isn't something this calculator says.
@@ -281,10 +284,10 @@ function TaxLine({
     return null;
   }
   return (
-    <div>
+    <>
       <dt>{label}</dt>
       <dd>{rupees(amount)}</dd>
-    </div>
+    </>
   );
 }
 
