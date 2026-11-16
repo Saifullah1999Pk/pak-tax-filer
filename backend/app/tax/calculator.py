@@ -19,7 +19,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
 from app.tax import breakdown as words
-from app.tax.engine import Step, band_for, rupees
+from app.tax.engine import Step, rupees, slab_tax
 from app.tax.rates.model import Band, Rule, Source, TaxYearRates
 
 Table = Literal["salaried", "non_salaried"]
@@ -221,8 +221,7 @@ def _figures(inputs: CalculatorInputs, rates: TaxYearRates) -> _Figures:
     if taxable > 0:
         salaried = salary_income > rates.salary_share_threshold.value * taxable
         table = "salaried" if salaried else "non_salaried"
-        band = band_for(rates.salary_bands if salaried else rates.non_salaried_bands, taxable)
-        slab = band.fixed + band.rate * (taxable - band.lower)
+        band, slab = slab_tax(rates.salary_bands if salaried else rates.non_salaried_bands, taxable)
 
     surcharge_rule = None
     surcharge = ZERO
@@ -264,8 +263,7 @@ def _monthly(inputs: CalculatorInputs, rates: TaxYearRates) -> MonthlyView | Non
     if inputs.salary_monthly <= 0:
         return None
     yearly = inputs.salary_monthly * MONTHS
-    band = band_for(rates.salary_bands, yearly)
-    tax = band.fixed + band.rate * (yearly - band.lower)
+    _band, tax = slab_tax(rates.salary_bands, yearly)
     if yearly > rates.surcharge_threshold.value:
         tax += rates.surcharge_rate.value * tax
     per_month = rupees(tax / MONTHS)

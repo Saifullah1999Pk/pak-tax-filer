@@ -14,7 +14,11 @@ from typing import Any
 import pytest
 import yaml
 
+from test_sign_off import EXAMPLES as ENGINE_EXAMPLES
+from test_worked_examples import inputs_from as engine_inputs
+
 from app.tax.calculator import CalculatorInputs, CalculatorResult, calculate_simple, percent_text
+from app.tax.engine import calculate
 from app.tax.rates import rates_for
 
 EXAMPLES_FILE = Path(__file__).with_name("calculator_examples.yaml")
@@ -113,3 +117,34 @@ def test_the_calculator_gives_the_worked_figures(example: dict[str, Any]) -> Non
 
     for name, expected in expected_of(example).items():
         assert same(actual[name], expected), f"{name}: {actual[name]!r} != {expected!r}"
+
+
+# ---- One engine: 004's signed examples give the same figures through the calculator ------------
+# (feature 010 FR-005; advisor review 2026-11-16). A certificate's yearly taxable salary goes in
+# as the bonus (yearly salary income), its bank profit as bank profit.
+
+ENGINE_CASES = [e for e in ENGINE_EXAMPLES if e["expected"]["blocked_reason"] is None]
+
+
+@pytest.mark.parametrize("example", ENGINE_CASES, ids=[e["id"] for e in ENGINE_CASES])
+def test_the_calculator_agrees_with_the_tax_page(example: dict[str, Any]) -> None:
+    """Fails if the calculator and 004's engine give different salary tax, surcharge or profit
+    tax for the same salary and bank profit (two engines that disagree are an anti-goal)."""
+    rates = rates_for("2025-26")
+    page = calculate(engine_inputs(example), rates)
+    salary = sum(
+        (Decimal(c["taxable_salary"]) for c in example["inputs"]["salary_certificates"]),
+        Decimal(0),
+    )
+    profit = sum(
+        (Decimal(c["profit_amount"]) for c in example["inputs"]["bank_certificates"]), Decimal(0)
+    )
+
+    calc = calculate_simple(
+        CalculatorInputs("2025-26", example["inputs"]["atl"], bonus=salary, bank_profit=profit),
+        rates,
+    )
+
+    assert calc.slab_tax == page.salary_tax
+    assert calc.surcharge == page.surcharge
+    assert calc.profit_tax == page.profit_tax

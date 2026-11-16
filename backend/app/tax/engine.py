@@ -73,6 +73,14 @@ def band_for(bands: tuple[Band, ...], income: Decimal) -> Band:
     raise ValueError("The bands don't cover this income.")
 
 
+def slab_tax(bands: tuple[Band, ...], income: Decimal) -> tuple[Band, Decimal]:
+    """The row for this income and its tax, exact: the row's fixed amount plus its rate on the
+    amount over its lower limit. The one place this formula lives (004's salary tax, 010's
+    calculator and monthly view)."""
+    band = band_for(bands, income)
+    return band, band.fixed + band.rate * (income - band.lower)
+
+
 def salary_band(rates: TaxYearRates, taxable_salary: Decimal) -> Band:
     """The row of the salaried table for this income ("does not exceed" the upper limit)."""
     return band_for(rates.salary_bands, taxable_salary)
@@ -110,9 +118,8 @@ def calculate(inputs: TaxInputs, rates: TaxYearRates) -> TaxResult:
     if reason is not None:
         return TaxResult(tax_year=inputs.tax_year, blocked_reason=reason)
 
-    band = salary_band(rates, inputs.taxable_salary)
+    band, salary_tax = slab_tax(rates.salary_bands, inputs.taxable_salary)
     row = rates.salary_bands.index(band)
-    salary_tax = band.fixed + band.rate * (inputs.taxable_salary - band.lower)
 
     income = inputs.taxable_salary + inputs.gross_profit
     surcharge = Decimal(0)
