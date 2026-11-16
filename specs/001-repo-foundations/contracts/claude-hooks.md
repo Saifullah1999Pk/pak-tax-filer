@@ -22,7 +22,9 @@ All six are tested by `pytest .claude/hooks/tests` with sample JSON inputs (CI h
 
 - **Matches tools:** `Edit`, `Write`, `MultiEdit`, `Bash`.
 - **Triggers when:** the tool's `file_path` is inside `backend/app/tax/rates/`, or a `Bash`
-  `command` contains `backend/app/tax/rates` (either slash direction).
+  `command` contains `tax/rates` or names a rates module (`rates/ty2026.py`, `rates/model.py`,
+  `rates/__init__.py`), either slash direction, so a command run from inside `backend/` is
+  caught too (widened 2026-11-16, feature 010 review: one edit from `backend/` went unprompted).
 - **When triggered, outputs:**
 
   ```json
