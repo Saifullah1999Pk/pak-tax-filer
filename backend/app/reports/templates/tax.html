@@ -23,6 +23,11 @@
 <p><strong>Not on the ATL:</strong> {{ rupees(result.non_atl_extra_withheld) }} extra tax withheld; whether it can be reclaimed needs confirmation.</p>
 {% endif %}
 <p class="muted">The two sides are shown separately; they are not added together.</p>
+{% if result.summary %}
+
+<h2>Summary</h2>
+<p>{{ result.summary }}</p>
+{% endif %}
 
 <h2>How it was worked out</h2>
 <ol class="steps">

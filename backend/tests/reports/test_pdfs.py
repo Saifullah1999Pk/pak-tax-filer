@@ -68,6 +68,7 @@ async def test_the_tax_pdf_has_the_banner_status_and_the_results_figures(
         assert squash(step["description"]) in document
         assert squash(step["rule_location"]) in document
     assert squash("Rs 72,000") in document  # salary tax
+    assert squash(result["summary"]) in document  # the screen's plain-code summary
 
 
 async def test_a_blocked_tax_result_exports_nothing(
@@ -121,6 +122,7 @@ async def test_the_wealth_pdf_has_the_reconciliation_as_computed(
     for step in body["result"]["steps"]:
         assert squash(step["description"]) in document
     assert squash("Car loan") in document and squash("Savings account") in document
+    assert squash(body["result"]["summary"]) in document  # the screen's plain-code summary
 
 
 async def test_a_wealth_statement_not_ready_exports_nothing(
