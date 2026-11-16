@@ -6,8 +6,12 @@ checks any of this (constitution Principle I).
 """
 
 from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
 
 from app.tax.rates.model import Band, Source
+
+if TYPE_CHECKING:  # the engine imports this module, so only for the type hint
+    from app.tax.engine import TaxResult
 
 
 def money(amount: Decimal) -> str:
@@ -71,3 +75,36 @@ def salary_tax(
             f"{money(band.fixed)} + {percent(band.rate)} of {money(over)} above {money(band.lower)}"
         )
     return f"{lead} {money(taxable)} {position}: {formula} {equals(exact, rounded)}"
+
+
+def _left(balance: Decimal, overpaid: str) -> str:
+    """How a summary sentence ends: still payable, paid too much, or nothing more."""
+    if balance > 0:
+        return f"{money(balance)} is still payable."
+    if balance < 0:
+        return f"{money(-balance)} was {overpaid} too much."
+    return "nothing more is payable."
+
+
+def tax_summary(result: "TaxResult") -> str | None:
+    """The result in two or three plain sentences, from its own amounts only; never the two
+    sides added together (design 2026-11-16-plain-summary). None when refused: its message
+    already says why."""
+    if result.blocked_reason is not None:
+        return None
+    zero = Decimal(0)
+    surcharge = result.surcharge or zero
+    salary = f"Your salary tax for {result.tax_year} is {money(result.salary_tax or zero)}"
+    if surcharge > 0:
+        salary += f" plus a surcharge of {money(surcharge)}"
+    salary += f". Your employers deducted {money(result.salary_credit or zero)}, so " + _left(
+        result.salary_balance or zero, "deducted"
+    )
+    profit_tax, profit_credit = result.profit_tax or zero, result.profit_credit or zero
+    if not profit_tax and not profit_credit:
+        return salary
+    return (
+        f"{salary} Tax on your bank profit is {money(profit_tax)}; after "
+        f"{money(profit_credit)} withheld by banks, "
+        + _left(result.profit_balance or zero, "withheld")
+    )

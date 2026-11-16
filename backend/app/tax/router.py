@@ -20,6 +20,7 @@ from app.auth.models import User
 from app.db import get_db
 from app.profile.dependencies import require_profile
 from app.profile.models import TaxpayerProfile
+from app.tax.breakdown import tax_summary
 from app.tax.calculator import calculate_simple
 from app.tax.calculator_schemas import CalculatorIn, CalculatorOut, calculator_out
 from app.tax.engine import TaxResult, calculate
@@ -55,6 +56,8 @@ class TaxOut(BaseModel):
     salary_credit: str | None
     profit_credit: str | None
     steps: list[StepOut]
+    # Plain sentences written by code from the figures above; null when blocked (2026-11-16).
+    summary: str | None
     label: str
 
 
@@ -80,6 +83,7 @@ def tax_out(result: TaxResult) -> TaxOut:
             StepOut(description=s.description, rule_location=s.rule_location, result=str(s.result))
             for s in result.steps
         ],
+        summary=tax_summary(result),
         label=LABEL,
     )
 

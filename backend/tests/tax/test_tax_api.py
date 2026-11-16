@@ -194,19 +194,30 @@ async def test_without_a_confirmed_salary_certificate_it_says_so(client: AsyncCl
     assert "salary certificate" in body["message"]
 
 
-async def test_the_result_carries_no_ai_summary(
+async def test_the_result_carries_a_summary_written_by_code(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
-    """Fails if the result gains an AI summary again (removed 2026-11-16: the breakdown explains
-    every figure, no AI needed)."""
+    """Fails if the result lacks its plain-code summary (the AI one was removed 2026-11-16;
+    design 2026-11-16-plain-summary), or it differs from the figures beside it."""
     await add_document(
         db, user_with_profile, DocType.SALARY_CERTIFICATE, salary("1800000", "60000")
     )
 
     body = (await client.get("/api/tax/2025-26")).json()
 
-    assert "summary" not in body
+    assert body["summary"] == (
+        "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 60,000, so "
+        "Rs 12,000 is still payable."
+    )
     assert body["salary_tax"] == "72000"
+
+
+@pytest.mark.usefixtures("user_with_profile")
+async def test_a_blocked_result_has_no_summary(client: AsyncClient) -> None:
+    """Fails if a refused calculation gets a summary: its message already says why."""
+    body = (await client.get("/api/tax/2025-26")).json()
+
+    assert body["blocked_reason"] is not None and body["summary"] is None
 
 
 async def test_another_users_certificates_are_never_counted(

@@ -19,6 +19,7 @@ Every response has **all** the fields below; a field that doesn't apply is `null
 | `salary_credit` | tax deducted by employers, rounded (s.219) | `null` |
 | `profit_credit` | tax withheld by banks as counted against the profit tax (non-ATL: up to the profit tax), rounded | `null` |
 | `steps` | the breakdown, in order | `[]` |
+| `summary` | plain sentences written by code from the amounts above (added 2026-11-16) | `null` |
 | `label` | always | always |
 
 Credits (tax deducted by employers, tax withheld by banks) appear in the salary-side and
@@ -41,6 +42,7 @@ that counts.
       "rule_location": "Income Tax Ordinance 2001 (amended up to 31.07.2025), First Schedule, Part I, Division I, clause (2), row 3",
       "result": "72000" }
   ],
+  "summary": "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 75,000, so Rs 3,000 was deducted too much. Tax on your bank profit is Rs 10,000; after Rs 10,000 withheld by banks, nothing more is payable.",
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```
@@ -54,7 +56,7 @@ that counts.
   "salary_tax": null, "surcharge": null, "profit_tax": null,
   "salary_balance": null, "profit_balance": null, "non_atl_extra_withheld": null,
   "salary_credit": null, "profit_credit": null,
-  "steps": [],
+  "steps": [], "summary": null,
   "label": "Not yet reviewed by a tax practitioner. Not tax advice."
 }
 ```

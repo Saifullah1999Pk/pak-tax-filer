@@ -161,7 +161,9 @@ fixed amount by 1 rupee and confirm the consistency check fails.
   its rule and source.
 - **FR-011**: An AI-written summary MAY be shown only when every number in it appears in the
   breakdown; otherwise it MUST be omitted. *(Removed 2026-11-16, the lead: no AI where no
-  reasoning is needed. There is no AI summary; the breakdown (FR-010) explains every figure.)*
+  reasoning is needed. There is no AI summary; the breakdown (FR-010) explains every figure. Amended again 2026-11-16:
+  a short summary written by code from the result's own amounts, never the two sides added
+  together, and none when blocked; design `docs/superpowers/specs/2026-11-16-plain-summary-design.md`.)*
 - **FR-012**: The system MUST refuse to calculate, with a reason, when the user has no taxpayer profile,
   no confirmed salary certificate exists, summed bank profit exceeds Rs 5 million, or the 75%
   salary condition or the Rs 10 million surcharge limit gives different answers with and without

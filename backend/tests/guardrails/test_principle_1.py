@@ -3,12 +3,14 @@ research R5).
 
 The tax, wealth and guided-filing results must equal the hand-worked, signed-off examples to the
 rupee. Since 2026-11-16 no AI rewords these results at all (the lead: AI only where reasoning is
-needed); the last test fails if an AI summary comes back.
+needed); the last test fails if an AI summary comes back, or the code-written one adds a figure.
 """
 
 # pytest fixtures receive other fixtures by name.
 # pylint: disable=redefined-outer-name
 
+import re
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -116,9 +118,14 @@ async def test_no_ai_rewords_a_computed_result(
     client: AsyncClient, db: AsyncSession, user_with_profile: User
 ) -> None:
     """Fails if an AI summary of the tax or wealth result comes back (amended 2026-11-16, the
-    lead: no AI where no reasoning is needed; the step-by-step breakdowns explain the figures)."""
+    lead: no AI where no reasoning is needed), or if the code-written summary states an amount
+    the result doesn't hold (design 2026-11-16-plain-summary: no new figures)."""
     await tax_certificates(db, user_with_profile)
 
     for page in ("tax", "wealth"):
         assert (await client.get(f"/api/{page}/{PROFILE_YEAR}/summary")).status_code == 404, page
-    assert "summary" not in (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()
+    body = (await client.get(f"/api/tax/{PROFILE_YEAR}")).json()
+    held = (*TAX_FIGURES, "salary_credit", "profit_credit")
+    figures = {abs(Decimal(body[name])) for name in held if body.get(name) is not None}
+    stated = {Decimal(a.replace(",", "")) for a in re.findall(r"Rs ([\d,.]+\d)", body["summary"])}
+    assert stated and stated <= figures, (stated, figures)
