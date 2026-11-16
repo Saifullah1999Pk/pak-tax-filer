@@ -26,6 +26,10 @@ test("a confirmed salary certificate gives the tax result and its PDF", async ({
   await expect(page.getByText("Rs 72,000").first()).toBeVisible();
   // The headline (the breakdown says it too).
   await expect(page.getByText("Rs 3,000 over-deducted").first()).toBeVisible();
+  // The summary, written by code on the server (2026-11-16; it replaced the AI one).
+  await expect(page.getByRole("region", { name: "Summary" })).toContainText(
+    "Tax deducted from your salary was Rs 75,000, so Rs 3,000 was deducted too much.",
+  );
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PDF" }).click();

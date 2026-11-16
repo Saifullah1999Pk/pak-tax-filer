@@ -23,6 +23,10 @@ test("a guided run stops for approval, then shows the result", async ({
     page.getByRole("heading", { name: "Your result" }),
   ).toBeVisible();
   await expect(page.getByText(LABEL)).toBeVisible();
+  // The same code-written summary as the Tax page (it reuses the Tax view).
+  await expect(page.getByRole("region", { name: "Summary" })).toContainText(
+    "Your salary tax for 2025-26 is",
+  );
 
   await page.getByRole("button", { name: "Mark done" }).click();
   await expect(page.getByText(/^Done on /)).toBeVisible();
