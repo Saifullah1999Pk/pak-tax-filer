@@ -219,6 +219,8 @@ const TAX_BODY = {
       result: "72000",
     },
   ],
+  summary:
+    "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 75,000, so Rs 3,000 was deducted too much.",
   label: "Not yet reviewed by a tax practitioner. Not tax advice.",
 };
 const RESULT_BODY = { ...TAX_BODY, passages: AT_GATE.research!.passages };

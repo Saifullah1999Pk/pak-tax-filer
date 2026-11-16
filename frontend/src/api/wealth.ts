@@ -64,6 +64,8 @@ export type WealthResult = {
   direction: Direction | null;
   where_to_look: string[];
   steps: WealthStep[];
+  /** Plain sentences written by code on the server from the figures; null when not ready. */
+  summary: string | null;
 };
 
 export type Wealth = {

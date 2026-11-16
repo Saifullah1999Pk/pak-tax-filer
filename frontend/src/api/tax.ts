@@ -28,6 +28,8 @@ export type TaxResult = {
   /** Tax withheld by banks, as counted against the profit tax. */
   profit_credit: string | null;
   steps: TaxStep[];
+  /** Plain sentences written by code on the server from the figures; null when blocked. */
+  summary: string | null;
   label: string;
 };
 

@@ -18,6 +18,7 @@ import type {
 } from "../api/wealth";
 import { DownloadPdfButton } from "../components/DownloadPdfButton";
 import { MoneyInput } from "../components/MoneyInput";
+import { SummaryPanel } from "../components/SummaryPanel";
 import { WHOLE_RUPEES, amountError } from "../components/amountRule";
 import type { AmountRule } from "../components/amountRule";
 import { useProfile } from "../profile/ProfileContext";
@@ -618,6 +619,11 @@ function Result({ result, label, taxYear, edited }: ResultProps) {
               ? "Save your changes first: the PDF is of your saved statement."
               : null
         }
+      />
+      <SummaryPanel
+        summary={result.summary}
+        headingId="wealth-summary-heading"
+        level={3}
       />
       {result.message && <p className="result-message">{result.message}</p>}
       {result.not_ready_reason === null && (

@@ -38,6 +38,8 @@ const CALCULATED: TaxResult = {
       result: "20000",
     },
   ],
+  summary:
+    "Your salary tax for 2025-26 is Rs 72,000. Your employers deducted Rs 60,000, so Rs 12,000 is still payable.",
   label: LABEL,
 };
 
@@ -68,6 +70,7 @@ function blocked(reason: string, message: string): Partial<TaxResult> {
     salary_balance: null,
     profit_balance: null,
     steps: [],
+    summary: null,
   };
 }
 
@@ -118,8 +121,8 @@ test("the breakdown shows every step with its rule location", async () => {
   within(steps[1]).getByText(/Division IIIA/);
 });
 
-// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary; the
-// step-by-step breakdown explains every figure.
+// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary. The
+// result's own `summary`, written by code on the server, is shown as given.
 
 test("the page never asks for an AI summary", async () => {
   const fake = showTax({});
@@ -130,7 +133,22 @@ test("the page never asks for an AI summary", async () => {
     String(url).endsWith("/summary"),
   );
   expect(asked).toBe(false);
-  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+});
+
+test("shows the result's summary as the API gives it", async () => {
+  showTax({});
+  renderApp("/tax");
+
+  const summary = await screen.findByRole("region", { name: "Summary" });
+  expect(summary.textContent).toContain("so Rs 12,000 is still payable.");
+});
+
+test("shows no summary panel when the API sends none", async () => {
+  showTax({ summary: null });
+  renderApp("/tax");
+
+  await screen.findByRole("list", { name: /how it was worked out/i });
+  expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
 });
 
 test("without ATL status it links to the profile, with no figures", async () => {

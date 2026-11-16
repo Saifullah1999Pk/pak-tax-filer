@@ -77,6 +77,8 @@ const SAVED: Wealth = {
         result: "0",
       },
     ],
+    summary:
+      "Your net assets at the end of 2025-26 are Rs 1,150,000, Rs 950,000 less than last year. Your inflows were Rs 1,800,000 and your outflows Rs 2,750,000.",
   },
   label: LABEL,
 };
@@ -473,8 +475,8 @@ test("a gap shows its message and where to look", async () => {
   within(look).getByText("A gift you received");
 });
 
-// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary; the
-// breakdown and "where to look" explain the result.
+// Amended 2026-11-16 (the lead: no AI where no reasoning is needed): no AI summary. The
+// result's own `summary`, written by code on the server, is shown as given.
 
 test("the page never asks for an AI summary, before or after a save", async () => {
   const fake = serve();
@@ -486,7 +488,19 @@ test("the page never asks for an AI summary, before or after a save", async () =
   expect(
     fake.mock.calls.some(([url]) => String(url).endsWith("/summary")),
   ).toBe(false);
-  expect(screen.queryByRole("region", { name: /summary/i })).toBeNull();
+});
+
+test("shows the result's summary above its message", async () => {
+  serve();
+  await open();
+
+  const summary = await screen.findByRole("region", { name: "Summary" });
+  expect(summary.textContent).toContain("Rs 950,000 less than last year.");
+  expect(
+    summary.compareDocumentPosition(
+      screen.getByText("Your wealth statement reconciles."),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 // Task T023 (User Story 3): honest limits and staying in sync.
@@ -505,11 +519,13 @@ test("a not-ready statement shows what to do and no breakdown", async () => {
       unreconciled: null,
       direction: null,
       steps: [],
+      summary: null,
     },
   });
   await open();
 
   screen.getByText(/enter your net assets as on 30 june 2025, from last year/i);
+  expect(screen.queryByRole("region", { name: "Summary" })).toBeNull();
   expect(
     screen.queryByRole("list", { name: /how it was worked out/i }),
   ).toBeNull();
