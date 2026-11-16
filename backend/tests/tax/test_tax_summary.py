@@ -71,7 +71,8 @@ def test_balanced_sides_say_nothing_more_is_payable() -> None:
     )
 
     assert summary is not None
-    assert "Rs 72,000, so nothing more is payable." in summary
+    # Names its side, so it never reads as an answer for both (review, 2026-11-16).
+    assert "Rs 72,000, so nothing more is payable on your salary." in summary
     assert summary.endswith("Rs 2,000 was withheld too much.")
 
 
@@ -98,4 +99,27 @@ def test_off_the_atl_the_extra_withheld_stays_out() -> None:
     summary = tax_summary(off_atl)
 
     assert summary is not None and "5,000" not in summary
-    assert summary.endswith("after Rs 10,000 withheld by banks, nothing more is payable.")
+    # Banks withheld Rs 15,000: only the part counted against the tax is named, as such.
+    assert summary.endswith(
+        "counting Rs 10,000 of what banks withheld, nothing more is payable on your bank profit."
+    )
+
+
+def test_off_the_atl_with_withholding_below_the_tax() -> None:
+    """Fails if an off-ATL user who still owes on bank profit isn't told so."""
+    figures = result(
+        salary_tax="72000",
+        salary_credit="72000",
+        profit_tax="15000",
+        profit_credit="10000",
+        profit_balance="5000",
+    )
+    off_atl = replace(figures, non_atl_extra_withheld=Decimal(0))
+
+    summary = tax_summary(off_atl)
+
+    assert summary is not None
+    assert summary.endswith(
+        "Tax on your bank profit is Rs 15,000; counting Rs 10,000 of what banks withheld, "
+        "Rs 5,000 is still payable."
+    )

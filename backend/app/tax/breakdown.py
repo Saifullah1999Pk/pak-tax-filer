@@ -77,13 +77,14 @@ def salary_tax(
     return f"{lead} {money(taxable)} {position}: {formula} {equals(exact, rounded)}"
 
 
-def _left(balance: Decimal, overpaid: str) -> str:
-    """How a summary sentence ends: still payable, paid too much, or nothing more."""
+def _left(balance: Decimal, overpaid: str, side: str) -> str:
+    """How a summary sentence ends: still payable, paid too much, or nothing more on this side
+    (named, so it never reads as an answer for both)."""
     if balance > 0:
         return f"{money(balance)} is still payable."
     if balance < 0:
         return f"{money(-balance)} was {overpaid} too much."
-    return "nothing more is payable."
+    return f"nothing more is payable on {side}."
 
 
 def tax_summary(result: "TaxResult") -> str | None:
@@ -98,13 +99,17 @@ def tax_summary(result: "TaxResult") -> str | None:
     if surcharge > 0:
         salary += f" plus a surcharge of {money(surcharge)}"
     salary += f". Your employers deducted {money(result.salary_credit or zero)}, so " + _left(
-        result.salary_balance or zero, "deducted"
+        result.salary_balance or zero, "deducted", "your salary"
     )
     profit_tax, profit_credit = result.profit_tax or zero, result.profit_credit or zero
     if not profit_tax and not profit_credit:
         return salary
-    return (
-        f"{salary} Tax on your bank profit is {money(profit_tax)}; after "
-        f"{money(profit_credit)} withheld by banks, "
-        + _left(result.profit_balance or zero, "withheld")
+    # Off the ATL only withholding up to the tax counts, so the credit may be less than banks
+    # withheld: say it is the part counted (the extra stays in the page's own notice).
+    if result.non_atl_extra_withheld is not None:
+        credit = f"counting {money(profit_credit)} of what banks withheld, "
+    else:
+        credit = f"after {money(profit_credit)} withheld by banks, "
+    return f"{salary} Tax on your bank profit is {money(profit_tax)}; {credit}" + _left(
+        result.profit_balance or zero, "withheld", "your bank profit"
     )
