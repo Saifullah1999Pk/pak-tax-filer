@@ -272,3 +272,42 @@ async def test_the_app_runs_the_writer_while_saving_is_on(monkeypatch: pytest.Mo
         async with main.lifespan(main.app):
             pass
         assert started == expected
+
+
+async def test_the_writer_survives_an_error_outside_the_write(db: AsyncSession) -> None:
+    """Fails if an error opening a session (or rolling back) stops saving for good (review L1):
+    the next beat must still save."""
+    connection = await db.connection()
+    real = async_sessionmaker(
+        bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False
+    )
+    calls = 0
+
+    def sessions() -> AsyncSession:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("database not ready")
+        return real()
+
+    queue = store.new_queue()
+    now = int(datetime.now(UTC).timestamp() * 1e9)
+    store.DatabaseSpanExporter(queue).export(
+        [
+            ReadableSpan(
+                name="GET /",
+                kind=SpanKind.SERVER,
+                attributes={"http.route": "/"},
+                start_time=now,
+                end_time=now + 1,
+                status=Status(StatusCode.UNSET),
+            )
+        ]
+    )
+
+    async with store.writer(sessions, queue, interval=0.01):  # type: ignore[arg-type]
+        with anyio.fail_after(5):
+            while calls < 3:
+                await anyio.sleep(0.01)
+
+    assert (await db.execute(select(func.count()).select_from(TelemetrySpan))).scalar_one() == 1

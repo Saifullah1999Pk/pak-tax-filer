@@ -100,7 +100,7 @@ from options at each step.
 - `/admin` has its own login page (starlette-admin's). Only active admin accounts get in; a
   taxpayer account, a wrong password and a disabled account all get the same generic refusal.
   Failures are throttled like the app's login (feature 002's `throttle`), counted under a separate
-  key (`admin:` + email) so failures on the public login can't lock an admin out of `/admin`.
+  key (`" admin:"` + email; a leading space, which the public login can't produce) so failures on the public login can't lock an admin out of `/admin`.
 - Session: the app's own `sessions` table (hashed tokens, `create_session`), with a separate
   `admin_session` cookie: `HttpOnly`, `Secure` unless `COOKIE_SECURE=false`, `SameSite=Strict`,
   path `/admin`, and a shorter lifetime than the app's 7 days (8 hours, my call: the norm for admin

@@ -68,6 +68,9 @@ async def create_token_command(
     if user is None:
         print(f"No user {normalize_email(email)}; no token created.", file=err)
         return 1
+    if not user.can_use_app:  # an admin's or a disabled account's token would never work
+        print(f"{user.email} can't use the app (admin or disabled); no token created.", file=err)
+        return 1
     try:
         token = await create_token(db, user.id, name)
     except ValueError as error:

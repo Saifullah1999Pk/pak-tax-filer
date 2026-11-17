@@ -158,8 +158,19 @@ async def _run(
     beats = 0
     while True:
         await anyio.sleep(interval)
-        await _beat(sessions, queue, clean_up=beats % cleanups_every == 0)
+        await _safe_beat(sessions, queue, clean_up=beats % cleanups_every == 0)
         beats += 1
+
+
+async def _safe_beat(
+    sessions: async_sessionmaker[AsyncSession], queue: deque[Row], *, clean_up: bool
+) -> None:
+    """A beat that can't stop the writer: an error outside the write itself (opening or closing
+    a session, a rollback) is logged by type and the next beat tries again (review L1)."""
+    try:
+        await _beat(sessions, queue, clean_up=clean_up)
+    except Exception as error:  # pylint: disable=broad-exception-caught  # keep saving
+        _log.warning("A telemetry write failed (%s).", type(error).__name__)
 
 
 @asynccontextmanager
@@ -173,7 +184,7 @@ async def writer(
             yield
         finally:
             tasks.cancel_scope.cancel()
-    await _beat(sessions, queue, clean_up=False)  # what was queued since the last beat
+    await _safe_beat(sessions, queue, clean_up=False)  # what was queued since the last beat
 
 
 # ---- The telemetry page's figures (T029; FR-022) ----

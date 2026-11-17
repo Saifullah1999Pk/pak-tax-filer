@@ -34,8 +34,11 @@ class StorageDown(Exception):
     """File storage couldn't be reached, so the account was not deleted."""
 
 
-async def _taxpayer(db: AsyncSession, user_id: uuid.UUID) -> User:
-    user = await db.get(User, user_id)
+async def _taxpayer(db: AsyncSession, user_id: uuid.UUID, *, lock: bool = False) -> User:
+    query = select(User).where(User.id == user_id)
+    if lock:  # held until the transaction ends
+        query = query.with_for_update().execution_options(populate_existing=True)
+    user = (await db.execute(query)).scalar_one_or_none()
     if user is None:
         raise AccountGone("That account no longer exists.")
     if user.is_admin:
@@ -69,8 +72,12 @@ async def delete_account(
 ) -> None:
     """Remove every stored file first, then the account and everything that cascades from it
     (FR-014c). If storage can't be reached, no record is touched; a retry is safe, since a file
-    already removed counts as removed."""
-    user = await _taxpayer(db, user_id)
+    already removed counts as removed.
+
+    The account row is locked first (review M1): an upload still in flight (its document row not
+    yet committed) finishes before the files are read, and a later one fails on its foreign key
+    and removes its own file, so no file is left behind."""
+    user = await _taxpayer(db, user_id, lock=True)
     locations = (
         await db.execute(select(Document.file_path).where(Document.user_id == user_id))
     ).scalars()

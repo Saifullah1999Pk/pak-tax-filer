@@ -12,7 +12,8 @@ export default defineConfig({
       "/api": "http://backend:8000",
       // The admin area's pages come from the backend too (feature 011). The Host is kept: the
       // admin library builds absolute links from it, and backend:8000 means nothing to a browser.
-      "/admin": { target: "http://backend:8000", changeOrigin: false },
+      // A regex key: /admin and /admin/... only, as Caddy routes them (not e.g. /admin-help).
+      "^/admin(/|$)": { target: "http://backend:8000", changeOrigin: false },
     },
     // File-change events don't reach a Linux container from a Windows (or macOS) host folder,
     // so in Docker Vite polls instead; docker-compose.yml sets VITE_USE_POLLING=true.

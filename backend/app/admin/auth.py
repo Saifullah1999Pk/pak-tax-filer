@@ -2,8 +2,8 @@
 
 Admins sign in with the app's own hashed-token sessions (feature 002), under their own cookie:
 `admin_session`, HttpOnly, SameSite=Strict, path /admin, 8 hours. Only active admin accounts get
-in; everyone else gets one generic answer. Failures are throttled like the app's login, counted
-under "admin:" + email so failures on the public login page can't lock an admin out.
+in; everyone else gets one generic answer. Failures are throttled like the app's login, under a
+key the public login can't produce (THROTTLE_PREFIX), so failing there can't lock an admin out.
 """
 
 from datetime import timedelta
@@ -26,6 +26,11 @@ LIFETIME = timedelta(hours=8)
 # The app's own words (feature 002), so the two sign-ins can't be told apart.
 INVALID = "Invalid email or password."
 TOO_MANY_ATTEMPTS = "Too many attempts. Try again later."
+# The public login's limits (app/auth/router.py), checked before anything is hashed or stored.
+MAX_EMAIL, MAX_PASSWORD = 254, 1024
+# Admin failures are throttled under this prefix. It starts with a space, which the public login
+# can never produce (normalize_email strips spaces), so failing there can't lock an admin out.
+THROTTLE_PREFIX = " admin:"
 
 
 def is_admin(user: User | None) -> bool:
@@ -41,9 +46,11 @@ class AdminAuthProvider(AuthProvider):
     ) -> Response | None:
         """Admit an active admin and set the admin cookie; one answer for everything else."""
         del remember_me  # admin sessions are always 8 hours
+        if len(username) > MAX_EMAIL or len(password) > MAX_PASSWORD:
+            raise LoginFailed(INVALID)  # nothing stored for oversized input (review M2)
         db = request.state.session
         email = normalize_email(username)
-        key = f"admin:{email}"
+        key = f"{THROTTLE_PREFIX}{email}"
         await throttle.one_attempt_at_a_time(db, key)
         if await throttle.is_throttled(db, key):
             raise LoginFailed(TOO_MANY_ATTEMPTS)

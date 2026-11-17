@@ -9,7 +9,7 @@ import pytest
 from admin_helpers import make_admin
 from conftest import make_user
 from document_helpers import add_confirmed_document
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin import actions
@@ -201,3 +201,28 @@ async def test_deleting_an_admin_account_is_refused(db: AsyncSession, tmp_path: 
         await actions.delete_account(db, Storage(tmp_path), admin.id, other.id)
 
     assert (await db.get(User, other.id)) is not None
+
+
+async def test_delete_locks_the_account_before_reading_its_files(
+    db: AsyncSession, tmp_path: Path
+) -> None:
+    """Fails if an upload still in flight could add a file after the delete read the list (review
+    M1): the account row is locked first, so an in-flight upload commits before the files are read
+    and a later one fails on its foreign key (and removes its own file)."""
+    admin = await make_admin(db)
+    user = await make_user(db, "alice@example.com")
+    statements: list[str] = []
+
+    def record(_conn: object, _cursor: object, statement: str, *_args: object) -> None:
+        statements.append(" ".join(statement.split()).upper())
+
+    engine = (await db.connection()).sync_connection.engine  # type: ignore[union-attr]
+    event.listen(engine, "before_cursor_execute", record)
+    try:
+        await actions.delete_account(db, Storage(tmp_path), admin.id, user.id)
+    finally:
+        event.remove(engine, "before_cursor_execute", record)
+
+    lock = next(i for i, s in enumerate(statements) if "FROM USERS" in s and "FOR UPDATE" in s)
+    files = next(i for i, s in enumerate(statements) if "DOCUMENTS.FILE_PATH" in s)
+    assert lock < files

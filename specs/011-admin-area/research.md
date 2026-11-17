@@ -29,7 +29,7 @@ the code). Recorded in the plan as a new dependency (constitution, Technology se
 - `login(username, password, remember_me, request)`: one attempt at a time per key, refuse if
   throttled, check the password with the app's existing password check, and admit only an account
   with `is_admin` and no `disabled_at`; any failure records a throttle failure under the key
-  `admin:` + email and raises `LoginFailed` with one generic message. On success it creates a row in
+  `" admin:"` + email (a leading space the public login can't produce: review M3; over-long input refused first: review M2) and raises `LoginFailed` with one generic message. On success it creates a row in
   the app's `sessions` table (`sessions.create_session`, given an 8-hour lifetime) and returns a
   redirect to the admin index that sets the `admin_session` cookie: `HttpOnly`,
   `Secure` unless `COOKIE_SECURE=false`, `SameSite=Strict`, `Path=/admin`, max age 8 hours.

@@ -5,6 +5,7 @@ The taxpayer app answers an admin or a disabled account exactly as it answers a 
 or no session, so nothing tells an outsider which accounts are which.
 """
 
+import io
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import Session, User
 from app.auth.passwords import hash_password
 from app.auth.sessions import SESSION_LIFETIME, create_session
+from app.cli import create_token_command
 from app.tokens.service import create_token, owner_of
 
 pytestmark = pytest.mark.anyio
@@ -105,3 +107,17 @@ async def test_a_session_can_be_given_a_shorter_lifetime(db: AsyncSession) -> No
     ).all()
     assert timedelta(hours=7, minutes=59) < short - before <= timedelta(hours=8, seconds=5)
     assert SESSION_LIFETIME - timedelta(minutes=1) < default - before
+
+
+@pytest.mark.parametrize(("admin", "disabled"), [(True, False), (False, True)])
+async def test_create_token_refuses_admin_and_disabled_accounts(
+    db: AsyncSession, admin: bool, disabled: bool
+) -> None:
+    """Fails if the command line makes a token that could never be used (review L6)."""
+    await account(db, "someone@example.com", admin=admin, disabled=disabled)
+    out, err = io.StringIO(), io.StringIO()
+
+    code = await create_token_command(db, "someone@example.com", "laptop", out=out, err=err)
+
+    assert code == 1 and out.getvalue() == ""
+    assert "can't use the app" in err.getvalue()

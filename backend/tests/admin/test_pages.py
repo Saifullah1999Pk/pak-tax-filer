@@ -210,3 +210,26 @@ async def test_admin_pages_load_nothing_from_outside_sites(db: AsyncSession) -> 
             url for pair in loads for url in pair if url and urlsplit(url).hostname != "test"
         ]
         assert outside == []
+
+
+async def test_what_users_typed_is_shown_escaped(db: AsyncSession) -> None:
+    """Fails if an email with HTML in it runs as script on an admin page (review: the admin pages
+    share the taxpayer app's origin, so XSS there would act with admin rights)."""
+    admin = await make_admin(db)
+    evil = await make_user(db, "<script>alert(1)</script>@example.com")
+    await audit.record(db, admin.id, "view_account", evil.id)
+
+    async with admin_client(db) as http:
+        await sign_in(http)
+        pages = [
+            (await http.get(path)).text
+            for path in (
+                "/admin/account/list",
+                f"/admin/account/detail?pk={evil.id}",
+                "/admin/audit-log/list",
+            )
+        ]
+
+    for page in pages:
+        assert "<script>alert(1)</script>" not in page
+        assert "&lt;script&gt;" in page

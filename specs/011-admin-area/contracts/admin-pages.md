@@ -11,7 +11,7 @@ an `api.yaml`. This file is what the tests check.
 | Not signed in to the admin area | Every admin page redirects to `/admin/login` |
 | Active admin account | Every page below |
 | Taxpayer account, wrong password, disabled account, unknown email | `/admin/login` shows one message: "Invalid email or password." (the app's own wording, the same for all) |
-| More than 10 failed admin sign-ins for one email in 15 minutes | "Too many attempts. Try again later." (feature 002's numbers; counted under `admin:` + email, separately from the app's sign-in) |
+| More than 10 failed admin sign-ins for one email in 15 minutes | "Too many attempts. Try again later." (feature 002's numbers; counted under a key the public login can't produce, a space then `admin:` + email (review M3); emails or passwords over 254/1024 characters are refused before anything is stored (review M2)) |
 
 **Session cookie** `admin_session`: `HttpOnly`; `Secure` unless `COOKIE_SECURE=false`;
 `SameSite=Strict`; `Path=/admin`; max age 8 hours; the value is a random token whose SHA-256 is
@@ -25,8 +25,8 @@ clears the cookie. The login form labels the email field "Username" (the library
 | Page | Path (library's) | Shows | Allowed |
 |---|---|---|---|
 | Dashboard | `/admin/` | FR-006's counts | view |
-| Accounts | `/admin/user/list` | email, created, admin, disabled; search by email | view; the four actions on taxpayer rows |
-| Account | `/admin/user/detail?pk=…` | email, created, admin, disabled; tax year and ATL; documents (type, status, tax year, uploaded); Tax result (figures or refusal reason, from 004); guided-run step as stored | view (writes one `view_account` audit entry); the four actions on a taxpayer account |
+| Accounts | `/admin/account/list` | email, created, admin, disabled; search by email | view; the four actions on taxpayer rows |
+| Account | `/admin/account/detail?pk=…` | email, created, admin, disabled; tax year and ATL; documents (type, status, tax year, uploaded); Tax result (figures or refusal reason, from 004); guided-run step as stored | view (writes one `view_account` audit entry); the four actions on a taxpayer account |
 | Documents | `/admin/document/list` | type, status, tax year, uploaded, owner email | view (no detail page, no file) |
 | Law library | `/admin/corpus-document/list` | each corpus document with its passage count | view |
 | Telemetry | `/admin/telemetry` | FR-022's figures, last 30 days | view |

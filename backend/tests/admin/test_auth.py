@@ -98,7 +98,7 @@ async def test_failures_are_throttled_separately_from_the_app(
 
     assert locked.status_code == 400 and "Too many attempts. Try again later." in locked.text
     stored = (await db.scalars(select(LoginFailure.email).distinct())).all()
-    assert stored == [f"admin:{ADMIN_EMAIL}"]
+    assert stored == [f"{auth_module.THROTTLE_PREFIX}{ADMIN_EMAIL}"]
     taxpayer = await make_user(db, "demo@example.com")
     app_login = await client.post(
         "/api/auth/login", json={"email": taxpayer.email, "password": TEST_PASSWORD}
@@ -152,3 +152,38 @@ def test_the_app_serves_the_admin_area_at_admin() -> None:
     from app.main import app  # pylint: disable=import-outside-toplevel
 
     assert "/admin" in [getattr(route, "path", None) for route in app.routes]
+
+
+async def test_failures_on_the_public_login_never_reach_the_admin_throttle(
+    db: AsyncSession, client: AsyncClient
+) -> None:
+    """Fails if 10 failed public logins for "admin:" + an admin's email lock the admin out of
+    /admin (review M3: the two throttles must not share a key)."""
+    await make_admin(db)
+    for _ in range(10):
+        await client.post(
+            "/api/auth/login", json={"email": f"admin:{ADMIN_EMAIL}", "password": "wrong-pass"}
+        )
+
+    async with admin_client(db) as http:
+        response = await sign_in(http)
+
+    assert response.status_code == 303
+
+
+@pytest.mark.parametrize(
+    ("email", "password"),
+    [("a" * 250 + "@example.com", ADMIN_PASSWORD), (ADMIN_EMAIL, "p" * 1025)],
+)
+async def test_oversized_sign_ins_are_refused_without_storing_anything(
+    db: AsyncSession, email: str, password: str
+) -> None:
+    """Fails if the admin login accepts any length (the public login caps 254/1024) or stores a
+    failure for it, which would let anyone fill the disk (review M2)."""
+    await make_admin(db)
+
+    async with admin_client(db) as http:
+        response = await sign_in(http, email, password)
+
+    assert response.status_code == 400 and INVALID in response.text
+    assert (await db.execute(select(func.count()).select_from(LoginFailure))).scalar_one() == 0
