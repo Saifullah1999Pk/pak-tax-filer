@@ -143,8 +143,17 @@ outside resource.
 
 ## R13. Logging
 
-**Decision:** set the `starlette_admin` logger to `WARNING`: at `INFO` it logs each detail page's
-record id.
+**Decision:** set the `starlette_admin` logger to `CRITICAL` (amended during T013, from WARNING):
+at `INFO` and `WARNING` the installed version logs the typed login email (`username=...`) on every
+sign-in, and each detail page's record id; personal data never reaches our logs.
+
+**Also found in T013:** the library's logout accepts POST only (with the CSRF token, field
+`csrftoken`); its own CSRF cookie is `SameSite=Lax` (a double-submit token, not a login; the
+`admin_session` cookie stays Strict); its login form labels the field "Username" inside a block
+that also holds the password field, so relabelling it would mean copying the whole page (not
+done, recorded as a ruling); "Remember me" is shown but ignored (admin sessions are always 8 hours).
+The admin is mounted with a session factory built on first use (`AppSessions`), so importing the
+app still needs no `DATABASE_URL`.
 
 ## R14. Keeping AI out
 

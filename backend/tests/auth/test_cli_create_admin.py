@@ -5,7 +5,7 @@ email (any letter case) is refused, so a taxpayer account is never turned into a
 """
 
 import io
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 
 import pytest
 from sqlalchemy import func, select
@@ -77,8 +77,8 @@ def test_the_command_is_on_the_command_line(monkeypatch: pytest.MonkeyPatch) -> 
         called["email"] = email
         return 0
 
-    async def fake_session(command: Callable[[object], object]) -> int:
-        return await command(None)  # type: ignore[misc]
+    async def fake_session(command: Callable[[object], Awaitable[int]]) -> int:
+        return await command(None)
 
     monkeypatch.setattr(cli, "create_admin_command", fake_command)
     monkeypatch.setattr(cli, "_in_session", fake_session)

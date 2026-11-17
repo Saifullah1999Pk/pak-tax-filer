@@ -79,7 +79,7 @@ def load_settings(environ: Mapping[str, str]) -> Settings:
         answer_effort=_effort(environ, "ANSWER_EFFORT", default="minimal"),
         ask_daily_limit=_positive_int(environ, "ASK_DAILY_LIMIT", default=200),
         otel_exporter=otel_exporter(environ),
-        admin_secret_key=environ.get("ADMIN_SECRET_KEY", "").strip() or None,
+        admin_secret_key=admin_secret_key(environ),
         telemetry_store=telemetry_store(environ),
     )
 
@@ -91,6 +91,12 @@ def otel_exporter(environ: Mapping[str, str]) -> str:
     if exporter not in ("console", "none"):
         raise ValueError(f"OTEL_EXPORTER must be console or none, not {exporter!r}.")
     return exporter
+
+
+def admin_secret_key(environ: Mapping[str, str]) -> str | None:
+    """The admin area's signing key, or None (feature 011, research R3). Read on its own, so
+    mounting the admin area when the app is imported needs no DATABASE_URL."""
+    return environ.get("ADMIN_SECRET_KEY", "").strip() or None
 
 
 def telemetry_store(environ: Mapping[str, str]) -> bool:

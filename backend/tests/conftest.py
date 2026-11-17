@@ -17,6 +17,8 @@ import os
 os.environ.setdefault("OTEL_EXPORTER", "none")
 # Nor is it saved in the database unless a test turns that on itself (feature 011, FR-023).
 os.environ.setdefault("TELEMETRY_STORE", "off")
+# A synthetic key for the admin area's cookies, so tests don't each make a start-up key (011 R3).
+os.environ.setdefault("ADMIN_SECRET_KEY", "synthetic-test-admin-key")
 
 # pylint: disable=wrong-import-position
 from collections.abc import AsyncIterator, Iterator

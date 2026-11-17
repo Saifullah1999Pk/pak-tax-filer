@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.admin.site import AppSessions, build_admin
 from app.auth.router import router as auth_router
 from app.documents.router import router as documents_router
 from app.profile.router import router as profile_router
@@ -27,6 +28,8 @@ app.include_router(workflow_router)
 app.include_router(reports_router)
 # Request and database spans to the logs, for developers (feature 008, US3).
 configure_telemetry(app)
+# The internal admin area at /admin (feature 011).
+build_admin(app, AppSessions())
 
 
 @app.exception_handler(RequestValidationError)
