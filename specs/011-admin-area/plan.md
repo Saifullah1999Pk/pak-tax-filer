@@ -84,15 +84,17 @@ specs/011-admin-area/
 backend/
 ├── app/
 │   ├── admin/                 # new
-│   │   ├── __init__.py        # build_admin(app): the starlette-admin instance, views, mount
+│   │   ├── site.py            # build_admin(app): the starlette-admin instance, views, mount
+│   │   ├── models.py          # AdminAuditEntry (the convention: each area's tables in models.py)
 │   │   ├── auth.py            # AdminAuthProvider (R2)
 │   │   ├── views.py           # ModelViews + row actions (R5–R7), dashboard and telemetry views
 │   │   ├── actions.py         # the four actions as plain service functions (R7)
-│   │   ├── audit.py           # AdminAuditEntry model + record() (R8)
+│   │   ├── audit.py           # record() (R8)
 │   │   ├── overview.py        # account_overview(), dashboard counts (R6)
 │   │   └── templates/         # local overrides (R12) and the account overview panel
 │   ├── telemetry/
-│   │   ├── store.py           # new: TelemetrySpan model, DatabaseSpanExporter, writer (R9)
+│   │   ├── models.py          # new: TelemetrySpan
+│   │   ├── store.py           # new: DatabaseSpanExporter, writer, retention, summary (R9, R10)
 │   │   └── setup.py           # listener skips spans while instrumentation is suppressed
 │   ├── auth/
 │   │   ├── models.py          # User.is_admin, User.disabled_at
@@ -115,7 +117,7 @@ e2e/tests/admin.spec.ts        # admin sign-in and disable
 .importlinter                  # admin direct-import ban (R14)
 ```
 
-**Structure Decision**: one new backend package `app/admin/` (HTTP-facing views kept thin; logic in
+**Structure Decision** (amended during T005: tables in each area's `models.py`, the contract check's convention; the site in `site.py` so models import without the library): one new backend package `app/admin/` (HTTP-facing views kept thin; logic in
 `actions.py` and `overview.py` as plain functions, per the backend rules), one new telemetry module,
 and small changes to auth, tokens, settings, CLI and `main.py`.
 

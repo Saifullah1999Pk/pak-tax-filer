@@ -6,7 +6,7 @@ No identity fields beyond the login email (constitution, Principle V).
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, String, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -23,6 +23,11 @@ class User(Base):
     # Argon2 hash, never the password (FR-003).
     password_hash: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Feature 011: a staff account made by `create-admin` (never set on a taxpayer account); it can
+    # use the admin area and nothing else (FR-001, FR-002).
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    # Feature 011: set when an admin disables the account (null = active); refused everywhere.
+    disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Session(Base):
