@@ -13,6 +13,19 @@ normal for this kind of application and chose at each step). Source design:
 it needs a different database library and Redis, and hasn't been released since 2022).
 Constitution 1.3.0, to be amended (Principle VII) to include this feature.
 
+## Clarifications
+
+### Session 2026-11-17
+
+Resolved from the design without a question (Saifullah asked for review then build):
+
+- Q: Are admin sign-ins recorded in the audit log? → A: No; the audit log holds the four actions
+  and account-detail views, as decided in the design. Failed admin sign-ins are counted by the
+  sign-in throttle (FR-004).
+- Q: What happens when two admins act on the same account at once? → A: Each completed action
+  writes one audit entry; disabling or re-enabling twice is harmless; a delete of an account that
+  no longer exists tells the admin so and writes no entry.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See the app at a glance (Priority: P1)
@@ -136,6 +149,9 @@ a failure to save never fails a request, and that records older than 30 days are
 - An admin account tries to use the taxpayer app or the assistant's tools: refused as if signed
   out.
 - Re-enabling an account doesn't bring back its old access tokens.
+- Two admins acting on the same account at once: each completed action is recorded once;
+  repeating disable or re-enable is harmless; deleting an account already deleted says so and
+  records nothing.
 - A taxpayer with no profile: their account page shows no tax year and the tax result's refusal
   reason ("set your ATL status").
 
