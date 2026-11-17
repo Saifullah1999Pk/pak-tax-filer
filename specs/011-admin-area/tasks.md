@@ -98,7 +98,7 @@ audited, never on admins. **Independent test**: quickstart scenario 5.
 - [X] T033 Final checks: backend `docker compose exec -T backend pytest` (full), `uv run ruff format --check .`, `uv run pylint --recursive=y app alembic evals tests`, `uv run mypy app alembic evals tests`, `uv run lint-imports`, contract check `--all`; frontend tests, `tsc -b`, lint; e2e suite on the `pak-e2e` stack; restart the dev frontend if needed, then smoke-test `http://localhost:5173/admin` (sign in as a throwaway synthetic admin, open every page, delete the throwaway accounts after)
 - [X] T034 Reviews: `backend-reviewer` agent on the backend diff; `/speckit-converge` and `/speckit-analyze` before the PR; fix Medium and above
 - [X] T035 (manual) Saifullah signs off the two rewritten 004 worked examples (`backend/tests/tax/worked_examples.yaml`, `bank-profit-outside-the-*`) before any push
-- [ ] T037 (manual) Open a `[011]` GitHub issue linking spec.md and tasks.md (constitution: Traceability), like #47 for 010; ask Saifullah before posting it
+- [X] T037 (manual) Open a `[011]` GitHub issue linking spec.md and tasks.md (constitution: Traceability), like #47 for 010; ask Saifullah before posting it
 - [X] T036 (manual) One PR from `011-admin-area` (contains the 004 fix): "Needs your input" for the lead: starlette-admin instead of fastapi-admin, constitution 1.4.0, building before his spec/plan review, the 004 s.8(1)(a) change; ask Saifullah before pushing
 
 ---
