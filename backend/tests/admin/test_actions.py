@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 from admin_helpers import make_admin
 from conftest import make_user
-from document_helpers import add_confirmed_document
+from document_helpers import FakeBucketClient, add_confirmed_document
+from google.api_core.exceptions import Forbidden
 from sqlalchemy import event, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -226,3 +227,30 @@ async def test_delete_locks_the_account_before_reading_its_files(
     lock = next(i for i, s in enumerate(statements) if "FROM USERS" in s and "FOR UPDATE" in s)
     files = next(i for i, s in enumerate(statements) if "DOCUMENTS.FILE_PATH" in s)
     assert lock < files
+
+
+async def test_delete_removes_the_files_from_the_bucket_too(
+    db: AsyncSession, tmp_path: Path
+) -> None:
+    """Fails if deleting an account leaves its uploads in the private Cloud Storage bucket (the
+    deployed app's storage, feature 003 FR-018), or deletes the account when Google is down."""
+    admin = await make_admin(db)
+    user = await make_user(db, "alice@example.com")
+    client = FakeBucketClient()
+    storage = Storage(tmp_path, bucket="uploads", client=client)
+    for _ in range(2):
+        document = await add_confirmed_document(db, user.id, DocType.SALARY_CERTIFICATE, SALARY)
+        document.file_path = await storage.save(user.id, b"%PDF-1.4", "pdf", "application/pdf")
+    await db.flush()
+    assert len(client.buckets["uploads"]) == 2
+
+    client.fail = Forbidden("no access")  # type: ignore[no-untyped-call]  # google-api-core is untyped
+    with pytest.raises(actions.StorageDown):
+        await actions.delete_account(db, storage, admin.id, user.id)
+    assert len(client.buckets["uploads"]) == 2 and await count(db, Document) == 2
+
+    client.fail = None
+    await actions.delete_account(db, storage, admin.id, user.id)
+
+    assert not client.buckets["uploads"]
+    assert (await count(db, Document), await count(db, User)) == (0, 1)  # the admin remains
