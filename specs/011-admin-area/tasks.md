@@ -57,7 +57,7 @@ views audited. **Independent test**: quickstart scenarios 1–4.
 - [X] T018 [US1] Implement in `backend/app/admin/views.py`: `AccountView` (fields: email, created_at, is_admin, disabled_at; search on email; detail template `backend/app/admin/templates/account_detail.html` extending the library's detail with the overview panel; record lookup writes `view_account` when `request.state.action == RequestAction.DETAIL`), `DocumentView`, `CorpusDocumentView` (with passage counts), `AuditLogView`, dashboard as the index `CustomView` with `StatWidget`s; every view's `can_create/can_edit/can_delete/can_export/can_import` False, explicit `fields`; register them in `build_admin`
 - [X] T019 [P] [US1] Test first in `deploy/tests/test_caddyfile.py`: `deploy/Caddyfile` sends `/admin` and `/admin/*` to `backend:8000` before the static handler and keeps the four security headers; `frontend/vite.config.ts` proxies `/admin` to `http://backend:8000`
 - [X] T020 [US1] Implement the routing in `deploy/Caddyfile` and `frontend/vite.config.ts` (research R11)
-- [ ] T021 [US1] Research R12: if the installed `base.html` lets a local template drop the `rsms.me` font import cleanly, add the override under `backend/app/admin/templates/` with a test in `backend/tests/admin/test_pages.py` that no admin page references an outside host; otherwise record why in the PR
+- [X] T021 [US1] Research R12: if the installed `base.html` lets a local template drop the `rsms.me` font import cleanly, add the override under `backend/app/admin/templates/` with a test in `backend/tests/admin/test_pages.py` that no admin page references an outside host; otherwise record why in the PR
 
 **Checkpoint**: US1 works on its own (quickstart 1–4).
 

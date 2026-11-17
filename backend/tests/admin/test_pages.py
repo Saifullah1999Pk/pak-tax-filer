@@ -4,6 +4,7 @@ contracts/admin-pages.md, "Pages")."""
 import re
 import uuid
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlsplit
 
 import pytest
 from admin_helpers import ADMIN_EMAIL, admin_client, make_admin, sign_in
@@ -181,3 +182,31 @@ async def test_nothing_can_be_created_edited_deleted_exported_or_imported(
     for word in ('value="delete"', 'data-name="delete"', 'value="export', 'data-name="export'):
         assert word not in listing, word
     assert (await db.execute(select(func.count()).select_from(AdminAuditEntry))).scalar_one() == 0
+
+
+async def test_admin_pages_load_nothing_from_outside_sites(db: AsyncSession) -> None:
+    """Fails if an admin page makes the browser fetch from another site (research R12: the
+    library's base page imported a font from rsms.me)."""
+    await make_admin(db)
+    taxpayer = await make_user(db, "alice@example.com")
+
+    async with admin_client(db) as http:
+        login = (await http.get("/admin/login")).text
+        await sign_in(http)
+        pages = [login] + [
+            (await http.get(path)).text
+            for path in (
+                "/admin/",
+                "/admin/account/list",
+                f"/admin/account/detail?pk={taxpayer.id}",
+            )
+        ]
+
+    for page in pages:
+        loads = re.findall(
+            r'(?:src|href)="(https?://[^"]+)"|@import url\(\'?(https?://[^\')]+)', page
+        )
+        outside = [
+            url for pair in loads for url in pair if url and urlsplit(url).hostname != "test"
+        ]
+        assert outside == []

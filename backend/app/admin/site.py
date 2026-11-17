@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from jinja2 import PackageLoader, PrefixLoader
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette_admin.contrib.sqla import Admin
 
@@ -45,6 +46,10 @@ def build_admin(app: FastAPI, sessions: async_sessionmaker[AsyncSession]) -> Adm
         auth_provider=AdminAuthProvider(),
         secret_key=secret_key,
         templates_dir=str(Path(__file__).parent / "templates"),
+        # The library's own pages under a prefix, so our base.html can extend its base.html.
+        additional_loaders=[
+            PrefixLoader({"starlette_admin": PackageLoader("starlette_admin", "templates")})
+        ],
         index_view=dashboard_view(),
     )
     for view in model_views():

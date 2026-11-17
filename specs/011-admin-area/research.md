@@ -136,10 +136,10 @@ handler; Vite's dev proxy gets `"/admin": "http://backend:8000"`. Existing secur
 
 ## R12. Third-party requests
 
-**Decision:** the library's `base.html` imports the Inter font from `rsms.me`; the only outside
-request. Override it through a local template (`templates_dir`) if the template allows it cleanly
-in the installed version; otherwise keep it and say so in the PR. Admin pages load no other
-outside resource.
+**Decision (done in T021):** the library's `base.html` imported the Inter font from `rsms.me`.
+A local `app/admin/templates/base.html` extends the library's own copy (loaded under the
+`starlette_admin/` prefix by a `PrefixLoader`) and replaces only its `fonts` block with the system
+font stack. A test checks no admin page loads anything from another site.
 
 ## R13. Logging
 
