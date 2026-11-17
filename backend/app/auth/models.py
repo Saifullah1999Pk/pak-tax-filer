@@ -29,6 +29,12 @@ class User(Base):
     # Feature 011: set when an admin disables the account (null = active); refused everywhere.
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    @property
+    def can_use_app(self) -> bool:
+        """An active taxpayer account: admins and disabled accounts are refused by the app's
+        login, its sessions and access tokens, as if unknown (feature 011, FR-002, FR-014a)."""
+        return not self.is_admin and self.disabled_at is None
+
 
 class Session(Base):
     """Proof that a user is logged in; one per login (a user may have several)."""
