@@ -465,8 +465,8 @@ examples:
       - "Profit tax: 20% of 400,000 = 80,000; balance 80,000 - 80,000 = 0."
     expected: {blocked_reason: null, salary_tax: "6000", surcharge: "0", profit_tax: "80000",
                salary_balance: "0", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-17"
 
   - id: bank-profit-outside-the-surcharge-limit
     description: Salary just under 10,000,000; with the bank profit added it would be over. The
@@ -485,5 +485,5 @@ examples:
       - "Profit tax: 20% of 200,000 = 40,000; balance 40,000 - 40,000 = 0."
     expected: {blocked_reason: null, salary_tax: "2646000", surcharge: "0", profit_tax: "40000",
                salary_balance: "246000", profit_balance: "0", non_atl_extra_withheld: null}
-    signed_off_by: ""
-    signed_off_date: ""
+    signed_off_by: "Saifullah Khan"
+    signed_off_date: "2026-11-17"
