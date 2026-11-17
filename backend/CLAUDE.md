@@ -168,3 +168,30 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   still pass.
 - Database spans come from `instrument_engine` (our own listener: the SQLAlchemy
   instrumentation doesn't support SQLAlchemy 2.1); a new engine should be wrapped with it.
+
+## Admin area (feature 011)
+
+- `app/admin/`: starlette-admin mounted at `/admin` by `site.build_admin` (from `app.main`, with a
+  session factory built on first use, so importing the app needs no `DATABASE_URL`). Views are in
+  `views.py`; logic is in plain functions: `overview.py` (dashboard counts, the account overview),
+  `actions.py` (the four actions), `audit.py` (`record`, insert-only).
+- Admin accounts are staff-only (`User.is_admin`, made only by `create-admin`, never by promoting
+  an account): `User.can_use_app` keeps admin and disabled accounts out of the app's login,
+  `current_user` and the MCP token check. Admins sign in with the app's sessions under an
+  `admin_session` cookie (path `/admin`, 8 hours, SameSite=Strict) and their own throttle key.
+- Every view is read-only with explicit fields (no create, edit, delete, export, import; no secret
+  column). Viewing never changes data: a guided run is read as stored, never via
+  `workflow.service.get_run`. Opening an account's details and each action write one audit entry.
+- Actions never change figures or confirm documents (Principle III); deleting an account removes
+  stored files first, and stops with nothing deleted if storage can't be reached.
+- No AI in the admin area: `tests/guardrails/test_admin_no_ai.py` and the `no-ai-in-admin`
+  import-linter contract. The library's logger is set to CRITICAL: it logs typed login emails.
+- Admin tests use `admin_client` and `sign_in` from `tests/admin_helpers.py` (the admin on the
+  test's rolled-back connection; form posts need the `csrftoken` from the page).
+
+## Saved telemetry (feature 011)
+
+- `app/telemetry/store.py`: an exporter (added through `add_exporter`, so behind `ALLOWED`)
+  queues request and AI-call spans as rows of `telemetry_spans`; a writer in the app's lifespan
+  saves them every 5 s with instrumentation suppressed (no database spans of its own), deletes
+  rows older than 30 days, and never raises. `TELEMETRY_STORE=off` turns it off (tests and CI do).

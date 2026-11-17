@@ -15,7 +15,8 @@ an `api.yaml`. This file is what the tests check.
 
 **Session cookie** `admin_session`: `HttpOnly`; `Secure` unless `COOKIE_SECURE=false`;
 `SameSite=Strict`; `Path=/admin`; max age 8 hours; the value is a random token whose SHA-256 is
-stored in `sessions`. Sign-out deletes the session and clears the cookie.
+stored in `sessions`. Sign-out (a POST to `/admin/logout` with the CSRF token) deletes the session and
+clears the cookie. The login form labels the email field "Username" (the library's page; research R13).
 
 **Forms** carry the library's CSRF token (signed with `ADMIN_SECRET_KEY`, research R3).
 
