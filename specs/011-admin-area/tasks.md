@@ -99,7 +99,7 @@ audited, never on admins. **Independent test**: quickstart scenario 5.
 - [X] T034 Reviews: `backend-reviewer` agent on the backend diff; `/speckit-converge` and `/speckit-analyze` before the PR; fix Medium and above
 - [X] T035 (manual) Saifullah signs off the two rewritten 004 worked examples (`backend/tests/tax/worked_examples.yaml`, `bank-profit-outside-the-*`) before any push
 - [ ] T037 (manual) Open a `[011]` GitHub issue linking spec.md and tasks.md (constitution: Traceability), like #47 for 010; ask Saifullah before posting it
-- [ ] T036 (manual) One PR from `011-admin-area` (contains the 004 fix): "Needs your input" for the lead: starlette-admin instead of fastapi-admin, constitution 1.4.0, building before his spec/plan review, the 004 s.8(1)(a) change; ask Saifullah before pushing
+- [X] T036 (manual) One PR from `011-admin-area` (contains the 004 fix): "Needs your input" for the lead: starlette-admin instead of fastapi-admin, constitution 1.4.0, building before his spec/plan review, the 004 s.8(1)(a) change; ask Saifullah before pushing
 
 ---
 
