@@ -123,6 +123,10 @@ requests never wait for it. Setting `TELEMETRY_STORE` (`on`/`off`, default `on`)
 **Rationale:** the exporter thread can't use the async session; a queue plus one writer keeps
 inserts off the request path; production runs one process.
 
+**Found in T027:** each write is shielded from cancellation and the writer flushes the queue when
+the app stops, so stopping mid-write loses nothing; the clean-up runs on the first beat and then
+about hourly. Checked live in development: request rows saved with route templates only.
+
 ## R10. The telemetry page
 
 **Decision:** a `CustomView` at `/admin/telemetry` whose widgets read `telemetry_spans` for the last
