@@ -31,14 +31,14 @@ async def test_creates_an_admin_account(db: AsyncSession) -> None:
     out = io.StringIO()
 
     code = await create_admin_command(
-        db, " Admin@Example.com ", prompts("s3cret-pass", "s3cret-pass"), out
+        db, " Admin@Example.com ", prompts("admin-s3cret-pass", "admin-s3cret-pass"), out
     )
 
     assert code == 0
     assert out.getvalue().strip() == "Created admin admin@example.com"
     admin = (await db.execute(select(User))).scalar_one()
     assert admin.email == "admin@example.com" and admin.is_admin is True
-    assert verify_password("s3cret-pass", admin.password_hash)
+    assert verify_password("admin-s3cret-pass", admin.password_hash)
 
 
 async def test_never_turns_an_existing_account_into_an_admin(
@@ -46,11 +46,11 @@ async def test_never_turns_an_existing_account_into_an_admin(
 ) -> None:
     """Fails if create-admin promotes a taxpayer account (with its tax data) to an admin."""
     await create_user_command(
-        db, "taxpayer@example.com", prompts("s3cret-pass", "s3cret-pass"), io.StringIO()
+        db, "taxpayer@example.com", prompts("admin-s3cret-pass", "admin-s3cret-pass"), io.StringIO()
     )
 
     code = await create_admin_command(
-        db, "TAXPAYER@example.com", prompts("other-pass1", "other-pass1"), io.StringIO()
+        db, "TAXPAYER@example.com", prompts("other-admin-pass", "other-admin-pass"), io.StringIO()
     )
 
     assert code == 1
@@ -62,7 +62,7 @@ async def test_never_turns_an_existing_account_into_an_admin(
 async def test_mismatched_passwords_create_nothing(db: AsyncSession) -> None:
     """Fails if a typo in the second password still creates an admin."""
     code = await create_admin_command(
-        db, "admin@example.com", prompts("s3cret-pass", "s3cret-past"), io.StringIO()
+        db, "admin@example.com", prompts("admin-s3cret-pass", "admin-s3cret-past"), io.StringIO()
     )
 
     assert code == 1
@@ -85,3 +85,23 @@ def test_the_command_is_on_the_command_line(monkeypatch: pytest.MonkeyPatch) -> 
 
     assert cli.main(["create-admin", "--email", "admin@example.com"]) == 0
     assert called == {"email": "admin@example.com"}
+
+
+async def test_an_admin_password_needs_at_least_12_characters(
+    db: AsyncSession, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Fails if an internet-facing admin account can have a short password (review L5; the
+    taxpayer minimum of 8 stays)."""
+    code = await create_admin_command(
+        db, "admin@example.com", prompts("elevenchars", "elevenchars"), io.StringIO()
+    )
+
+    assert code == 1
+    assert "at least 12 characters" in capsys.readouterr().err
+    assert (await db.execute(select(func.count()).select_from(User))).scalar_one() == 0
+    assert (
+        await create_admin_command(
+            db, "admin@example.com", prompts("twelve-chars", "twelve-chars"), io.StringIO()
+        )
+        == 0
+    )

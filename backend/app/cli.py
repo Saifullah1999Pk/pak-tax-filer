@@ -25,6 +25,9 @@ from app.db import get_sessionmaker
 from app.tokens.service import TOKEN_DAYS, create_token, revoke_token
 
 DEFAULT_TOKEN_NAME = "MCP client"
+# The admin area is on the open internet, so admins need longer passwords than taxpayers'
+# 8 (feature 011, review L5).
+ADMIN_MIN_PASSWORD = 12
 
 
 async def create_user_command(
@@ -48,6 +51,12 @@ async def _create_account(
     password = prompt("Password: ")
     if prompt("Password again: ") != password:
         print("Passwords don't match; no user created.", file=sys.stderr)
+        return 1
+    if admin and len(password) < ADMIN_MIN_PASSWORD:
+        print(
+            f"Admin passwords must be at least {ADMIN_MIN_PASSWORD} characters; no user created.",
+            file=sys.stderr,
+        )
         return 1
     try:
         user = await create_user(db, email, password)

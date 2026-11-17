@@ -57,7 +57,8 @@ None of the actions is offered for an admin account.
 python -m app.cli create-admin --email admin@example.com
 ```
 
-Prompts for the password twice (as `create-user`). Refuses an email that already has an account
+Prompts for the password twice (as `create-user`); an admin password needs at least 12 characters
+(taxpayers' stay 8; added after review L5). Refuses an email that already has an account
 ("A user with that email already exists.", as `create-user`), never promotes a taxpayer account. Exit 0 on
 success, 1 on refusal.
 

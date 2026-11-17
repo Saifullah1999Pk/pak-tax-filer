@@ -66,7 +66,7 @@ or choose **Create an account** (the `create-user` command is optional).
 
 The internal admin area is at `https://34-123-45-67.sslip.io/admin` (feature 011). Admin accounts
 are staff-only and made only from the command line (a new account each time; you're asked for the
-password twice):
+password twice; at least 12 characters):
 
 ```bash
 docker compose -f docker-compose.prod.yml exec backend python -m app.cli create-admin --email you@example.com
