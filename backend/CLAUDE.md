@@ -69,6 +69,10 @@ looks for pylint in the repo-root `.venv` for now (proposed change: task T043); 
   Never compute, round or "check" a figure with an LLM. No AI summary (removed 2026-11-16, the
   lead: AI only where reasoning is needed): `tax_summary` in `app/tax/breakdown.py` writes the
   result's `summary` from its own amounts, never the two sides added together.
+- Bank profit under s.7B is a final tax outside taxable income (s.8(1)(a)), in this engine as in
+  the calculator: `taxable_income()` is the salary, so the 75% test and the Rs 10 million
+  surcharge limit never depend on bank profit (amended 2026-11-17; the provisional
+  `salary_share_ambiguous` and `surcharge_ambiguous` refusals were removed).
 - Tests never call the real AI: the autouse `no_real_ai` fixture fakes the extractor and the
   assistant.
 
