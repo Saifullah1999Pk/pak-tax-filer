@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette_admin.contrib.sqla import Admin
 
 from app.admin.auth import AdminAuthProvider
-from app.admin.views import dashboard_view, model_views
+from app.admin.views import dashboard_view, model_views, telemetry_view
 from app.db import get_sessionmaker
 from app.documents.router import get_storage
 from app.documents.storage import Storage
@@ -62,5 +62,6 @@ def build_admin(
     )
     for view in model_views(storage or get_storage):
         admin.add_view(view)
+    admin.add_view(telemetry_view())
     admin.mount_to(app)
     return admin

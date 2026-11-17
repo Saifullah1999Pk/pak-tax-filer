@@ -7,6 +7,7 @@ details records one audit entry (FR-016); list pages record nothing.
 
 import uuid
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -21,6 +22,7 @@ from starlette_admin import (
     RequestAction,
     StatWidget,
     StringField,
+    TableWidget,
 )
 from starlette_admin.actions import row_action
 from starlette_admin.contrib.sqla import ModelView
@@ -34,6 +36,7 @@ from app.auth.models import User
 from app.documents.models import DocStatus, DocType, Document
 from app.documents.storage import Storage
 from app.rag.models import CorpusDocument, DocumentKind, Passage
+from app.telemetry.store import telemetry_summary
 
 
 ACCOUNT_ACTIONS = frozenset(
@@ -268,6 +271,53 @@ def _constant(value: str) -> Any:
         return value
 
     return callback
+
+
+def _rows(rows: list[list[Any]]) -> Any:
+    async def callback(_request: Request) -> list[list[Any]]:
+        return rows
+
+    return callback
+
+
+async def telemetry(request: Request) -> BaseWidget:
+    """The telemetry page: the last 30 days of requests and AI calls (FR-022)."""
+    summary = await telemetry_summary(request.state.session, datetime.now(UTC))
+    tables: list[tuple[str, list[str], list[list[Any]]]] = [
+        (
+            "Requests per day",
+            ["Day", "Requests"],
+            [[str(d), n] for d, n in summary.requests_per_day],
+        ),
+        (
+            "Slowest pages",
+            ["Page", "Requests", "Median ms", "95th percentile ms"],
+            [[r.route, r.requests, r.median_ms, r.p95_ms] for r in summary.slowest_routes],
+        ),
+        ("AI calls", ["Feature", "Outcome", "Calls"], [list(c) for c in summary.ai_calls]),
+        ("AI call duration", ["Feature", "Median ms"], [list(d) for d in summary.ai_duration]),
+        (
+            "Tokens per day",
+            ["Day", "Input tokens", "Output tokens"],
+            [[str(d), i, o] for d, i, o in summary.tokens_per_day],
+        ),
+    ]
+    return GridWidget(
+        children=[
+            StatWidget(
+                "Server errors (last 30 days)",
+                _constant(f"{summary.server_error_share:.1f}% of requests"),
+            ),
+            *(TableWidget(title, columns, _rows(rows)) for title, columns, rows in tables),
+        ]
+    )
+
+
+def telemetry_view() -> CustomView:
+    """The telemetry page at /admin/telemetry."""
+    return CustomView(
+        menu_label="Telemetry", icon="fa fa-chart-line", path="/telemetry", widget=telemetry
+    )
 
 
 def dashboard_view() -> CustomView:

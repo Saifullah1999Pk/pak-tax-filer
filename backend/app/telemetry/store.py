@@ -13,7 +13,8 @@ import logging
 from collections import deque
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import anyio
@@ -21,7 +22,7 @@ from opentelemetry.instrumentation.utils import suppress_instrumentation
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import SpanKind, StatusCode
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.settings import telemetry_store
@@ -173,3 +174,93 @@ async def writer(
         finally:
             tasks.cancel_scope.cancel()
     await _beat(sessions, queue, clean_up=False)  # what was queued since the last beat
+
+
+# ---- The telemetry page's figures (T029; FR-022) ----
+
+SLOWEST = 10
+
+
+@dataclass(frozen=True)
+class RouteTiming:
+    """How long one page took: typical (median) and worst-case (95th percentile)."""
+
+    route: str
+    requests: int
+    median_ms: float
+    p95_ms: float
+
+
+@dataclass(frozen=True)
+class TelemetrySummary:  # pylint: disable=too-many-instance-attributes  # one field per figure
+    """The last 30 days, as the telemetry page shows them."""
+
+    requests_per_day: list[tuple[date, int]]
+    server_error_share: float  # percent of requests answered 5xx
+    slowest_routes: list[RouteTiming]
+    ai_calls: list[tuple[str, str, int]]  # feature, outcome, calls
+    ai_duration: list[tuple[str, float]]  # feature, median milliseconds
+    tokens_per_day: list[tuple[date, int, int]]  # day, input, output
+
+
+async def telemetry_summary(db: AsyncSession, now: datetime) -> TelemetrySummary:
+    """FR-022's figures for the 30 days before `now` (days in UTC)."""
+    recent = TelemetrySpan.started_at >= now - KEEP
+    is_request = TelemetrySpan.kind == "request"
+    is_ai = TelemetrySpan.kind == "ai"
+    day = func.date(func.timezone("UTC", TelemetrySpan.started_at))
+    median = func.percentile_cont(0.5).within_group(TelemetrySpan.duration_ms)
+    p95 = func.percentile_cont(0.95).within_group(TelemetrySpan.duration_ms)
+
+    per_day = await db.execute(
+        select(day, func.count()).where(recent, is_request).group_by(day).order_by(day)
+    )
+    total, failed = (
+        await db.execute(
+            select(
+                func.count(),
+                func.count().filter(TelemetrySpan.status_code >= 500),
+            ).where(recent, is_request)
+        )
+    ).one()
+    routes = await db.execute(
+        select(TelemetrySpan.route, func.count(), median, p95)
+        .where(recent, is_request)
+        .group_by(TelemetrySpan.route)
+        .order_by(p95.desc())
+        .limit(SLOWEST)
+    )
+    calls = await db.execute(
+        select(TelemetrySpan.feature, TelemetrySpan.outcome, func.count())
+        .where(recent, is_ai)
+        .group_by(TelemetrySpan.feature, TelemetrySpan.outcome)
+        .order_by(TelemetrySpan.feature, TelemetrySpan.outcome)
+    )
+    durations = await db.execute(
+        select(TelemetrySpan.feature, median)
+        .where(recent, is_ai)
+        .group_by(TelemetrySpan.feature)
+        .order_by(TelemetrySpan.feature)
+    )
+    tokens = await db.execute(
+        select(
+            day,
+            func.coalesce(func.sum(TelemetrySpan.input_tokens), 0),
+            func.coalesce(func.sum(TelemetrySpan.output_tokens), 0),
+        )
+        .where(recent, is_ai, TelemetrySpan.input_tokens.is_not(None))
+        .having(func.coalesce(func.sum(TelemetrySpan.input_tokens), 0) > 0)
+        .group_by(day)
+        .order_by(day)
+    )
+    return TelemetrySummary(
+        requests_per_day=[(d, int(n)) for d, n in per_day],
+        server_error_share=100.0 * failed / total if total else 0.0,
+        slowest_routes=[
+            RouteTiming(route or "", int(n), round(float(m), 1), round(float(p), 1))
+            for route, n, m, p in routes
+        ],
+        ai_calls=[(feature or "", outcome or "", int(n)) for feature, outcome, n in calls],
+        ai_duration=[(feature or "", round(float(m), 1)) for feature, m in durations],
+        tokens_per_day=[(d, int(i), int(o)) for d, i, o in tokens],
+    )

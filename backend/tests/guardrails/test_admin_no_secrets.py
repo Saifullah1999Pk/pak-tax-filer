@@ -40,6 +40,7 @@ async def test_no_admin_page_shows_a_secret(db: AsyncSession) -> None:
 
     pages = [
         "/admin/",
+        "/admin/telemetry",
         f"/admin/account/detail?pk={taxpayer.id}",
         f"/admin/account/detail?pk={admin.id}",
         *(f"/admin/{key}/list" for key in ("account", "document", "corpus-document", "audit-log")),
