@@ -161,10 +161,12 @@ app still needs no `DATABASE_URL`.
 
 ## R14. Keeping AI out
 
-**Decision:** a new import-linter contract for `app.admin` that forbids **direct** imports of
-`google`, `app.documents.extraction`, `app.rag.answer`, `app.rag.embed` and `app.rag.service`
-(`allow_indirect_imports = True`), plus a guardrail test: with the extractor, answerer and embedder
-faked to fail on any call, every admin page and all four actions still work (FR-024).
+**Decision (amended in T030):** a new import-linter contract for `app.admin` that forbids
+**direct** imports of `google`, `app.documents.extraction`, `app.rag.answer` and `app.rag.embed`
+(`allow_indirect_imports = True`), plus a guardrail test: with Google's client made to fail on
+creation, every admin page and all four actions still work (FR-024). `app.rag.service` isn't
+banned: the dashboard takes the Ask page's hourly limit from it, and it calls no model itself.
+Faking the app's AI dependencies wouldn't prove anything here, since the admin area takes none.
 
 **Why not the existing contract:** the admin area reads confirmed documents through
 `app.documents.service.confirmed_documents` (the only sanctioned path, Principle III), and that
