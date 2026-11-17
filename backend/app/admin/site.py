@@ -7,6 +7,7 @@ importing the app needs no DATABASE_URL), or one bound to a test's rolled-back c
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starlette_admin.contrib.sqla import Admin
 
 from app.admin.auth import AdminAuthProvider
+from app.admin.views import dashboard_view, model_views
 from app.db import get_sessionmaker
 from app.settings import admin_secret_key
 
@@ -42,6 +44,10 @@ def build_admin(app: FastAPI, sessions: async_sessionmaker[AsyncSession]) -> Adm
         base_url="/admin",
         auth_provider=AdminAuthProvider(),
         secret_key=secret_key,
+        templates_dir=str(Path(__file__).parent / "templates"),
+        index_view=dashboard_view(),
     )
+    for view in model_views():
+        admin.add_view(view)
     admin.mount_to(app)
     return admin

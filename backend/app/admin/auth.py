@@ -79,6 +79,7 @@ class AdminAuthProvider(AuthProvider):
         if not is_admin(user):
             return None
         assert user is not None
+        request.state.admin_id = user.id  # for the audit log
         return AdminUser(username=user.email)
 
     async def logout(self, request: Request) -> Response | None:
