@@ -15,6 +15,8 @@ import os
 # Telemetry stays quiet in tests unless a test collects spans itself (feature 008): set before
 # the app and its settings are imported.
 os.environ.setdefault("OTEL_EXPORTER", "none")
+# Nor is it saved in the database unless a test turns that on itself (feature 011, FR-023).
+os.environ.setdefault("TELEMETRY_STORE", "off")
 
 # pylint: disable=wrong-import-position
 from collections.abc import AsyncIterator, Iterator

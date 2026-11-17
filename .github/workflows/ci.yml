@@ -106,6 +106,7 @@ jobs:
       - name: Contract check
         env:
           OTEL_EXPORTER: none
+          TELEMETRY_STORE: "off"
         run: uv run --project backend python scripts/validate_contracts.py --all
 
   # The real app in a real browser (Playwright, Chromium), with a fake Gemini so no test reaches
