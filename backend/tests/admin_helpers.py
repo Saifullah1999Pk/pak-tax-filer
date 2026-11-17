@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.admin.site import build_admin
 from app.auth.models import User
 from app.auth.passwords import hash_password
+from app.documents.storage import Storage
 
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = "admin-s3cret-pass"
@@ -30,14 +31,17 @@ async def make_admin(db: AsyncSession, email: str = ADMIN_EMAIL) -> User:
 
 
 @asynccontextmanager
-async def admin_client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
-    """A client for a fresh app whose admin area uses the test's rolled-back connection."""
+async def admin_client(
+    db: AsyncSession, storage: Storage | None = None
+) -> AsyncIterator[AsyncClient]:
+    """A client for a fresh app whose admin area uses the test's rolled-back connection (and
+    `storage` for uploaded files, if given)."""
     connection = await db.connection()
     sessions = async_sessionmaker(
         bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False
     )
     app = FastAPI()
-    build_admin(app, sessions)
+    build_admin(app, sessions, storage=(lambda: storage) if storage else None)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://test") as http:
         yield http
 
@@ -59,4 +63,16 @@ async def sign_in(
     return await http.post(
         "/admin/login",
         data={"username": email, "password": password, "csrftoken": csrf_token(page.text)},
+    )
+
+
+async def row_action(
+    http: AsyncClient, name: str, pk: object, page: str = "/admin/account/list"
+) -> Response:
+    """Post an account row action (with the CSRF token from `page`), as the page's button does."""
+    token = csrf_token((await http.get(page)).text)
+    return await http.post(
+        "/admin/_api/account/row-action",
+        params={"pk": str(pk), "name": name},
+        data={"csrftoken": token},
     )

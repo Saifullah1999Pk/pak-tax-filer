@@ -8,6 +8,7 @@ importing the app needs no DATABASE_URL), or one bound to a test's rolled-back c
 import logging
 import os
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI
@@ -18,6 +19,8 @@ from starlette_admin.contrib.sqla import Admin
 from app.admin.auth import AdminAuthProvider
 from app.admin.views import dashboard_view, model_views
 from app.db import get_sessionmaker
+from app.documents.router import get_storage
+from app.documents.storage import Storage
 from app.settings import admin_secret_key
 
 
@@ -32,8 +35,13 @@ class AppSessions(async_sessionmaker[AsyncSession]):
         return get_sessionmaker()(**local_kw)
 
 
-def build_admin(app: FastAPI, sessions: async_sessionmaker[AsyncSession]) -> Admin:
-    """Mount the admin area on `app` at /admin and return it."""
+def build_admin(
+    app: FastAPI,
+    sessions: async_sessionmaker[AsyncSession],
+    storage: Callable[[], Storage] | None = None,
+) -> Admin:
+    """Mount the admin area on `app` at /admin and return it; `storage` gives the uploaded
+    files' storage (the app's own by default; tests pass a temporary folder's)."""
     # The library logs typed login emails and record ids at INFO and WARNING; personal data
     # never reaches our logs (.claude/rules/security.md), so only its critical errors do.
     logging.getLogger("starlette_admin").setLevel(logging.CRITICAL)
@@ -52,7 +60,7 @@ def build_admin(app: FastAPI, sessions: async_sessionmaker[AsyncSession]) -> Adm
         ],
         index_view=dashboard_view(),
     )
-    for view in model_views():
+    for view in model_views(storage or get_storage):
         admin.add_view(view)
     admin.mount_to(app)
     return admin

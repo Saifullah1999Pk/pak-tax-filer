@@ -5,6 +5,8 @@ and fields are listed explicitly, so no secret column is ever shown (FR-013). Op
 details records one audit entry (FR-016); list pages record nothing.
 """
 
+import uuid
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sqlalchemy import func, select
@@ -20,15 +22,23 @@ from starlette_admin import (
     StatWidget,
     StringField,
 )
+from starlette_admin.actions import row_action
 from starlette_admin.contrib.sqla import ModelView
+from starlette_admin.exceptions import ActionFailed
 from starlette_admin.widgets import BaseWidget
 
-from app.admin import audit
+from app.admin import actions, audit
 from app.admin.models import AdminAuditEntry
 from app.admin.overview import Limit, account_overview, dashboard_counts
 from app.auth.models import User
 from app.documents.models import DocStatus, DocType, Document
+from app.documents.storage import Storage
 from app.rag.models import CorpusDocument, DocumentKind, Passage
+
+
+ACCOUNT_ACTIONS = frozenset(
+    {"disable", "enable", "delete_account", "sign_out_everywhere", "reset_reading_limit"}
+)
 
 
 class ReadOnlyView(ModelView):
@@ -59,7 +69,12 @@ async def _email(request: Request, user_id: Any) -> str:
 
 
 class AccountView(ReadOnlyView):
-    """Accounts: email, created, admin, disabled; search by email; the overview on the detail."""
+    """Accounts: email, created, admin, disabled; search by email; the overview on the detail;
+    the four actions on taxpayer accounts (T025)."""
+
+    def __init__(self, storage: Callable[[], Storage], **kwargs: Any) -> None:
+        super().__init__(User, **kwargs)
+        self._storage = storage
 
     fields = [
         StringField("email"),
@@ -79,6 +94,75 @@ class AccountView(ReadOnlyView):
             request.state.overview = await account_overview(db, account)
             await audit.record(db, request.state.admin_id, "view_account", account.id)
         return account
+
+    async def is_row_action_allowed_for_obj(self, request: Request, name: str, obj: Any) -> bool:
+        """No account action on an admin account; Disable or Re-enable by state."""
+        if name in ACCOUNT_ACTIONS and obj.is_admin:
+            return False
+        if name == "disable":
+            return obj.disabled_at is None
+        if name == "enable":
+            return obj.disabled_at is not None
+        return await super().is_row_action_allowed_for_obj(request, name, obj)
+
+    async def _act(self, request: Request, pk: Any, action: Callable[..., Awaitable[None]]) -> None:
+        try:
+            await action(request.state.session, request.state.admin_id, uuid.UUID(str(pk)))
+        except (actions.AccountGone, actions.TargetIsAdmin, actions.StorageDown) as refused:
+            raise ActionFailed(str(refused)) from refused
+
+    @row_action(
+        name="disable",
+        text="Disable",
+        confirmation="Disable this account? The user is signed out and can't sign in.",
+        submit_btn_class="btn-danger",
+    )
+    async def disable_row(self, request: Request, pk: Any) -> str:
+        """FR-014(a)."""
+        await self._act(request, pk, actions.disable_account)
+        return "Account disabled."
+
+    @row_action(name="enable", text="Re-enable", confirmation="Re-enable this account?")
+    async def enable_row(self, request: Request, pk: Any) -> str:
+        """FR-014(b)."""
+        await self._act(request, pk, actions.enable_account)
+        return "Account re-enabled."
+
+    @row_action(
+        name="delete_account",
+        text="Delete account",
+        confirmation="Delete this account and all its data? This can't be undone.",
+        submit_btn_class="btn-danger",
+    )
+    async def delete_row(self, request: Request, pk: Any) -> str:
+        """FR-014(c): files first, then the account."""
+        storage = self._storage()
+
+        async def delete(db: Any, admin_id: uuid.UUID, user_id: uuid.UUID) -> None:
+            await actions.delete_account(db, storage, admin_id, user_id)
+
+        await self._act(request, pk, delete)
+        return "Account deleted."
+
+    @row_action(
+        name="sign_out_everywhere",
+        text="Sign out everywhere",
+        confirmation="Sign this user out on every device?",
+    )
+    async def sign_out_row(self, request: Request, pk: Any) -> str:
+        """FR-014(d)."""
+        await self._act(request, pk, actions.sign_out_everywhere)
+        return "Signed out everywhere."
+
+    @row_action(
+        name="reset_reading_limit",
+        text="Reset reading limit",
+        confirmation="Clear this user's document readings from the last 24 hours?",
+    )
+    async def reset_row(self, request: Request, pk: Any) -> str:
+        """FR-014(e)."""
+        await self._act(request, pk, actions.reset_reading_limit)
+        return "Reading limit reset."
 
 
 class OwnerEmail(ComputedField):
@@ -191,10 +275,10 @@ def dashboard_view() -> CustomView:
     return CustomView(menu_label="Dashboard", icon="fa fa-gauge", widget=dashboard)
 
 
-def model_views() -> list[ModelView]:
-    """Every model view, in menu order."""
+def model_views(storage: Callable[[], Storage]) -> list[ModelView]:
+    """Every model view, in menu order; `storage` gives the uploaded files' storage."""
     return [
-        AccountView(User, key="account", menu_label="Accounts", icon="fa fa-users"),
+        AccountView(storage, key="account", menu_label="Accounts", icon="fa fa-users"),
         DocumentView(Document, key="document", menu_label="Documents", icon="fa fa-file"),
         CorpusDocumentView(
             CorpusDocument, key="corpus-document", menu_label="Law library", icon="fa fa-book"
