@@ -22,7 +22,7 @@ reason first. Backend tests run in Docker: `docker compose exec -T backend pytes
 
 ## Phase 1: Setup
 
-- [ ] T001 Add `starlette-admin>=1.0.3,<2` to `backend/pyproject.toml` with `uv add` (updates `backend/uv.lock`), rebuild the backend image (`docker compose build backend`, from PowerShell) and check `docker compose exec backend python -c "import starlette_admin"`; record the reason in the commit (research R1)
+- [X] T001 Add `starlette-admin>=1.0.3,<2` to `backend/pyproject.toml` with `uv add` (updates `backend/uv.lock`), rebuild the backend image (`docker compose build backend`, from PowerShell) and check `docker compose exec backend python -c "import starlette_admin"`; record the reason in the commit (research R1)
 - [ ] T002 Test first in `backend/tests/test_settings.py`: `ADMIN_SECRET_KEY` read into `admin_secret_key` (None when unset, absent from `repr`); `TELEMETRY_STORE` read into `telemetry_store` as `on`/`off` (default `on`, anything else refused like `OTEL_EXPORTER`); `backend/tests/conftest.py` sets `TELEMETRY_STORE=off` with `setdefault`, as it does for `OTEL_EXPORTER`
 - [ ] T003 Implement both settings in `backend/app/settings.py` (`admin_secret_key: str | None = field(default=None, repr=False)`, `telemetry_store: bool`) and the conftest default; CI's env in `.github/workflows/ci.yml` gets `TELEMETRY_STORE: off` beside `OTEL_EXPORTER: none`
 
