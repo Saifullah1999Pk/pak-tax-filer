@@ -47,7 +47,7 @@ ended by deleting its row; no second session system.
 
 **Decision:** `Admin(secret_key=...)` from a new optional setting `ADMIN_SECRET_KEY` (kept out of
 `repr`). When unset, the library generates a random key at start-up (its documented fallback) and
-we log one warning without the key.
+warns once itself, without the key (amended in T013: our own warning was a duplicate).
 
 **Rationale:** the library signs its CSRF token and flash messages with this key. One backend
 process runs in production, so a start-up key works; it only means admin forms open across a

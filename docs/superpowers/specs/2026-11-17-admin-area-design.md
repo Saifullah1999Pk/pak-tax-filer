@@ -142,7 +142,7 @@ managed from the command line), so no admin can lock the others out.
 
 ### Audit log
 - Table `admin_audit_log`: id, admin user id, action (`view_account`, `disable`, `enable`,
-  `delete_account`, `sign_out_everywhere`, `reset_ai_limit`), target user id, at. No foreign key
+  `delete_account`, `sign_out_everywhere`, `reset_reading_limit`), target user id, at. No foreign key
   on either user id, so entries survive any account's deletion; no email, figures or other
   content. The page shows the emails of accounts that still exist, else the ID.
 - Insert only: no update or delete path in code; never cleaned up automatically.
