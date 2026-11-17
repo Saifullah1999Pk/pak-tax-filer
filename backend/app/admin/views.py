@@ -316,7 +316,11 @@ async def telemetry(request: Request) -> BaseWidget:
 def telemetry_view() -> CustomView:
     """The telemetry page at /admin/telemetry."""
     return CustomView(
-        menu_label="Telemetry", icon="fa fa-chart-line", path="/telemetry", widget=telemetry
+        menu_label="Telemetry",
+        icon="fa fa-chart-line",
+        path="/telemetry",
+        route_name="telemetry",
+        widget=telemetry,
     )
 
 

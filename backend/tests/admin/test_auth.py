@@ -52,6 +52,7 @@ async def test_an_admin_signs_in_with_the_admin_cookie(
 
     cookie = response.headers["set-cookie"]
     assert response.status_code == 303
+    assert response.headers["location"].endswith("/admin/")  # the dashboard, not another page
     assert cookie.startswith("admin_session=")
     for part in ("HttpOnly", "SameSite=strict", "Path=/admin", "Max-Age=28800"):
         assert part.lower() in cookie.lower(), part

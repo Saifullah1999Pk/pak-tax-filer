@@ -31,6 +31,11 @@ def test_caddy_keeps_its_security_headers() -> None:
         assert header in CADDYFILE, header
 
 
-def test_vite_proxies_admin_in_development() -> None:
-    """Fails if /admin on the dev server (localhost:5173) doesn't reach the backend."""
-    assert re.search(r'"/admin":\s*"http://backend:8000"', VITE)
+def test_vite_proxies_admin_in_development_keeping_the_host() -> None:
+    """Fails if /admin on the dev server (localhost:5173) doesn't reach the backend, or reaches it
+    with the Host rewritten: the admin library builds absolute links from the Host, so they would
+    point at backend:8000, which the browser can't reach (found by the e2e test)."""
+    match = re.search(r'"/admin":\s*\{([^}]*)\}', VITE)
+    assert match, "no /admin proxy entry"
+    assert 'target: "http://backend:8000"' in match.group(1)
+    assert "changeOrigin: false" in match.group(1)
